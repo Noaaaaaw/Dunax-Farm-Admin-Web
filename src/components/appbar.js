@@ -126,7 +126,7 @@ const AppBar = {
 
     // Handle Logout
     const doLogout = () => {
-      if (confirm('Yakin mau keluar sistem, bro?')) {
+      if (confirm('Yakin mau keluar sistem?')) {
         AuthService.logout();
         window.location.hash = '#/login';
       }

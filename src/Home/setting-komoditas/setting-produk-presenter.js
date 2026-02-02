@@ -1,96 +1,104 @@
-import { CONFIG } from '../../config.js'; 
+import { CONFIG } from '../../config.js';
 
 class SettingProdukPresenter {
   constructor({ container, categoryId }) {
     this.container = container;
     this.categoryId = categoryId;
-    this.baseUrl = 'http://localhost:5000';
+    this.baseUrl = CONFIG.BASE_URL; // Otomatis nembak ke Railway
   }
 
   async init() {
     const displayTitle = this.categoryId.replace(/-/g, ' ').toUpperCase();
 
-    this.container.style.background = 'transparent';
-    this.container.style.padding = '0';
-    this.container.style.boxShadow = 'none';
-    this.container.style.border = 'none';
+    // Reset styling container agar bersih
+    this.container.style.cssText = 'background: transparent; padding: 0; boxShadow: none; border: none;';
 
     this.container.innerHTML = `
-      <div class="page-header-card" style="background: white !important; margin-bottom: 30px !important;">
-        <h1>SETTING PRODUK ${displayTitle}</h1>
-        <p>Atur stok persediaan dan harga produk kategori ${displayTitle} secara real-time melalui sistem Cloud.</p>
+      <div class="page-header-card" style="background: white !important; margin-bottom: 30px !important; padding: 20px; border-radius: 15px;">
+        <h1 style="font-weight: 900;">SETTING PRODUK ${displayTitle}</h1>
+        <p style="color: #666;">Kelola stok persediaan dan harga produk kategori ${displayTitle} secara real-time.</p>
       </div>
 
-      <div id="productGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; align-items: stretch; padding: 10px 0; background: transparent !important;">
-         <div style="padding: 100px; text-align: center; grid-column: 1/-1; color: #888; font-weight: 600;">
-            Menghubungkan ke database cloud...
+      <div id="productGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; align-items: stretch; padding: 10px 0;">
+         <div style="padding: 100px; text-align: center; grid-column: 1/-1; color: #41644A; font-weight: 800;">
+            <p>⏳ Menghubungkan ke database</p>
          </div>
       </div>
     `;
 
     try {
+      // ✅ Ambil data produk spesifik dari Backend Railway
       const response = await fetch(`${this.baseUrl}/commodities/${this.categoryId}`);
       const result = await response.json();
       
       if (result.status === 'success' && result.data.details.length > 0) {
         this._renderProducts(result.data.details);
       } else {
-
-        document.getElementById('productGrid').innerHTML = `
-          <div style="grid-column: 1/-1; text-align: center; padding: 80px; background: white; border-radius: 30px; border: 2px dashed #eef2ed;">
-            <p style="color: #666; font-weight: bold; font-size: 1.2rem;">Belum ada produk di kategori ini, bro! 📦</p>
-            <button onclick="location.hash='#/jual-komoditas'" style="margin-top: 20px; padding: 15px 30px; background: #41644A; color: white; border: none; border-radius: 15px; cursor: pointer; font-weight: 800;">Tambah Produk Baru</button>
-          </div>`;
+        this._renderEmptyState();
       }
     } catch (err) {
-      document.getElementById('productGrid').innerHTML = `<p style="text-align: center; color: red; grid-column: 1/-1; padding: 40px;">⚠️ Gagal konek ke server!</p>`;
+      console.error("Gagal load produk:", err);
+      document.getElementById('productGrid').innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: red; font-weight: 800;">
+          ⚠️ Gagal konek ke Server!
+        </div>`;
     }
   }
 
+  _renderEmptyState() {
+    document.getElementById('productGrid').innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 80px; background: white; border-radius: 30px; border: 2px dashed #eef2ed;">
+        <p style="color: #666; font-weight: bold; font-size: 1.2rem;">Belum ada produk di kategori ini, bro! 📦</p>
+        <button onclick="location.hash='#/jual-komoditas'" style="margin-top: 20px; padding: 15px 30px; background: #41644A; color: white; border: none; border-radius: 15px; cursor: pointer; font-weight: 800;">Tambah Produk Sekarang</button>
+      </div>`;
+  }
+
   _renderProducts(products) {
-    const grid = document.getElementById('productGrid')
+    const grid = document.getElementById('productGrid');
     
     grid.innerHTML = products.map((p, index) => `
-      <div class="setting-card" id="card-${index}" style="background: white !important; padding: 40px 30px !important; border-radius: 32px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.04) !important; border: 1px solid #e0eadd !important; position: relative; display: flex; flex-direction: column; transition: 0.3s;">
+      <div class="setting-card" id="card-${index}" style="background: white; padding: 40px 30px; border-radius: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e0eadd; position: relative; display: flex; flex-direction: column;">
         
         <button class="delete-prod-btn" data-id="${p.id}" data-nama="${p.nama}" 
-                style="position: absolute; top: 20px; right: 20px; background: #fee2e2; border: none; width: 35px; height: 35px; border-radius: 50%; color: #dc2626; font-weight: 900; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                style="position: absolute; top: 20px; right: 20px; background: #fee2e2; border: none; width: 35px; height: 35px; border-radius: 50%; color: #dc2626; font-weight: 900; cursor: pointer;">
           &times;
         </button>
 
-        <h3 style="font-size: 1.8rem; margin-bottom: 30px; color: #1f3326; font-weight: 900; letter-spacing: -0.5px;">${p.nama}</h3>
+        <h3 style="font-size: 1.6rem; margin-bottom: 25px; color: #1f3326; font-weight: 900;">${p.nama}</h3>
         
         <div style="display: flex; gap: 15px; margin-bottom: 25px;">
           <div style="flex: 1;">
-            <label style="display: block; font-size: 0.7rem; font-weight: 950; color: #4a5a4d; margin-bottom: 10px; text-transform: uppercase;">Harga (Rp)</label>
-            <input type="number" class="prod-harga" value="${p.harga}" disabled style="width: 100%; padding: 16px; border: 2px solid #f4f6f4; background: #f9fbf9; border-radius: 15px; font-weight: 800; text-align: center; color: #1f3326;">
+            <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-transform: uppercase;">Harga (Rp)</label>
+            <input type="number" class="prod-harga" value="${p.harga}" disabled style="width: 100%; padding: 14px; border: 2px solid #f4f6f4; background: #f9fbf9; border-radius: 12px; font-weight: 800; text-align: center;">
           </div>
           <div style="flex: 1;">
-            <label style="display: block; font-size: 0.7rem; font-weight: 950; color: #4a5a4d; margin-bottom: 10px; text-transform: uppercase;">Stok</label>
-            <input type="number" class="prod-stok" value="${p.stok}" disabled style="width: 100%; padding: 16px; border: 2px solid #f4f6f4; background: #f9fbf9; border-radius: 15px; font-weight: 800; text-align: center; color: #1f3326;">
+            <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-transform: uppercase;">Stok</label>
+            <input type="number" class="prod-stok" value="${p.stok}" disabled style="width: 100%; padding: 14px; border: 2px solid #f4f6f4; background: #f9fbf9; border-radius: 12px; font-weight: 800; text-align: center;">
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: center; background: #f1f5f2; padding: 14px; border-radius: 18px; margin-bottom: 30px; gap: 12px;">
-            <span style="font-size: 0.9rem; font-weight: 800; color: #41644A;">Status Aktif</span>
+        <div style="display: flex; align-items: center; justify-content: center; background: #f1f5f2; padding: 12px; border-radius: 15px; margin-bottom: 25px; gap: 10px;">
+            <span style="font-size: 0.85rem; font-weight: 800; color: #41644A;">Status Jual</span>
             <input type="checkbox" class="prod-aktif" ${p.aktif ? 'checked' : ''} disabled style="width: 18px; height: 18px; accent-color: #41644A;">
         </div>
 
         <button class="edit-btn" data-id="${p.id}" data-index="${index}" 
-                style="width: 100%; padding: 18px; background: #41644A; color: white; border: none; border-radius: 18px; font-weight: 900; font-size: 1rem; cursor: pointer; transition: 0.3s; letter-spacing: 0.5px;">Edit Stok & Harga</button>
+                style="width: 100%; padding: 16px; background: #41644A; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer;">Edit Data</button>
       </div>
     `).join('');
 
-    const backBtnContainer = document.createElement('div');
-    backBtnContainer.style.cssText = 'text-align: center; margin-top: 60px; grid-column: 1/-1; background: transparent !important;';
-    backBtnContainer.innerHTML = `
-      <button onclick="location.hash='#/jual-komoditas'" style="padding: 18px 40px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 12px; transition: 0.3s;">
-        <span>&larr;</span> Kembali ke Menu Manajemen
-      </button>
-    `;
-    grid.after(backBtnContainer);
-
+    this._addBackButton(grid);
     this._bindEvents();
+  }
+
+  _addBackButton(grid) {
+    const backBtn = document.createElement('div');
+    backBtn.style.cssText = 'text-align: center; margin-top: 50px; grid-column: 1/-1;';
+    backBtn.innerHTML = `
+      <button onclick="location.hash='#/jual-komoditas'" style="padding: 15px 35px; background: #1f3326; color: white; border: none; border-radius: 15px; font-weight: 800; cursor: pointer;">
+        &larr; Kembali ke Manajemen
+      </button>`;
+    grid.after(backBtn);
   }
 
   _bindEvents() {
@@ -100,25 +108,12 @@ class SettingProdukPresenter {
         const card = this.container.querySelector(`#card-${index}`);
         const inputs = card.querySelectorAll('input');
         
-        if (e.target.innerText !== 'SIMPAN PERUBAHAN') {
-          inputs.forEach(i => { 
-            i.disabled = false; 
-            i.style.background = '#fff'; 
-            i.style.borderColor = '#41644A'; 
-          });
-          e.target.innerText = 'SIMPAN PERUBAHAN'; 
+        if (e.target.innerText !== 'SIMPAN') {
+          inputs.forEach(i => { i.disabled = false; i.style.background = '#fff'; i.style.borderColor = '#41644A'; });
+          e.target.innerText = 'SIMPAN'; 
           e.target.style.background = '#f39c12';
         } else {
-          const hVal = card.querySelector('.prod-harga').value;
-          const sVal = card.querySelector('.prod-stok').value;
-          if (!hVal || !sVal) return alert("Waduh, data gak boleh kosong!");
-
-          this._saveToServer({ 
-            id: e.target.dataset.id, 
-            harga: Number(hVal), 
-            stok: Number(sVal), 
-            aktif: card.querySelector('.prod-aktif').checked 
-          });
+          this._handleSave(card, e.target.dataset.id);
         }
       };
     });
@@ -126,23 +121,29 @@ class SettingProdukPresenter {
     this.container.querySelectorAll('.delete-prod-btn').forEach(btn => {
       btn.onclick = async (e) => {
         const { id, nama } = e.currentTarget.dataset;
-        if (confirm(`Yakin hapus produk "${nama}"? Data bakal hilang permanen.`)) {
-            await this._deleteProduct(id);
-        }
+        if (confirm(`Hapus "${nama}" permanen dari database?`)) await this._deleteProduct(id);
       };
     });
   }
 
-  async _saveToServer(payload) {
+  async _handleSave(card, id) {
+    const payload = {
+      id: id,
+      harga: Number(card.querySelector('.prod-harga').value),
+      stok: Number(card.querySelector('.prod-stok').value),
+      aktif: card.querySelector('.prod-aktif').checked
+    };
+
     try {
+      // ✅ Update ke Supabase via Railway
       const res = await fetch(`${this.baseUrl}/api/commodities/update-product`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify(payload) 
       });
       const result = await res.json();
-      if (result.status === 'success') { 
-        alert('Mantap! Data cloud sudah terupdate 🚀');
+      if (result.status === 'success') {
+        alert('Data Berhasil Terupdate!');
         this.init(); 
       }
     } catch (err) { alert('Gagal simpan! Cek koneksi backend.'); }
@@ -150,15 +151,10 @@ class SettingProdukPresenter {
 
   async _deleteProduct(productId) {
     try {
-      const response = await fetch(`${this.baseUrl}/api/commodities/delete-product/${productId}`, { 
-        method: 'DELETE' 
-      });
+      const response = await fetch(`${this.baseUrl}/api/commodities/delete-product/${productId}`, { method: 'DELETE' });
       const result = await response.json();
-      if (result.status === 'success') { 
-        alert("Produk Berhasil Dihapus! 🗑️"); 
-        await this.init(); 
-      }
-    } catch (err) { alert('Gagal hapus! Masalah koneksi.'); }
+      if (result.status === 'success') { alert("Terhapus! 🗑️"); await this.init(); }
+    } catch (err) { alert('Gagal hapus data cloud.'); }
   }
 }
 

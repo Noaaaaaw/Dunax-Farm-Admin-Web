@@ -1,29 +1,35 @@
+import { CONFIG } from '../../config.js';
+
 class JualKomoditasPresenter {
   constructor({ onDataReady }) {
     this.onDataReady = onDataReady;
-    this.baseUrl = 'http://localhost:5000';
-    this._lastData = []; // State untuk menyimpan data kategori terakhir guna keperluan Edit
+    // GANTI: Gunakan BASE_URL dari Railway
+    this.baseUrl = CONFIG.BASE_URL; 
+    this._lastData = []; 
   }
 
   async init() {
     try {
-      // 1. BERSIHIN SAMPAH LOKAL (Key lama yang sudah tidak terpakai)
+      // 1. BERSIHKAN LOKAL STORAGE (Maintenance kunci lama)
       const oldKeys = ['STATUS_KATEGORI_AYAM', 'STATUS_KATEGORI_BEBEK', 'STATUS_KATEGORI_IKAN', 'STATUS_KATEGORI_KAMBING', 'STATUS_KATEGORI_SAPI', 'STATUS_KATEGORI_SAYUR'];
       oldKeys.forEach(key => localStorage.removeItem(key));
 
-      // 2. AMBIL DATA REAL DARI SERVER (Sekarang berisi URL Foto & Keterangan)
+      // 2. AMBIL DATA DARI CLOUD (Sudah mendukung Foto & Keterangan)
       const response = await fetch(`${this.baseUrl}/commodities`);
       const result = await response.json();
+      
+      if (result.status !== 'success') throw new Error('Data gagal ditarik');
+
       const categories = result.data;
       const commoditiesStatus = {};
 
       const realData = categories.map(cat => {
         const details = cat.details || [];
         
-        // Kalkulasi Total Stok dari semua produk di dalam kategori ini
-        const totalStokKategori = details.reduce((acc, curr) => acc + (curr.stok || 0), 0);
+        // Kalkulasi Stok Otomatis dari Supabase
+        const totalStokKategori = details.reduce((acc, curr) => acc + (Number(curr.stok) || 0), 0);
         
-        // Kategori dianggap aktif dijual jika minimal ada satu produk di dalamnya yang aktif
+        // Cek status aktif berdasarkan produk di dalamnya
         const statusOtomatis = details.some(item => item.aktif === true);
         
         commoditiesStatus[cat.id.toLowerCase()] = statusOtomatis;
@@ -33,12 +39,12 @@ class JualKomoditasPresenter {
           nama: cat.nama, 
           totalStok: totalStokKategori, 
           aktif: statusOtomatis,
-          foto: cat.foto, // Sekarang berisi URL Public (Teks pendek)
-          keterangan: cat.keterangan // Deskripsi lengkap kategori
+          foto: cat.foto, // URL Public Storage
+          keterangan: cat.keterangan 
         };
       });
 
-      this._lastData = realData; // Simpan ke state internal untuk modal Edit
+      this._lastData = realData; 
       localStorage.setItem('COMMODITIES_STATUS', JSON.stringify(commoditiesStatus));
       
       if (this.onDataReady) this.onDataReady(realData);
@@ -48,24 +54,24 @@ class JualKomoditasPresenter {
     }
   }
 
-  // UPDATE KATEGORI LENGKAP: Nama, Foto URL, & Keterangan
+  // UPDATE KATEGORI: Kirim perubahan ke API Railway
   async updateCategory(payload) {
     try {
       const response = await fetch(`${this.baseUrl}/api/categories/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload) // Payload berisi ID dan link URL storage
+        body: JSON.stringify(payload)
       });
       const result = await response.json();
       
-      await this.init(); // Auto-refresh tampilan Card di UI
+      await this.init(); // Refresh UI otomatis
       return result;
     } catch (err) { 
       return { status: 'error', message: 'Gagal update kategori ke cloud server' }; 
     }
   }
 
-  // TAMBAH KATEGORI BARU
+  // TAMBAH KATEGORI BARU KE SUPABASE VIA RAILWAY
   async addCategory(payload) {
     try {
       const response = await fetch(`${this.baseUrl}/api/categories/add`, {
@@ -82,6 +88,7 @@ class JualKomoditasPresenter {
     }
   }
 
+  // TAMBAH PRODUK BARU (Misal: Nambah 'Ayam Broiler' ke kategori 'Ayam')
   async addProduct(payload) {
     try {
       const response = await fetch(`${this.baseUrl}/api/commodities/add`, {
@@ -97,6 +104,7 @@ class JualKomoditasPresenter {
     }
   }
 
+  // HAPUS KATEGORI SECARA PERMANEN
   async deleteCategory(id) {
     try {
       const response = await fetch(`${this.baseUrl}/api/categories/delete/${id}`, {

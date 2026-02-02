@@ -26,7 +26,7 @@ const SettingProdukPage = {
       container.innerHTML = `
         <div style="padding: 50px; text-align: center; color: #e74c3c;">
           <h2 style="font-weight: 800;">ID KATEGORI TIDAK DITEMUKAN</h2>
-          <p>Waduh bro, kodenya gak kebaca. Balik ke Manajemen Komoditas dulu yuk.</p>
+          <p>Waduh, kodenya gak kebaca. Balik ke Manajemen Komoditas dulu yuk.</p>
           <button onclick="location.hash='#/jual-komoditas'" style="margin-top: 20px; padding: 12px 25px; background: #41644A; color: white; border: none; border-radius: 12px; cursor: pointer;">
             Balik ke Menu
           </button>

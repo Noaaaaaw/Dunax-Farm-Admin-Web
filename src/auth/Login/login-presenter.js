@@ -15,39 +15,34 @@ class LoginPresenter {
   }
 
   async _handleLogin() {
-    const email = this.emailInput.value; // Kita pegang email dari inputan form
+    const email = this.emailInput.value;
     const password = this.passwordInput.value;
+    const submitBtn = this.form.querySelector('button');
 
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      // 1. Set Loading UI
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Mengecek...';
 
-      const result = await response.json();
+      // 2. Panggil AuthService (Cukup satu baris, logic fetch sudah ada di sana)
+      // Pastikan AuthService.login lo sudah nembak ke Railway
+      const result = await AuthService.login(email, password); 
 
-      if (result.status === 'success') {
-        // ✅ UPDATE: Gabungkan data dari backend dengan email asli yang diketik user
-        const userData = {
-          ...result.data, // Ambil nama, role, dll dari backend
-          email: email    // Paksa masukin email yang dipake buat login tadi
-        };
-
-        // Simpan data user yang sudah lengkap ke AuthService
-        AuthService.login(userData);
-        
-        alert(`Selamat Datang, ${result.data.nama}!`);
-        
+      if (result.success) {
+        // Data user sudah otomatis tersimpan di LocalStorage oleh AuthService
+        alert(`Selamat Datang di Dunax Farm! 🚀`);
         window.location.replace('#/');
       } else {
-        alert(result.message || 'Login Gagal! Periksa kembali email dan password.');
+        // Nampilin pesan error dari server (misal: "Password salah")
+        alert(result.message || 'Login Gagal! Periksa email & password.');
       }
     } catch (error) {
       console.error('Error saat login:', error);
-      alert('Gagal terhubung ke server! Pastikan Backend lo sudah nyala.');
+      alert('Koneksi bermasalah! Pastikan internet lo aktif.');
+    } finally {
+      // 3. Reset UI
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Masuk';
     }
   }
 }
