@@ -5,21 +5,33 @@ import 'dotenv/config';
 
 const init = async () => {
     const server = Hapi.server({
+        // RAILWAY DYNAMICS: Ambil port dari environment variable
         port: process.env.PORT || 5000,
-        host: process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost',
+        // WAJIB '0.0.0.0' biar bisa diakses via internet (Railway requirement)
+        host: '0.0.0.0', 
         routes: { 
             cors: { origin: ['*'] }, 
             payload: { maxBytes: 2097152 } 
         },
     });
 
+    // Landing Page (Cek Deployment)
     server.route({
         method: 'GET',
         path: '/',
-        handler: () => ({ status: 'success', message: 'Dunax Farm API is Cloud Powered! ☁️' }),
+        handler: () => ({ 
+            status: 'success', 
+            message: 'Dunax Farm API is Cloud Powered! ☁️',
+            uptime: Math.floor(process.uptime()) + ' seconds'
+        }),
     });
 
-    server.route(authRoutes);
+    // Pastiin authRoutes ter-import dengan benar
+    try {
+        server.route(authRoutes);
+    } catch (err) {
+        console.error('Peringatan: Cek file ./routes/auth.js lo, pastikan export default-nya bener.');
+    }
 
     server.route([
         {
@@ -33,24 +45,22 @@ const init = async () => {
                     
                     const result = categories.rows.map(cat => {
                         const catProducts = products.rows.filter(p => p.category_id === cat.id);
-                        
-                        // HITUNG PERBANDINGAN
                         const activeCount = catProducts.filter(p => p.aktif === true).length;
                         const inactiveCount = catProducts.filter(p => p.aktif === false).length;
-
-                        // ATURAN MAYORITAS: Aktif jika yang nyala lebih banyak atau sama dengan yang mati
-                        // Dan minimal harus ada 1 produk aktif
                         const isMajorityActive = activeCount >= inactiveCount && activeCount > 0;
 
                         return {
                             id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '',
                             foto: cat.foto || null, 
-                            aktif: isMajorityActive, // Status hasil voting produk
+                            aktif: isMajorityActive,
                             details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
                         };
                     });
                     return { status: 'success', data: result };
-                } catch (err) { return h.response({ status: 'error' }).code(500); }
+                } catch (err) { 
+                    console.error('Error GET /commodities:', err);
+                    return h.response({ status: 'error', message: 'Internal Server Error' }).code(500); 
+                }
             }
         },
         {
@@ -77,7 +87,10 @@ const init = async () => {
                             details: prodRes.rows.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
                         }
                     };
-                } catch (err) { return h.response({ status: 'error' }).code(500); }
+                } catch (err) { 
+                    console.error('Error GET /commodities/{id}:', err);
+                    return h.response({ status: 'error' }).code(500); 
+                }
             }
         },
         {
@@ -185,5 +198,11 @@ const init = async () => {
     await server.start();
     console.log(`🚀 Dunax Farm Backend Aktif di: ${server.info.uri}`);
 };
+
+// Global Safety Net (Cegah Crash Konyol)
+process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Rejection:', err);
+    // Di Railway, biarkan sistem yang me-restart, jangan paksa exit jika hanya 1 error.
+});
 
 init();

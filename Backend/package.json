@@ -1,0 +1,15 @@
+{
+  "name": "dunax-farm-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Dunax Farm Management",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@hapi/hapi": "^21.3.12",
+    "dotenv": "^17.2.3",
+    "pg": "^8.18.0"
+  }
+}
