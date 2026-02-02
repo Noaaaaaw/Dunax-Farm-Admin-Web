@@ -192,6 +192,40 @@ const init = async () => {
                     return { status: 'success', total: res.rows[0].total_stok || 0 };
                 } catch (err) { return h.response({ status: 'error' }).code(500); }
             }
+        },
+        {
+            // 11. GET Search Produk (Pencarian Global)
+            method: 'GET',
+            path: '/api/commodities/search',
+            handler: async (request, h) => {
+                const { q } = request.query;
+                try {
+                    const res = await pool.query(
+                        'SELECT k.*, c.nama as kategori_nama FROM komoditas k JOIN categories c ON k.category_id = c.id WHERE k.nama ILIKE $1', 
+                        [`%${q}%`]
+                    );
+                    return { status: 'success', data: res.rows };
+                } catch (err) { 
+                    console.error('Search Error:', err);
+                    return h.response({ status: 'error', message: 'Gagal mencari data' }).code(500); 
+                }
+            }
+        },
+        {
+            // 12. GET Ringkasan Per Kategori (Dashboard Stats)
+            method: 'GET',
+            path: '/api/stats/categories',
+            handler: async (request, h) => {
+                try {
+                    const res = await pool.query(`
+                        SELECT c.nama, COUNT(k.id) as total_item, SUM(k.stok) as total_stok 
+                        FROM categories c 
+                        LEFT JOIN komoditas k ON c.id = k.category_id 
+                        GROUP BY c.nama
+                    `);
+                    return { status: 'success', data: res.rows };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
         }
     ]);
 
