@@ -28,13 +28,10 @@ class LaporanPresenter {
       if (result.status === 'success' && result.data.length > 0) {
         this.tableBody.innerHTML = '';
         
-        // 1. Tampilkan data ke tabel
-        result.data.forEach(item => {
-          this._addNewRowToTable(item);
-        });
+        // 1. Tampilkan data ke tabel histori
+        result.data.forEach(item => this._addNewRowToTable(item));
 
         // 2. Hitung progres terakhir per sesi
-        // Ambil kandang tertinggi yang sudah diisi untuk hari ini (opsional: tambah filter tgl)
         const pagiReports = result.data.filter(r => r.sesi === 'PAGI');
         const soreReports = result.data.filter(r => r.sesi === 'SORE');
         
@@ -51,9 +48,6 @@ class LaporanPresenter {
         this._renderTaskTable(session);
         this.noKandangSelect.value = "";
         this.stepSesi.style.display = 'none';
-        // Kasih tau user giliran kandang berapa
-        const next = this.progress[session] + 1;
-        console.log(`Sesi ${session} selanjutnya: Kandang ${next}`);
       }
     };
 
@@ -69,6 +63,13 @@ class LaporanPresenter {
       }
       if (this.hewanSelect.value) this.stepSesi.style.display = 'flex';
     };
+
+    this.form.addEventListener('change', (e) => {
+      if (e.target.classList.contains('status-kandang-select')) {
+        const alertRow = this.form.querySelector('.alert-row');
+        if (alertRow) alertRow.style.display = e.target.value === 'TIDAK_STANDAR' ? 'block' : 'none';
+      }
+    });
 
     this.form.onsubmit = async (e) => {
       e.preventDefault();
@@ -94,12 +95,46 @@ class LaporanPresenter {
 
   async _handleSubmit() {
     const user = AuthService.getUser();
+    const session = this.sessionSelect.value;
+    const kandang = this.noKandangSelect.value;
+
+    // Logic Detail Kesehatan
+    let healthStatus = "SEHAT";
+    let healthDetail = [];
+    const healthSelect = this.form.querySelector('.health-status-select');
+    if (healthSelect?.value === 'SAKIT') {
+      healthStatus = "SAKIT";
+      this.form.querySelectorAll('.health-entry-card').forEach(card => {
+        healthDetail.push({
+          kandang: card.querySelector('.disease-kandang').value || '-',
+          ayam: card.querySelector('.disease-ayam').value || '-',
+          penyakit: card.querySelector('.disease-name').value || '-',
+          karantina: card.querySelector('.is-quarantine').value,
+          pemulihan: card.querySelector('.recovery-step').value || '-'
+        });
+      });
+    }
+
+    // Logic Detail Kelayakan
+    const kelayakanSelect = this.form.querySelector('.status-kandang-select').value;
+    const kelayakanStatus = kelayakanSelect === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK';
+    const note = this.form.querySelector('.kandang-note').value;
+    const photoInput = this.form.querySelector('.kandang-photo');
+    let photoData = "";
+    if (photoInput.files[0]) {
+       photoData = await new Promise(r => {
+         const reader = new FileReader();
+         reader.onload = e => r(e.target.result);
+         reader.readAsDataURL(photoInput.files[0]);
+       });
+    }
+
     const payload = {
         hewan: this.hewanSelect.value,
-        deret: this.noKandangSelect.value,
-        sesi: this.sessionSelect.value,
-        kesehatan: this._getSickData(),
-        kelayakan: this._getKelayakanData(),
+        deret: kandang,
+        sesi: session,
+        kesehatan: { status: healthStatus, detail: healthDetail },
+        kelayakan: { status: kelayakanStatus, note: note, photo: photoData },
         pekerjaan: this._getTaskList(),
         petugas: user.nama
     };
@@ -113,38 +148,13 @@ class LaporanPresenter {
         const result = await response.json();
 
         if (result.status === 'success') {
-            alert("Berhasil!");
-            this.progress[payload.sesi] = parseInt(payload.deret);
+            alert("Laporan Berhasil Masuk Cloud! ☁️");
+            this.progress[session] = parseInt(kandang);
             this._addNewRowToTable(result.data); 
             this.form.reset();
             this.stepSesi.style.display = 'none';
         }
-    } catch (err) { alert("Gagal Simpan!"); }
-  }
-
-  _getSickData() {
-    let sickData = [];
-    const healthSelect = this.form.querySelector('.health-status-select');
-    if (healthSelect?.value === 'SAKIT') {
-      this.form.querySelectorAll('.health-entry-card').forEach(card => {
-        sickData.push({
-          kandang: card.querySelector('.disease-kandang').value || '-',
-          ayam: card.querySelector('.disease-ayam').value || '-',
-          penyakit: card.querySelector('.disease-name').value || '-',
-          karantina: card.querySelector('.is-quarantine').value,
-          pemulihan: card.querySelector('.recovery-step').value || '-'
-        });
-      });
-    }
-    return sickData;
-  }
-
-  _getKelayakanData() {
-    return {
-      status: this.form.querySelector('.status-kandang-select').value,
-      note: this.form.querySelector('.kandang-note').value,
-      photo: "" // Di sini lo bisa tambah logic upload file beneran ke Supabase Storage
-    };
+    } catch (err) { alert("Server Error!"); }
   }
 
   _getTaskList() {
@@ -162,11 +172,10 @@ class LaporanPresenter {
 
   _addNewRowToTable(data) {
     const time = new Date(data.tanggal_jam).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ':');
-    // Data di Supabase disimpan sebagai JSONB, jadi sudah otomatis jadi Object/Array
-    const kesehatan = data.kesehatan_data || [];
-    const kelayakan = data.kelayakan_data || {};
+    // Sinkronisasi data JSONB dari Supabase
+    const kesehatan = data.kesehatan_data || { status: 'SEHAT', detail: [] };
+    const kelayakan = data.kelayakan_data || { status: 'LAYAK', note: '', photo: '' };
     const pekerjaan = data.pekerjaan_data || [];
-    const isSakit = kesehatan.length > 0;
 
     const newRow = `
       <tr style="border-bottom: 1px solid #eee;">
@@ -175,17 +184,17 @@ class LaporanPresenter {
         <td style="padding: 15px;">Deret ${data.deret_kandang}</td>
         <td style="padding: 15px;">${data.sesi}</td>
         <td style="padding: 15px;">
-          <button type="button" class="btn-health-pop" data-sakit='${JSON.stringify(kesehatan)}' 
+          <button type="button" class="btn-health-pop" data-status="${kesehatan.status}" data-detail='${JSON.stringify(kesehatan.detail)}' 
             style="padding: 5px 10px; border-radius: 6px; border: none; font-weight: 800; cursor: pointer; 
-            background: ${isSakit ? '#fff5f5' : '#eef2ed'}; color: ${isSakit ? '#c53030' : '#2d4a36'};">
-            ${isSakit ? '⚠ SAKIT' : '✅ SEHAT'}
+            background: ${kesehatan.status === 'SAKIT' ? '#fff5f5' : '#eef2ed'}; color: ${kesehatan.status === 'SAKIT' ? '#c53030' : '#2d4a36'};">
+            ${kesehatan.status}
           </button>
         </td>
         <td style="padding: 15px;">
-           <button type="button" class="btn-layak-pop" data-note="${kelayakan.note || ''}" data-photo="${kelayakan.photo || ''}" data-status="${kelayakan.status}"
+           <button type="button" class="btn-layak-pop" data-note="${kelayakan.note}" data-photo="${kelayakan.photo}" data-status="${kelayakan.status}"
             style="padding: 5px 10px; border-radius: 6px; border: none; font-weight: 800; cursor: pointer; 
-            background: ${kelayakan.status === 'STANDAR' ? '#eef2ed' : '#fff5f5'}; color: ${kelayakan.status === 'STANDAR' ? '#2d4a36' : '#c53030'};">
-            ${kelayakan.status === 'STANDAR' ? 'STANDAR' : 'GANGGUAN'}
+            background: ${kelayakan.status === 'LAYAK' ? '#eef2ed' : '#fff5f5'}; color: ${kelayakan.status === 'LAYAK' ? '#2d4a36' : '#c53030'};">
+            ${kelayakan.status}
           </button>
         </td>
         <td style="padding: 15px; font-weight:700;">${data.petugas}</td>
@@ -197,13 +206,14 @@ class LaporanPresenter {
         </td>
       </tr>`;
 
+    if (this.tableBody.innerHTML.includes('Belum ada')) this.tableBody.innerHTML = '';
     this.tableBody.insertAdjacentHTML('afterbegin', newRow);
     this._bindTableButtons(this.tableBody.firstElementChild);
   }
 
-  // ... rute renderTaskTable & loadCategories lo sebelumnya tetap sama ...
   _renderTaskTable(session) {
     const container = document.getElementById('taskContainer');
+    // Tugas sore tanpa "Cek Kesehatan Hewan"
     const tasks = session === 'PAGI' ? [
       { text: 'Pemberian Pakan Pagi', type: 'number', unit: 'Kg' },
       { text: 'Cek Kebersihan Alat Minum', type: 'check' },
@@ -211,48 +221,25 @@ class LaporanPresenter {
       { text: 'Panen Telur Sesi Pagi', type: 'number', unit: 'Butir' },
       { text: 'Cek Kesehatan Hewan', type: 'health' }
     ] : [
-      { text: 'Pemberian Pakan Sore', type: 'number', unit: 'Kg' },
-      { text: 'Panen Telur Sesi Sore', type: 'number', unit: 'Butir' },
-      { text: 'Monitoring Kegiatan Sore', type: 'check' },
-      { text: 'Pengasapan Sore', type: 'check' },
-      { text: 'Cek Kesehatan Hewan', type: 'health' }
+      { text: 'Pemberian Pakan SORE', type: 'number', unit: 'Kg' },
+      { text: 'Panen Telur Sesi SORE', type: 'number', unit: 'Butir' },
+      { text: 'Monitoring Kegiatan SORE', type: 'check' },
+      { text: 'Pengasapan SORE', type: 'check' }
     ];
 
     container.innerHTML = tasks.map(t => `
       <tr style="border-bottom: 1px solid #f4f7f5;">
-        <td style="padding: 15px; font-weight: 700; color: #1f3326;">${t.text}</td>
+        <td style="padding: 15px; font-weight: 700;">${t.text}</td>
         <td style="padding: 10px; text-align: center;">
           <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-            ${t.type === 'number' ? `<input type="number" class="task-input" data-label="${t.text}" data-unit="${t.unit}" placeholder="${t.unit}" style="width: 80px; padding: 8px; border-radius: 8px; border: 1px solid #ddd; text-align: center; font-weight: 800;">` : ''}
-            ${t.type === 'health' ? `
-               <select class="health-status-select" style="padding: 8px; border-radius: 8px; font-weight: 700; border: 1px solid #ddd; width: 90px;">
-                  <option value="SEHAT">SEHAT</option><option value="SAKIT">SAKIT</option>
-               </select>
-               <button type="button" class="add-health-btn" style="display:none; padding:6px 12px; border-radius:8px; background:#41644A; color:white; border:none; cursor:pointer; font-size:0.75rem; font-weight:900;">+ DATA SAKIT</button>
-            ` : ''}
+            ${t.type === 'number' ? `<input type="number" class="task-input" data-unit="${t.unit}" placeholder="${t.unit}" style="width: 80px; padding: 8px; text-align: center; font-weight: 800; border-radius: 8px; border: 1px solid #ddd;">` : ''}
+            ${t.type === 'health' ? `<select class="health-status-select" style="padding: 8px; border-radius: 8px; font-weight: 700; border: 1px solid #ddd; width: 90px;"><option value="SEHAT">SEHAT</option><option value="SAKIT">SAKIT</option></select> <button type="button" class="add-health-btn" style="display:none; padding:6px 12px; border-radius:8px; background:#41644A; color:white; border:none; cursor:pointer; font-size:0.75rem; font-weight:900;">+ DATA SAKIT</button>` : ''}
           </div>
         </td>
-        <td style="padding: 15px; text-align: center;">
-          <input type="checkbox" class="task-check" value="${t.text}" style="width: 24px; height: 24px; accent-color: #41644A;">
-        </td>
+        <td style="padding: 15px; text-align: center;"><input type="checkbox" class="task-check" style="width: 24px; height: 24px; accent-color: #41644A;"></td>
       </tr>
-      ${t.type === 'health' ? `
-        <tr class="health-detail-row" style="display: none; background: #fff5f5;">
-          <td colspan="3" style="padding: 20px;">
-            <div class="health-entries-container">
-               <div class="health-entry-card" style="border: 1.5px solid #feb2b2;">
-                  <div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">NOMOR KANDANG</label><input type="text" class="disease-kandang" placeholder="01" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div>
-                  <div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">NOMOR AYAM</label><input type="text" class="disease-ayam" placeholder="12" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div>
-                  <div class="form-group grid-full"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">INDIKASI PENYAKIT</label><input type="text" class="disease-name" placeholder="Gejala..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div>
-                  <div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">KARANTINA?</label><select class="is-quarantine" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"><option value="TIDAK">TIDAK</option><option value="YA">YA</option></select></div>
-                  <div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">PEMULIHAN</label><input type="text" class="recovery-step" placeholder="Obat..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div>
-               </div>
-            </div>
-          </td>
-        </tr>
-      ` : ''}
+      ${t.type === 'health' ? `<tr class="health-detail-row" style="display: none; background: #fff5f5;"><td colspan="3" style="padding: 20px;"><div class="health-entries-container"><div class="health-entry-card" style="border: 1.5px solid #feb2b2; padding: 15px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">NOMOR KANDANG</label><input type="text" class="disease-kandang" placeholder="01" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">NOMOR AYAM</label><input type="text" class="disease-ayam" placeholder="12" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div class="form-group" style="grid-column: span 2;"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">INDIKASI PENYAKIT</label><input type="text" class="disease-name" placeholder="Gejala..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">KARANTINA?</label><select class="is-quarantine" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"><option value="TIDAK">TIDAK</option><option value="YA">YA</option></select></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">PEMULIHAN</label><input type="text" class="recovery-step" placeholder="Obat..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div></div></div></td></tr>` : ''}
     `).join('');
-
     this._bindHealthLogic(container);
   }
 
@@ -271,14 +258,8 @@ class LaporanPresenter {
       addBtn.onclick = () => {
         const card = document.createElement('div');
         card.className = 'health-entry-card';
-        card.innerHTML = `
-          <button type="button" class="btn-remove-entry">✕</button>
-          <div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KANDANG</label><input type="text" class="disease-kandang" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>
-          <div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">AYAM #</label><input type="text" class="disease-ayam" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>
-          <div class="form-group grid-full"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">INDIKASI</label><input type="text" class="disease-name" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>
-          <div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KARANTINA?</label><select class="is-quarantine" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"><option value="TIDAK">TIDAK</option><option value="YA">YA</option></select></div>
-          <div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">PEMULIHAN</label><input type="text" class="recovery-step" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>
-        `;
+        card.style = "border: 1.5px solid #feb2b2; padding: 15px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; position: relative;";
+        card.innerHTML = `<button type="button" class="btn-remove-entry" style="position:absolute; top:-10px; right:-10px; background:#c53030; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">✕</button><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KANDANG</label><input type="text" class="disease-kandang" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">AYAM #</label><input type="text" class="disease-ayam" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group" style="grid-column:span 2;"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">INDIKASI</label><input type="text" class="disease-name" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KARANTINA?</label><select class="is-quarantine" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"><option value="TIDAK">TIDAK</option><option value="YA">YA</option></select></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">PEMULIHAN</label><input type="text" class="recovery-step" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>`;
         card.querySelector('.btn-remove-entry').onclick = () => card.remove();
         entriesCont.appendChild(card);
       };
@@ -288,21 +269,22 @@ class LaporanPresenter {
   _bindTableButtons(row) {
     row.querySelector('.btn-layak-pop').onclick = (e) => {
       const d = e.currentTarget.dataset;
-      if (d.status === 'STANDAR') return alert("Kandang Aman! ✅");
-      document.getElementById('modalNote').innerHTML = `<div style="background:#fff5f5; padding:15px; border-radius:15px;"><h3 style="color:#c53030;">⚠️ LAPORAN GANGGUAN</h3><p>${d.note}</p>${d.photo ? `<img src="${d.photo}" style="width:100%;">` : ''}</div>`;
+      if (d.status === 'LAYAK') return alert("Kandang Layak & Aman! ✅");
+      document.getElementById('modalNote').innerHTML = `<div style="background:#fff5f5; padding:15px; border-radius:15px;"><h3 style="color:#c53030; margin:0 0 10px;">⚠️ TIDAK LAYAK: ${d.note}</h3>${d.photo ? `<img src="${d.photo}" style="width:100%; border-radius:12px; border:1px solid #ddd;">` : ''}</div>`;
       document.getElementById('statusModal').style.display = 'flex';
     };
 
     row.querySelector('.btn-health-pop').onclick = (e) => {
-      const data = JSON.parse(e.currentTarget.dataset.sakit);
-      if (data.length === 0) return alert("Sehat semua! ✅");
-      document.getElementById('modalNote').innerHTML = `<h3 style="color:#c53030; text-align:center;">DAFTAR HEWAN SAKIT</h3>` + data.map(d => `<div style="border:1px solid #feb2b2; padding:10px; margin-top:10px; border-radius:10px;"><b>Kandang: ${d.kandang}</b> | Ayam: ${d.ayam}<br>Penyakit: ${d.penyakit}</div>`).join('');
+      const status = e.currentTarget.dataset.status;
+      if (status === 'SEHAT') return alert("Semua hewan sehat walafiat! ✅");
+      const detail = JSON.parse(e.currentTarget.dataset.detail);
+      document.getElementById('modalNote').innerHTML = `<h3 style="color:#c53030; text-align:center; margin-bottom:15px;">DETAIL HEWAN SAKIT</h3>` + detail.map(d => `<div style="border:1px solid #feb2b2; padding:12px; margin-top:10px; border-radius:10px; background:#fff5f5;"><b style="color:#c53030;">Kandang: ${d.kandang}</b> | Ayam #: ${d.ayam}<br><b>Penyakit:</b> ${d.penyakit}<br><small>Karantina: ${d.karantina} | Pemulihan: ${d.pemulihan}</small></div>`).join('');
       document.getElementById('statusModal').style.display = 'flex';
     };
 
     row.querySelector('.btn-task-pop').onclick = (e) => {
       const tasks = JSON.parse(e.currentTarget.dataset.tasks);
-      document.getElementById('taskListContent').innerHTML = tasks.map(t => `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;"><span>${t.status ? '✅' : '❌'} ${t.name}</span><b>${t.val} ${t.unit}</b></div>`).join('');
+      document.getElementById('taskListContent').innerHTML = tasks.map(t => `<div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #eee;"><span>${t.status ? '✅' : '❌'} ${t.name}</span><b style="color:#41644A;">${t.val ? t.val + ' ' + t.unit : ''}</b></div>`).join('');
       document.getElementById('taskModal').style.display = 'flex';
     };
   }

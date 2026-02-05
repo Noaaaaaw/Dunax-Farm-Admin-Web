@@ -1,264 +1,279 @@
-import AuthService from '../../auth/auth-services.js';
-import { CONFIG } from '../../config.js';
+import Hapi from '@hapi/hapi';
+import authRoutes from './routes/auth.js';
+import pool from './db.js'; 
+import 'dotenv/config';
 
-class LaporanPresenter {
-  constructor() {
-    this.isSubmitting = false;
-    this.progress = { PAGI: 0, SORE: 0 }; 
-  }
-
-  async init() {
-    this.form = document.getElementById('laporanForm');
-    this.hewanSelect = document.getElementById('hewanType');
-    this.noKandangSelect = document.getElementById('noKandang');
-    this.sessionSelect = document.getElementById('sessionType');
-    this.stepSesi = document.getElementById('stepSesi');
-    this.tableBody = document.getElementById('reportTableBody');
-    this.btnSubmit = document.getElementById('btnSubmit');
-
-    await this._loadCategories();
-    await this._fetchReportHistory(); 
-    this._setupEventListeners();
-  }
-
-  async _fetchReportHistory() {
-    try {
-      const response = await fetch(`${CONFIG.BASE_URL}/api/laporan`);
-      const result = await response.json();
-      if (result.status === 'success' && result.data.length > 0) {
-        this.tableBody.innerHTML = '';
-        result.data.forEach(item => this._addNewRowToTable(item));
-        
-        const pagiReports = result.data.filter(r => r.sesi === 'PAGI');
-        const soreReports = result.data.filter(r => r.sesi === 'SORE');
-        if (pagiReports.length > 0) this.progress.PAGI = Math.max(...pagiReports.map(r => r.deret_kandang));
-        if (soreReports.length > 0) this.progress.SORE = Math.max(...soreReports.map(r => r.deret_kandang));
-      }
-    } catch (err) { console.error("Gagal load histori cloud"); }
-  }
-
-  _setupEventListeners() {
-    this.sessionSelect.onchange = (e) => {
-      const session = e.target.value;
-      if (session) {
-        this._renderTaskTable(session);
-        this.noKandangSelect.value = "";
-        this.stepSesi.style.display = 'none';
-      }
-    };
-
-    this.noKandangSelect.onchange = (e) => {
-      const selected = parseInt(e.target.value);
-      const session = this.sessionSelect.value;
-      if (!session) { alert("Pilih Sesi!"); e.target.value = ""; return; }
-      
-      const last = this.progress[session];
-      if (selected !== last + 1) {
-        alert(`Urutan Salah! Sesi ${session} giliran Kandang ${last + 1}`);
-        e.target.value = ""; return;
-      }
-      if (this.hewanSelect.value) this.stepSesi.style.display = 'flex';
-    };
-
-    this.form.onsubmit = async (e) => {
-      e.preventDefault();
-      if (this.isSubmitting) return;
-      this.isSubmitting = true;
-      this.btnSubmit.disabled = true;
-      this.btnSubmit.innerText = "MENYIMPAN KE CLOUD...";
-      try { await this._handleSubmit(); } 
-      finally { 
-        this.isSubmitting = false; 
-        this.btnSubmit.disabled = false; 
-        this.btnSubmit.innerText = "SIMPAN LAPORAN KANDANG"; 
-      }
-    };
-
-    document.querySelectorAll('.close-modal-btn').forEach(btn => {
-      btn.onclick = () => {
-          document.getElementById('statusModal').style.display = 'none';
-          document.getElementById('taskModal').style.display = 'none';
-      };
-    });
-  }
-
-  async _handleSubmit() {
-    const user = AuthService.getUser();
-    const session = this.sessionSelect.value;
-    const kandang = this.noKandangSelect.value;
-
-    // Logic Detail Kesehatan
-    let healthFinalStatus = "SEHAT";
-    let sickDetails = [];
-    const healthSelect = this.form.querySelector('.health-status-select');
-    if (healthSelect?.value === 'SAKIT') {
-      healthFinalStatus = "SAKIT";
-      this.form.querySelectorAll('.health-entry-card').forEach(card => {
-        sickDetails.push({
-          kandang: card.querySelector('.disease-kandang').value || '-',
-          ayam: card.querySelector('.disease-ayam').value || '-',
-          penyakit: card.querySelector('.disease-name').value || '-',
-          karantina: card.querySelector('.is-quarantine').value,
-          pemulihan: card.querySelector('.recovery-step').value || '-'
-        });
-      });
-    }
-
-    // Logic Detail Kelayakan
-    const kelayakanVal = this.form.querySelector('.status-kandang-select').value;
-    const note = this.form.querySelector('.kandang-note').value;
-    const photoInput = this.form.querySelector('.kandang-photo');
-    let photoData = "";
-    if (photoInput.files[0]) {
-       photoData = await new Promise(r => {
-         const reader = new FileReader();
-         reader.onload = e => r(e.target.result);
-         reader.readAsDataURL(photoInput.files[0]);
-       });
-    }
-
-    const payload = {
-        hewan: this.hewanSelect.value,
-        deret: kandang,
-        sesi: session,
-        kesehatan: { status: healthFinalStatus, detail: sickDetails }, // Detail lebih jelas
-        kelayakan: { 
-            status: kelayakanVal === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK', 
-            note: note, 
-            photo: photoData 
+const init = async () => {
+    const server = Hapi.server({
+        // RAILWAY DYNAMICS: Ambil port dari environment variable
+        port: process.env.PORT || 5000,
+        // WAJIB '0.0.0.0' biar bisa diakses via internet
+        host: '0.0.0.0', 
+        routes: { 
+            cors: { 
+                origin: ['*'], // Izinkan akses dari mana saja
+                headers: ['Accept', 'Authorization', 'Content-Type', 'If-None-Match'],
+                additionalHeaders: ['cache-control', 'x-requested-with']
+            }, 
+            payload: { maxBytes: 2097152 } 
         },
-        pekerjaan: this._getTaskList(),
-        petugas: user.nama
-    };
-
-    try {
-        const response = await fetch(`${CONFIG.BASE_URL}/api/laporan/save`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        if (result.status === 'success') {
-            alert("Laporan Tersimpan! 🚀");
-            this.progress[session] = parseInt(kandang);
-            this._addNewRowToTable(result.data); 
-            this.form.reset();
-            this.stepSesi.style.display = 'none';
-        }
-    } catch (err) { alert("Server Railway Error!"); }
-  }
-
-  _getTaskList() {
-    let taskList = [];
-    this.form.querySelectorAll('#taskContainer tr:not(.health-detail-row)').forEach(row => {
-      taskList.push({
-        name: row.cells[0].innerText,
-        status: row.querySelector('.task-check').checked,
-        val: row.querySelector('.task-input')?.value || '',
-        unit: row.querySelector('.task-input')?.dataset.unit || ''
-      });
     });
-    return taskList;
-  }
 
-  _addNewRowToTable(data) {
-    const time = new Date(data.tanggal_jam).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ':');
-    const kesehatan = data.kesehatan_data || { status: 'SEHAT', detail: [] };
-    const kelayakan = data.kelayakan_data || { status: 'LAYAK', note: '', photo: '' };
-    const pekerjaan = data.pekerjaan_data || [];
+    // Landing Page (Cek Deployment)
+    server.route({
+        method: 'GET',
+        path: '/',
+        handler: () => ({ 
+            status: 'success', 
+            message: 'Dunax Farm API is Cloud Powered! ☁️',
+            uptime: Math.floor(process.uptime()) + ' seconds'
+        }),
+    });
 
-    const newRow = `
-      <tr style="border-bottom: 1px solid #eee;">
-        <td style="padding: 15px;">${time}</td>
-        <td style="padding: 15px; font-weight:700;">${data.hewan}</td>
-        <td style="padding: 15px;">Deret ${data.deret_kandang}</td>
-        <td style="padding: 15px;">${data.sesi}</td>
-        <td style="padding: 15px;">
-          <button type="button" class="btn-health-pop" data-status="${kesehatan.status}" data-detail='${JSON.stringify(kesehatan.detail)}' 
-            style="padding: 5px 10px; border-radius: 6px; border: none; font-weight: 800; cursor: pointer; 
-            background: ${kesehatan.status === 'SAKIT' ? '#fff5f5' : '#eef2ed'}; color: ${kesehatan.status === 'SAKIT' ? '#c53030' : '#2d4a36'};">
-            ${kesehatan.status}
-          </button>
-        </td>
-        <td style="padding: 15px;">
-           <button type="button" class="btn-layak-pop" data-note="${kelayakan.note}" data-photo="${kelayakan.photo}" data-status="${kelayakan.status}"
-            style="padding: 5px 10px; border-radius: 6px; border: none; font-weight: 800; cursor: pointer; 
-            background: ${kelayakan.status === 'LAYAK' ? '#eef2ed' : '#fff5f5'}; color: ${kelayakan.status === 'LAYAK' ? '#2d4a36' : '#c53030'};">
-            ${kelayakan.status}
-          </button>
-        </td>
-        <td style="padding: 15px; font-weight:700;">${data.petugas}</td>
-        <td style="padding: 15px; text-align: center;">
-          <button type="button" class="btn-task-pop" data-tasks='${JSON.stringify(pekerjaan)}' 
-            style="background: #6CA651; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: 700;">
-            LIHAT KERJA
-          </button>
-        </td>
-      </tr>`;
-    this.tableBody.insertAdjacentHTML('afterbegin', newRow);
-    this._bindTableButtons(this.tableBody.firstElementChild);
-  }
-
-  _renderTaskTable(session) {
-    const container = document.getElementById('taskContainer');
-    // Tugas sore tanpa "Cek Kesehatan Hewan"
-    const tasks = session === 'PAGI' ? [
-      { text: 'Pemberian Pakan Pagi', type: 'number', unit: 'Kg' },
-      { text: 'Cek Kebersihan Alat Minum', type: 'check' },
-      { text: 'Pengisian Air Minum', type: 'check' },
-      { text: 'Panen Telur Sesi Pagi', type: 'number', unit: 'Butir' },
-      { text: 'Cek Kesehatan Hewan', type: 'health' }
-    ] : [
-      { text: 'Pemberian Pakan Sore', type: 'number', unit: 'Kg' },
-      { text: 'Panen Telur Sesi Sore', type: 'number', unit: 'Butir' },
-      { text: 'Monitoring Kegiatan Sore', type: 'check' },
-      { text: 'Pengasapan Sore', type: 'check' }
-    ];
-
-    container.innerHTML = tasks.map(t => `
-      <tr style="border-bottom: 1px solid #f4f7f5;">
-        <td style="padding: 15px; font-weight: 700;">${t.text}</td>
-        <td style="padding: 10px; text-align: center;">
-          ${t.type === 'number' ? `<input type="number" class="task-input" data-unit="${t.unit}" style="width: 80px; padding: 8px;">` : ''}
-          ${t.type === 'health' ? `<select class="health-status-select"><option value="SEHAT">SEHAT</option><option value="SAKIT">SAKIT</option></select>` : ''}
-        </td>
-        <td style="padding: 15px; text-align: center;"><input type="checkbox" class="task-check"></td>
-      </tr>
-    `).join('');
-  }
-
-  _bindTableButtons(row) {
-    row.querySelector('.btn-layak-pop').onclick = (e) => {
-      const d = e.currentTarget.dataset;
-      if (d.status === 'LAYAK') return alert("Kandang Layak & Aman! ✅");
-      document.getElementById('modalNote').innerHTML = `<div style="background:#fff5f5; padding:15px; border-radius:15px;"><h3 style="color:#c53030;">⚠️ TIDAK LAYAK: ${d.note}</h3>${d.photo ? `<img src="${d.photo}" style="width:100%; border-radius:10px; margin-top:10px;">` : ''}</div>`;
-      document.getElementById('statusModal').style.display = 'flex';
-    };
-
-    row.querySelector('.btn-health-pop').onclick = (e) => {
-      const status = e.currentTarget.dataset.status;
-      const detail = JSON.parse(e.currentTarget.dataset.detail);
-      if (status === 'SEHAT') return alert("Semua hewan sehat walafiat! ✅");
-      document.getElementById('modalNote').innerHTML = `<h3 style="color:#c53030; text-align:center;">DETAIL HEWAN SAKIT</h3>` + detail.map(d => `<div style="border:1px solid #feb2b2; padding:10px; margin-top:10px; border-radius:10px; background:#fff5f5;"><b>Kandang: ${d.kandang}</b> | Ayam #: ${d.ayam}<br><b>Penyakit:</b> ${d.penyakit}<br><small>Karantina: ${d.karantina} | Pemulihan: ${d.pemulihan}</small></div>`).join('');
-      document.getElementById('statusModal').style.display = 'flex';
-    };
-
-    row.querySelector('.btn-task-pop').onclick = (e) => {
-      const tasks = JSON.parse(e.currentTarget.dataset.tasks);
-      document.getElementById('taskListContent').innerHTML = tasks.map(t => `<div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;"><span>${t.status ? '✅' : '❌'} ${t.name}</span><b>${t.val} ${t.unit}</b></div>`).join('');
-      document.getElementById('taskModal').style.display = 'flex';
-    };
-  }
-
-  async _loadCategories() {
+    // Route Auth (Login/Register)
     try {
-      const res = await fetch(`${CONFIG.BASE_URL}/commodities`);
-      const r = await res.json();
-      if (r.status === 'success') {
-        this.hewanSelect.innerHTML = '<option value="">-- Pilih --</option>' + r.data.map(cat => `<option value="${cat.nama}">${cat.nama.toUpperCase()}</option>`).join('');
-      }
-    } catch (err) {}
-  }
-}
+        server.route(authRoutes);
+    } catch (err) {
+        console.error('Peringatan: Cek file ./routes/auth.js lo.');
+    }
 
-export default LaporanPresenter;
+    // Main Routes (1-14)
+    server.route([
+        {
+            // 1. GET Semua Kategori
+            method: 'GET',
+            path: '/commodities',
+            handler: async (request, h) => {
+                try {
+                    const categories = await pool.query('SELECT * FROM categories ORDER BY id ASC');
+                    const products = await pool.query('SELECT * FROM komoditas ORDER BY id ASC');
+                    
+                    const result = categories.rows.map(cat => {
+                        const catProducts = products.rows.filter(p => p.category_id === cat.id);
+                        const activeCount = catProducts.filter(p => p.aktif === true).length;
+                        const isMajorityActive = activeCount > 0;
+
+                        return {
+                            id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '',
+                            foto: cat.foto || null, 
+                            aktif: isMajorityActive,
+                            details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
+                        };
+                    });
+                    return { status: 'success', data: result };
+                } catch (err) { 
+                    console.error('Error GET /commodities:', err);
+                    return h.response({ status: 'error', message: 'Internal Server Error' }).code(500); 
+                }
+            }
+        },
+        {
+            // 2. GET Detail Per Kategori
+            method: 'GET',
+            path: '/commodities/{id}',
+            handler: async (request, h) => {
+                const { id } = request.params;
+                try {
+                    const catRes = await pool.query('SELECT * FROM categories WHERE id = $1', [id.toLowerCase()]);
+                    if (catRes.rows.length === 0) return h.response({ status: 'fail' }).code(404);
+                    const prodRes = await pool.query('SELECT * FROM komoditas WHERE category_id = $1 ORDER BY id ASC', [id.toLowerCase()]);
+                    return {
+                        status: 'success',
+                        data: {
+                            ...catRes.rows[0],
+                            details: prodRes.rows.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
+                        }
+                    };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 3. GET Produk Spesifik
+            method: 'GET',
+            path: '/commodities/{id}/{productName}',
+            handler: async (request, h) => {
+                const { id, productName } = request.params;
+                try {
+                    const res = await pool.query('SELECT * FROM komoditas WHERE category_id = $1 AND nama ILIKE $2', [id, productName]);
+                    return res.rows.length > 0 ? { status: 'success', data: res.rows[0] } : h.response({ status: 'fail' }).code(404);
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 4. POST Update Stok & Harga Produk
+            method: 'POST',
+            path: '/api/commodities/update-product',
+            handler: async (request, h) => {
+                const { id, harga, stok, aktif } = request.payload;
+                try {
+                    await pool.query('UPDATE komoditas SET harga = $1, stok = $2, aktif = $3 WHERE id = $4', [harga, stok, aktif, id]);
+                    return { status: 'success', message: 'Data Berhasil Disimpan! 🚀' };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 5. POST Tambah Produk Baru
+            method: 'POST',
+            path: '/api/commodities/add',
+            handler: async (request, h) => {
+                const { category_id, nama, harga, stok, aktif } = request.payload;
+                try {
+                    const result = await pool.query('INSERT INTO komoditas (category_id, nama, harga, stok, aktif) VALUES ($1, $2, $3, $4, $5) RETURNING *', [category_id, nama, harga, stok, aktif]);
+                    return { status: 'success', message: 'Produk Baru Ditambahkan! 📦', data: result.rows[0] };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 6. POST Update Info Kategori
+            method: 'POST',
+            path: '/api/categories/update',
+            handler: async (request, h) => {
+                const { id, nama, keterangan, foto } = request.payload;
+                try {
+                    const query = foto ? 
+                        'UPDATE categories SET nama = $1, keterangan = $2, foto = $3 WHERE id = $4' :
+                        'UPDATE categories SET nama = $1, keterangan = $2 WHERE id = $3';
+                    const values = foto ? [nama.toUpperCase(), keterangan, foto, id] : [nama.toUpperCase(), keterangan, id];
+                    await pool.query(query, values);
+                    return { status: 'success', message: 'Kategori Diperbarui! ✨' };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 7. POST Tambah Kategori Baru
+            method: 'POST',
+            path: '/api/categories/add',
+            handler: async (request, h) => {
+                const { id, nama, keterangan, foto } = request.payload;
+                try {
+                    await pool.query('INSERT INTO categories (id, nama, aktif, keterangan, foto) VALUES ($1, $2, $3, $4, $5)', [id.toLowerCase(), nama.toUpperCase(), false, keterangan, foto]);
+                    return { status: 'success', message: 'Kategori Berhasil Dibuat! 📁' };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 8. DELETE Hapus Produk Satuan
+            method: 'DELETE',
+            path: '/api/commodities/delete-product/{id}',
+            handler: async (request, h) => {
+                const { id } = request.params;
+                try {
+                    await pool.query('DELETE FROM komoditas WHERE id = $1', [id]);
+                    return { status: 'success', message: 'Produk Dihapus! 🗑️' };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 9. DELETE Hapus Kategori
+            method: 'DELETE',
+            path: '/api/categories/delete/{id}',
+            handler: async (request, h) => {
+                const { id } = request.params;
+                try {
+                    await pool.query('DELETE FROM komoditas WHERE category_id = $1', [id]);
+                    await pool.query('DELETE FROM categories WHERE id = $1', [id]);
+                    return { status: 'success', message: `Kategori ${id.toUpperCase()} Dihapus!` };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 10. GET Ringkasan Stok Global
+            method: 'GET',
+            path: '/api/stats/stock',
+            handler: async (request, h) => {
+                try {
+                    const res = await pool.query('SELECT SUM(stok) as total_stok FROM komoditas');
+                    return { status: 'success', total: res.rows[0].total_stok || 0 };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 11. GET Search Produk
+            method: 'GET',
+            path: '/api/commodities/search',
+            handler: async (request, h) => {
+                const { q } = request.query;
+                try {
+                    const res = await pool.query(
+                        'SELECT k.*, c.nama as kategori_nama FROM komoditas k JOIN categories c ON k.category_id = c.id WHERE k.nama ILIKE $1', 
+                        [`%${q}%`]
+                    );
+                    return { status: 'success', data: res.rows };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 12. GET Dashboard Stats
+            method: 'GET',
+            path: '/api/stats/categories',
+            handler: async (request, h) => {
+                try {
+                    const res = await pool.query(`
+                        SELECT c.nama, COUNT(k.id) as total_item, SUM(k.stok) as total_stok 
+                        FROM categories c 
+                        LEFT JOIN komoditas k ON c.id = k.category_id 
+                        GROUP BY c.nama
+                    `);
+                    return { status: 'success', data: res.rows };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
+        },
+        {
+            // 13. POST Simpan Laporan Operasional Harian (DETAIL & CLOUD SYNCED)
+            method: 'POST',
+            path: '/api/laporan/save',
+            handler: async (request, h) => {
+                const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan, petugas } = request.payload;
+                try {
+                    const query = `
+                        INSERT INTO laporan_operasional 
+                        (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) 
+                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+                    
+                    const values = [
+                        hewan, 
+                        parseInt(deret), 
+                        sesi, 
+                        JSON.stringify(kesehatan), // Menyimpan {status: "SAKIT", detail: [...]}
+                        JSON.stringify(kelayakan), // Menyimpan {status: "TIDAK LAYAK", note: "..."}
+                        JSON.stringify(pekerjaan), 
+                        petugas
+                    ];
+
+                    const result = await pool.query(query, values);
+                    return { 
+                        status: 'success', 
+                        message: 'Laporan Berhasil Masuk Cloud! ☁️', 
+                        data: result.rows[0] 
+                    };
+                } catch (err) {
+                    console.error('Error Save Laporan:', err);
+                    return h.response({ status: 'error', message: 'Gagal simpan ke database' }).code(500);
+                }
+            }    
+        },
+        {
+            // 14. GET Histori Laporan (Biar data gak hilang pas refresh)
+            method: 'GET',
+            path: '/api/laporan',
+            handler: async (request, h) => {
+                try {
+                    const result = await pool.query('SELECT * FROM laporan_operasional ORDER BY tanggal_jam DESC');
+                    return { status: 'success', data: result.rows };
+                } catch (err) {
+                    return h.response({ status: 'error' }).code(500);
+                }
+            }
+        }
+    ]); // Tutup array rute
+
+    await server.start();
+    console.log(`🚀 Dunax Farm Backend Aktif di: ${server.info.uri}`);
+};
+
+// Global Safety Net
+process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Rejection:', err);
+});
+
+init();
