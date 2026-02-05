@@ -34,12 +34,12 @@ const init = async () => {
     try {
         server.route(authRoutes);
     } catch (err) {
-        console.error('Peringatan: Cek file ./routes/auth.js lo, pastikan export default-nya bener.');
+        console.error('Peringatan: Cek file ./routes/auth.js lo.');
     }
 
     server.route([
         {
-            // 1. GET Semua Kategori (LOGIKA MAYORITAS PRODUK)
+            // 1. GET Semua Kategori
             method: 'GET',
             path: '/commodities',
             handler: async (request, h) => {
@@ -68,7 +68,7 @@ const init = async () => {
             }
         },
         {
-            // 2. GET Detail Per Kategori (LOGIKA MAYORITAS PRODUK)
+            // 2. GET Detail Per Kategori
             method: 'GET',
             path: '/commodities/{id}',
             handler: async (request, h) => {
@@ -78,7 +78,6 @@ const init = async () => {
                     if (catRes.rows.length === 0) return h.response({ status: 'fail' }).code(404);
                     
                     const prodRes = await pool.query('SELECT * FROM komoditas WHERE category_id = $1 ORDER BY id ASC', [id.toLowerCase()]);
-                    
                     const activeCount = prodRes.rows.filter(p => p.aktif === true).length;
                     const inactiveCount = prodRes.rows.filter(p => p.aktif === false).length;
                     const isMajorityActive = activeCount >= inactiveCount && activeCount > 0;
@@ -91,10 +90,7 @@ const init = async () => {
                             details: prodRes.rows.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
                         }
                     };
-                } catch (err) { 
-                    console.error('Error GET /commodities/{id}:', err);
-                    return h.response({ status: 'error' }).code(500); 
-                }
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
             }
         },
         {
@@ -209,14 +205,11 @@ const init = async () => {
                         [`%${q}%`]
                     );
                     return { status: 'success', data: res.rows };
-                } catch (err) { 
-                    console.error('Search Error:', err);
-                    return h.response({ status: 'error', message: 'Gagal mencari data' }).code(500); 
-                }
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
             }
         },
         {
-            // 12. GET Ringkasan Per Kategori (Dashboard Stats)
+            // 12. GET Dashboard Stats
             method: 'GET',
             path: '/api/stats/categories',
             handler: async (request, h) => {
@@ -232,7 +225,7 @@ const init = async () => {
             }
         },
         {
-            // 13. POST Simpan Laporan Operasional Harian (FIXED & SYNCED)
+            // 13. POST Simpan Laporan Operasional Harian
             method: 'POST',
             path: '/api/laporan/save',
             handler: async (request, h) => {
@@ -242,28 +235,25 @@ const init = async () => {
                         INSERT INTO laporan_operasional 
                         (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) 
                         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
-                    
-                    const values = [
-                        hewan, 
-                        parseInt(deret), 
-                        sesi, 
-                        JSON.stringify(kesehatan), 
-                        JSON.stringify(kelayakan), 
-                        JSON.stringify(pekerjaan), 
-                        petugas
-                    ];
-
+                    const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan), petugas];
                     const result = await pool.query(query, values);
-                    return { 
-                        status: 'success', 
-                        message: 'Laporan Berhasil Masuk Cloud! ☁️', 
-                        data: result.rows[0] 
-                    };
+                    return { status: 'success', message: 'Laporan Berhasil Masuk Cloud! ☁️', data: result.rows[0] };
                 } catch (err) {
                     console.error('Error Save Laporan:', err);
                     return h.response({ status: 'error', message: 'Gagal simpan ke database' }).code(500);
                 }
             }    
+        },
+        {
+            // 14. GET Histori Laporan (Data Persistence)
+            method: 'GET',
+            path: '/api/laporan',
+            handler: async (request, h) => {
+                try {
+                    const result = await pool.query('SELECT * FROM laporan_operasional ORDER BY tanggal_jam DESC');
+                    return { status: 'success', data: result.rows };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
+            }
         }
     ]); // Tutup array rute
 
@@ -271,7 +261,7 @@ const init = async () => {
     console.log(`🚀 Dunax Farm Backend Aktif di: ${server.info.uri}`);
 };
 
-// Global Safety Net (Cegah Crash Konyol)
+// Global Safety Net
 process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err);
 });
