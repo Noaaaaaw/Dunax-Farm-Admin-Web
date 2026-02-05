@@ -40,7 +40,7 @@ const init = async () => {
     // Main Routes (1-14)
     server.route([
         {
-            // 1. GET Semua Kategori
+            // 1. GET Semua Kategori (LOGIKA MAYORITAS PRODUK)
             method: 'GET',
             path: '/commodities',
             handler: async (request, h) => {
@@ -51,7 +51,8 @@ const init = async () => {
                     const result = categories.rows.map(cat => {
                         const catProducts = products.rows.filter(p => p.category_id === cat.id);
                         const activeCount = catProducts.filter(p => p.aktif === true).length;
-                        const isMajorityActive = activeCount > 0;
+                        const inactiveCount = catProducts.filter(p => p.aktif === false).length;
+                        const isMajorityActive = activeCount >= inactiveCount && activeCount > 0;
 
                         return {
                             id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '',
@@ -76,11 +77,17 @@ const init = async () => {
                 try {
                     const catRes = await pool.query('SELECT * FROM categories WHERE id = $1', [id.toLowerCase()]);
                     if (catRes.rows.length === 0) return h.response({ status: 'fail' }).code(404);
+                    
                     const prodRes = await pool.query('SELECT * FROM komoditas WHERE category_id = $1 ORDER BY id ASC', [id.toLowerCase()]);
+                    const activeCount = prodRes.rows.filter(p => p.aktif === true).length;
+                    const inactiveCount = prodRes.rows.filter(p => p.aktif === false).length;
+                    const isMajorityActive = activeCount >= inactiveCount && activeCount > 0;
+
                     return {
                         status: 'success',
                         data: {
                             ...catRes.rows[0],
+                            aktif: isMajorityActive, 
                             details: prodRes.rows.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
                         }
                     };
@@ -234,8 +241,8 @@ const init = async () => {
                         hewan, 
                         parseInt(deret), 
                         sesi, 
-                        JSON.stringify(kesehatan), // Menyimpan {status: "SAKIT", detail: [...]}
-                        JSON.stringify(kelayakan), // Menyimpan {status: "TIDAK LAYAK", note: "..."}
+                        JSON.stringify(kesehatan), // {status: "SAKIT", detail: [...]}
+                        JSON.stringify(kelayakan), // {status: "TIDAK LAYAK", note: "..."}
                         JSON.stringify(pekerjaan), 
                         petugas
                     ];
@@ -265,7 +272,7 @@ const init = async () => {
                 }
             }
         }
-    ]); // Tutup array rute
+    ]); // Tutup array rute utama
 
     await server.start();
     console.log(`🚀 Dunax Farm Backend Aktif di: ${server.info.uri}`);
