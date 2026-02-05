@@ -226,36 +226,24 @@ const init = async () => {
             }
         },
         {
-            // 13. POST Simpan Laporan Operasional Harian (DETAIL & CLOUD SYNCED)
-            method: 'POST',
-            path: '/api/laporan/save',
-            handler: async (request, h) => {
-                const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan, petugas } = request.payload;
-                try {
-                    const query = `
-                        INSERT INTO laporan_operasional 
-                        (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) 
-                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
-                    
-                    const values = [
-                        hewan, 
-                        parseInt(deret), 
-                        sesi, 
-                        JSON.stringify(kesehatan), // {status: "SAKIT", detail: [...]}
-                        JSON.stringify(kelayakan), // {status: "TIDAK LAYAK", note: "..."}
-                        JSON.stringify(pekerjaan), 
-                        petugas
-                    ];
-
-                    const result = await pool.query(query, values);
-                    return { 
-                        status: 'success', 
-                        message: 'Laporan Berhasil Masuk Cloud! ☁️', 
-                        data: result.rows[0] 
-                    };
-                } catch (err) {
-                    console.error('Error Save Laporan:', err);
-                    return h.response({ status: 'error', message: 'Gagal simpan ke database' }).code(500);
+    
+    // 13. POST Simpan Laporan (URL Foto, Bukan Base64)
+    method: 'POST',
+    path: '/api/laporan/save',
+    handler: async (request, h) => {
+        const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan, petugas } = request.payload;
+        try {
+            const query = `
+                INSERT INTO laporan_operasional 
+                (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+            
+            // Data JSONB tetap rapi, foto isinya URL pendek
+            const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan), petugas];
+            const result = await pool.query(query, values);
+            return { status: 'success', message: 'Laporan Masuk Cloud! ☁️', data: result.rows[0] };
+        } catch (err) {
+            return h.response({ status: 'error', message: 'Gagal simpan database' }).code(500);
                 }
             }    
         },

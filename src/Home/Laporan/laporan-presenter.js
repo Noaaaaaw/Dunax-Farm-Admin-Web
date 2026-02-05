@@ -98,7 +98,7 @@ class LaporanPresenter {
     const session = this.sessionSelect.value;
     const kandang = this.noKandangSelect.value;
 
-    // Logic Detail Kesehatan
+    // 1. Logic Detail Kesehatan
     let healthStatus = "SEHAT";
     let healthDetail = [];
     const healthSelect = this.form.querySelector('.health-status-select');
@@ -115,12 +115,13 @@ class LaporanPresenter {
       });
     }
 
-    // Logic Detail Kelayakan
+    // 2. Logic Detail Kelayakan & Foto
     const kelayakanSelect = this.form.querySelector('.status-kandang-select').value;
     const kelayakanStatus = kelayakanSelect === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK';
     const note = this.form.querySelector('.kandang-note').value;
     const photoInput = this.form.querySelector('.kandang-photo');
     let photoData = "";
+
     if (photoInput.files[0]) {
        photoData = await new Promise(r => {
          const reader = new FileReader();
@@ -154,7 +155,7 @@ class LaporanPresenter {
             this.form.reset();
             this.stepSesi.style.display = 'none';
         }
-    } catch (err) { alert("Server Error!"); }
+    } catch (err) { alert("Gagal Simpan Database Railway!"); }
   }
 
   _getTaskList() {
@@ -172,7 +173,7 @@ class LaporanPresenter {
 
   _addNewRowToTable(data) {
     const time = new Date(data.tanggal_jam).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ':');
-    // Sinkronisasi data JSONB dari Supabase
+    // Sinkronisasi data JSONB
     const kesehatan = data.kesehatan_data || { status: 'SEHAT', detail: [] };
     const kelayakan = data.kelayakan_data || { status: 'LAYAK', note: '', photo: '' };
     const pekerjaan = data.pekerjaan_data || [];
@@ -213,7 +214,7 @@ class LaporanPresenter {
 
   _renderTaskTable(session) {
     const container = document.getElementById('taskContainer');
-    // Tugas sore tanpa "Cek Kesehatan Hewan"
+    // Sesi sore tanpa Cek Kesehatan
     const tasks = session === 'PAGI' ? [
       { text: 'Pemberian Pakan Pagi', type: 'number', unit: 'Kg' },
       { text: 'Cek Kebersihan Alat Minum', type: 'check' },
