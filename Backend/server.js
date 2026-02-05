@@ -259,45 +259,9 @@ const init = async () => {
                     return h.response({ status: 'error' }).code(500);
                 }
             }
-        },
-    {
-        // 15. RUTE UPLOAD FOTO (Fix Error 404 lo!)
-        method: 'POST',
-        path: '/upload-foto',
-        options: {
-            payload: {
-                output: 'stream',
-                parse: true,
-                multipart: true,
-                maxBytes: 5242880 // Batas 5MB biar gak lemot
-            }
-        },
-        handler: async (request, h) => {
-            const { foto } = request.payload;
-            const fileName = `${Date.now()}-${foto.hapi.filename}`;
-            
-            try {
-                // Upload ke bucket 'category-photos'
-                const { data, error } = await supabase.storage
-                    .from('category-photos')
-                    .upload(fileName, foto, {
-                        contentType: foto.hapi.headers['content-type']
-                    });
-
-                if (error) throw error;
-
-                // Dapetin Public URL rapi
-                const { data: { publicUrl } } = supabase.storage
-                    .from('category-photos')
-                    .getPublicUrl(fileName);
-
-                return { status: 'success', foto: publicUrl };
-            } catch (err) {
-                return h.response({ status: 'error', message: 'Gagal upload storage' }).code(500);
-            }
         }
-    }
-]);
+    ]);
+
     await server.start();
     console.log(`🚀 Dunax Farm Backend Aktif di: ${server.info.uri}`);
 };
