@@ -93,61 +93,48 @@ class LaporanPresenter {
     });
   }
 
-  async _handleSubmit() {
+async _handleSubmit() {
     const user = AuthService.getUser();
     const session = this.sessionSelect.value;
     const kandang = this.noKandangSelect.value;
+    const photoInput = this.form.querySelector('.kandang-photo');
+    
+    let photoUrl = ""; // Default kosong
 
-    // 1. Logic Foto: WAJIB AWAIT biar gak kosong!
-    // ✅ UPLOAD FOTO KE SERVER → SUPABASE
-const photoInput = this.form.querySelector('.kandang-photo');
-let photoUrl = "";
+    // 1. Logic Upload Foto: WAJIB AWAIT
+    if (photoInput.files && photoInput.files[0]) {
+      const formData = new FormData();
+      formData.append('foto', photoInput.files[0]);
 
-if (photoInput.files && photoInput.files[0]) {
-  const formData = new FormData();
-  formData.append('foto', photoInput.files[0]);
-
-  const uploadRes = await fetch(`${CONFIG.BASE_URL}/upload-foto`, {
-    method: 'POST',
-    body: formData
-  });
-
-  const uploadResult = await uploadRes.json();
-
-  if (uploadResult.status === 'success') {
-    photoUrl = uploadResult.foto; // 🔥 URL FINAL
-  } else {
-    alert('Upload foto gagal');
-    return;
-  }
-}
-
-    // 2. Logic Kesehatan
-    let healthStatus = "SEHAT";
-    let healthDetail = [];
-    const healthSelect = this.form.querySelector('.health-status-select');
-    if (healthSelect?.value === 'SAKIT') {
-      healthStatus = "SAKIT";
-      this.form.querySelectorAll('.health-entry-card').forEach(card => {
-        healthDetail.push({
-          kandang: card.querySelector('.disease-kandang').value || '-',
-          ayam: card.querySelector('.disease-ayam').value || '-',
-          penyakit: card.querySelector('.disease-name').value || '-',
-          karantina: card.querySelector('.is-quarantine').value,
-          pemulihan: card.querySelector('.recovery-step').value || '-'
+      try {
+        const uploadRes = await fetch(`${CONFIG.BASE_URL}/upload-foto`, {
+          method: 'POST',
+          body: formData
         });
-      });
+
+        const uploadResult = await uploadRes.json();
+        if (uploadResult.status === 'success') {
+          photoUrl = uploadResult.foto; // 🔥 URL FINAL RAPI
+        } else {
+          alert('Gagal upload foto ke server');
+          return;
+        }
+      } catch (err) {
+        alert('Koneksi upload error');
+        return;
+      }
     }
 
+    // 2. Kirim Payload dengan URL Foto (Bukan Base64)
     const payload = {
         hewan: this.hewanSelect.value,
         deret: kandang,
         sesi: session,
-        kesehatan: { status: healthStatus, detail: healthDetail },
+        kesehatan: this._getSickData(),
         kelayakan: { 
             status: this.form.querySelector('.status-kandang-select').value === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK', 
             note: this.form.querySelector('.kandang-note').value, 
-            photo: photoUrl
+            photo: photoUrl // SEKARANG ISINYA URL https://...
         },
         pekerjaan: this._getTaskList(),
         petugas: user.nama
@@ -161,13 +148,13 @@ if (photoInput.files && photoInput.files[0]) {
         });
         const result = await response.json();
         if (result.status === 'success') {
-            alert("Laporan Tersimpan di Cloud! ☁️");
+            alert("Laporan Tersimpan! 🚀");
             this.progress[session] = parseInt(kandang);
             this._addNewRowToTable(result.data); 
             this.form.reset();
             this.stepSesi.style.display = 'none';
         }
-    } catch (err) { alert("Server Error!"); }
+    } catch (err) { alert("Server Railway Error!"); }
   }
 
   _getTaskList() {
