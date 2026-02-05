@@ -4,21 +4,21 @@ import { CONFIG } from '../../config.js';
 const JualKomoditas = {
   async render() {
     return `
-      <section class="page">
-        <div class="page-header-card">
-          <h1>Manajemen Komoditas</h1>
-          <p>Management kategori dan produk Dunax Farm dengan mudah dan terintegrasi.</p>
+      <section class="page" style="display: flex; flex-direction: column; gap: 30px; padding: 0 20px;">
+        <div class="page-header-card" style="background: #ffffff; border-radius: 24px; padding: 40px 20px; border: 1px solid #e0eadd; box-shadow: 0 8px 24px rgba(0,0,0,0.04); position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+          <h1 style="margin: 0; font-family: 'Luckiest Guy', cursive; font-size: 2.8rem; font-weight: normal; color: #6CA651; letter-spacing: 3px; text-transform: uppercase;">
+            MANAJEMEN KOMODITAS
+          </h1>
         </div>
 
         <div class="action-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; margin-bottom: 40px;">
-          
           <div class="action-card" id="openModalCatBtn" style="cursor: pointer; display: flex; align-items: center; gap: 25px; padding: 40px 35px;">
             <div class="icon-box-clean" style="width: 85px; height: 85px; border-radius: 20px;">
                <span style="font-size: 3.5rem;">📁</span>
             </div>
             <div>
-              <h3 style="margin: 0; font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px;">Tambah Kategori</h3>
-              <p style="margin: 5px 0 0; opacity: 0.85; font-size: 1rem; font-weight: 500;">Buat grup komoditas baru</p>
+              <h3 style="margin: 0; font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px;">TAMBAH KATEGORI</h3>
+              <p style="margin: 5px 0 0; opacity: 0.85; font-size: 1rem; font-weight: 500;">Buat Grup Komoditas Baru</p>
             </div>
           </div>
 
@@ -27,8 +27,8 @@ const JualKomoditas = {
                <span style="font-size: 3.5rem;">📦</span>
             </div>
             <div>
-              <h3 style="margin: 0; font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px;">Tambah Produk</h3>
-              <p style="margin: 5px 0 0; opacity: 0.85; font-size: 1rem; font-weight: 500;">Masukkan jenis barang baru</p>
+              <h3 style="margin: 0; font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px;">TAMBAH PRODUK</h3>
+              <p style="margin: 5px 0 0; opacity: 0.85; font-size: 1rem; font-weight: 500;">Masukkan Jenis Barang Baru</p>
             </div>
           </div>
         </div>
@@ -105,16 +105,14 @@ const JualKomoditas = {
       </section>
 
       <style>
-        /* HEADER PUTIH AKSEN HIJAU */
         .page-header-card {
             background: #ffffff !important; border-radius: 24px !important; padding: 32px 40px !important;
             border: 1px solid #e0eadd !important; box-shadow: 0 8px 24px rgba(0,0,0,0.04) !important;
             position: relative !important; overflow: hidden !important; margin-bottom: 30px !important;
         }
-        .page-header-card::before { content: ''; position: absolute; left: 0; top: 0; width: 10px; height: 100%; background: #41644A; }
+        .page-header-card::before { content: ''; position: absolute; left: 0; top: 0; width: 10px; height: 100%; background: #6CA651; }
         .page-header-card h1 { margin: 0; font-size: 2.2rem; font-weight: 950; color: #1f3326; letter-spacing: -1px; }
 
-        /* ACTION CARDS (DIGEDEIN) */
         .action-card {
             background: #4A7255 !important; color: white !important; 
             border-radius: 25px !important; border: 1px solid rgba(255,255,255,0.1) !important;

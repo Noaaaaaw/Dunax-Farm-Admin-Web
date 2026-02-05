@@ -10,7 +10,11 @@ const init = async () => {
         // WAJIB '0.0.0.0' biar bisa diakses via internet (Railway requirement)
         host: '0.0.0.0', 
         routes: { 
-            cors: { origin: ['*'] }, 
+            cors: { 
+                origin: ['*'], // Izinkan akses dari mana saja
+                headers: ['Accept', 'Authorization', 'Content-Type', 'If-None-Match'],
+                additionalHeaders: ['cache-control', 'x-requested-with']
+            }, 
             payload: { maxBytes: 2097152 } 
         },
     });
@@ -226,8 +230,42 @@ const init = async () => {
                     return { status: 'success', data: res.rows };
                 } catch (err) { return h.response({ status: 'error' }).code(500); }
             }
+        },
+        {
+            // 13. POST Simpan Laporan Operasional Harian (FIXED & SYNCED)
+            method: 'POST',
+            path: '/api/laporan/save',
+            handler: async (request, h) => {
+                const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan, petugas } = request.payload;
+                try {
+                    const query = `
+                        INSERT INTO laporan_operasional 
+                        (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) 
+                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+                    
+                    const values = [
+                        hewan, 
+                        parseInt(deret), 
+                        sesi, 
+                        JSON.stringify(kesehatan), 
+                        JSON.stringify(kelayakan), 
+                        JSON.stringify(pekerjaan), 
+                        petugas
+                    ];
+
+                    const result = await pool.query(query, values);
+                    return { 
+                        status: 'success', 
+                        message: 'Laporan Berhasil Masuk Cloud! ☁️', 
+                        data: result.rows[0] 
+                    };
+                } catch (err) {
+                    console.error('Error Save Laporan:', err);
+                    return h.response({ status: 'error', message: 'Gagal simpan ke database' }).code(500);
+                }
+            }    
         }
-    ]);
+    ]); // Tutup array rute
 
     await server.start();
     console.log(`🚀 Dunax Farm Backend Aktif di: ${server.info.uri}`);
@@ -236,7 +274,6 @@ const init = async () => {
 // Global Safety Net (Cegah Crash Konyol)
 process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err);
-    // Di Railway, biarkan sistem yang me-restart, jangan paksa exit jika hanya 1 error.
 });
 
 init();

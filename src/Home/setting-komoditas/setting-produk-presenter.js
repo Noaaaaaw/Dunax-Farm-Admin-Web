@@ -4,7 +4,7 @@ class SettingProdukPresenter {
   constructor({ container, categoryId }) {
     this.container = container;
     this.categoryId = categoryId;
-    this.baseUrl = CONFIG.BASE_URL; // Otomatis nembak ke Railway
+    this.baseUrl = CONFIG.BASE_URL; 
   }
 
   async init() {
@@ -14,20 +14,22 @@ class SettingProdukPresenter {
     this.container.style.cssText = 'background: transparent; padding: 0; boxShadow: none; border: none;';
 
     this.container.innerHTML = `
-      <div class="page-header-card" style="background: white !important; margin-bottom: 30px !important; padding: 20px; border-radius: 15px;">
-        <h1 style="font-weight: 900;">SETTING PRODUK ${displayTitle}</h1>
-        <p style="color: #666;">Kelola stok persediaan dan harga produk kategori ${displayTitle} secara real-time.</p>
+      <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
+
+      <div class="page-header-card" style="background: white !important; margin-bottom: 30px !important; padding: 40px 20px; border-radius: 24px; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px solid #e0eadd; box-shadow: 0 8px 24px rgba(0,0,0,0.04);">
+        <h1 style="margin: 0; font-family: 'Luckiest Guy', cursive; font-size: 2.8rem; font-weight: normal; color: #6CA651; letter-spacing: 3px; text-transform: uppercase;">
+          SETTING PRODUK ${displayTitle}
+        </h1>
       </div>
 
       <div id="productGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; align-items: stretch; padding: 10px 0;">
-         <div style="padding: 100px; text-align: center; grid-column: 1/-1; color: #41644A; font-weight: 800;">
-            <p>⏳ Menghubungkan ke database</p>
+         <div style="padding: 100px; text-align: center; grid-column: 1/-1; color: #6CA651; font-weight: 800;">
+            <p>⏳ Menghubungkan ke database...</p>
          </div>
       </div>
     `;
 
     try {
-      // ✅ Ambil data produk spesifik dari Backend Railway
       const response = await fetch(`${this.baseUrl}/commodities/${this.categoryId}`);
       const result = await response.json();
       
@@ -39,7 +41,7 @@ class SettingProdukPresenter {
     } catch (err) {
       console.error("Gagal load produk:", err);
       document.getElementById('productGrid').innerHTML = `
-        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: red; font-weight: 800;">
+        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #e74c3c; font-weight: 800;">
           ⚠️ Gagal konek ke Server!
         </div>`;
     }
@@ -49,7 +51,7 @@ class SettingProdukPresenter {
     document.getElementById('productGrid').innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 80px; background: white; border-radius: 30px; border: 2px dashed #eef2ed;">
         <p style="color: #666; font-weight: bold; font-size: 1.2rem;">Belum ada produk di kategori ini, bro! 📦</p>
-        <button onclick="location.hash='#/jual-komoditas'" style="margin-top: 20px; padding: 15px 30px; background: #41644A; color: white; border: none; border-radius: 15px; cursor: pointer; font-weight: 800;">Tambah Produk Sekarang</button>
+        <button onclick="location.hash='#/jual-komoditas'" style="margin-top: 20px; padding: 15px 30px; background: #6CA651; color: white; border: none; border-radius: 15px; cursor: pointer; font-weight: 800;">Tambah Produk Sekarang</button>
       </div>`;
   }
 
@@ -77,13 +79,13 @@ class SettingProdukPresenter {
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: center; background: #f1f5f2; padding: 12px; border-radius: 15px; margin-bottom: 25px; gap: 10px;">
-            <span style="font-size: 0.85rem; font-weight: 800; color: #41644A;">Status Jual</span>
-            <input type="checkbox" class="prod-aktif" ${p.aktif ? 'checked' : ''} disabled style="width: 18px; height: 18px; accent-color: #41644A;">
+        <div style="display: flex; align-items: center; justify-content: center; background: #f1f8f1; padding: 12px; border-radius: 15px; margin-bottom: 25px; gap: 10px; border: 1px solid #eef2ed;">
+            <span style="font-size: 0.85rem; font-weight: 800; color: #6CA651;">Status Jual</span>
+            <input type="checkbox" class="prod-aktif" ${p.aktif ? 'checked' : ''} disabled style="width: 18px; height: 18px; accent-color: #6CA651;">
         </div>
 
         <button class="edit-btn" data-id="${p.id}" data-index="${index}" 
-                style="width: 100%; padding: 16px; background: #41644A; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer;">Edit Data</button>
+                style="width: 100%; padding: 16px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer;">Edit Data</button>
       </div>
     `).join('');
 
@@ -109,7 +111,7 @@ class SettingProdukPresenter {
         const inputs = card.querySelectorAll('input');
         
         if (e.target.innerText !== 'SIMPAN') {
-          inputs.forEach(i => { i.disabled = false; i.style.background = '#fff'; i.style.borderColor = '#41644A'; });
+          inputs.forEach(i => { i.disabled = false; i.style.background = '#fff'; i.style.borderColor = '#6CA651'; });
           e.target.innerText = 'SIMPAN'; 
           e.target.style.background = '#f39c12';
         } else {
@@ -135,7 +137,6 @@ class SettingProdukPresenter {
     };
 
     try {
-      // ✅ Update ke Supabase via Railway
       const res = await fetch(`${this.baseUrl}/api/commodities/update-product`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
@@ -146,7 +147,7 @@ class SettingProdukPresenter {
         alert('Data Berhasil Terupdate!');
         this.init(); 
       }
-    } catch (err) { alert('Gagal simpan! Cek koneksi backend.'); }
+    } catch (err) { alert('Gagal simpan!'); }
   }
 
   async _deleteProduct(productId) {
@@ -154,7 +155,7 @@ class SettingProdukPresenter {
       const response = await fetch(`${this.baseUrl}/api/commodities/delete-product/${productId}`, { method: 'DELETE' });
       const result = await response.json();
       if (result.status === 'success') { alert("Terhapus! 🗑️"); await this.init(); }
-    } catch (err) { alert('Gagal hapus data cloud.'); }
+    } catch (err) { alert('Gagal hapus.'); }
   }
 }
 

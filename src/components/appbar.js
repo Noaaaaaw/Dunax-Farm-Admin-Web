@@ -3,13 +3,10 @@ import AuthService from '../auth/auth-services.js';
 const AppBar = {
   render() {
     const user = AuthService.getUser();
-
-    // Ambil data murni dari backend
     const fullDisplayName = user?.nama || user?.name || 'User'; 
     const userEmail = user?.email || user?.user_email || 'Email Bermasalah'; 
     const displayRole = user?.role || 'KARYAWAN';
     
-    // Inisial untuk Avatar API
     const firstName = fullDisplayName.split(' ')[0]; 
     const displayAvatar = `https://ui-avatars.com/api/?name=${firstName}&background=41644A&color=fff&bold=true`;
     
@@ -17,11 +14,15 @@ const AppBar = {
     const isActive = (path) => (currentHash === path ? 'active' : '');
 
     return `
+      <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
+      
       <header class="appbar">
         <div class="appbar-inner"> 
           <div class="appbar-top-row">
             <div class="brand-section">
-              <h1 class="app-title">DUNAX FARM <span class="title-sub">OPERATIONAL</span></h1>
+              <h1 class="app-title" style="font-family: 'Luckiest Guy', cursive; font-weight: normal; letter-spacing: 2px; color: #000000; font-size: 1.8rem;">
+                DUNAX FARM (DNX) <span class="title-sub" style="font-family: sans-serif; font-weight: 2.2 rem; font-size: 0.7rem; letter-spacing: 1px; margin-left: 5px;">OPERATIONAL</span>
+              </h1>
             </div>
 
             <div class="right-action-group">
@@ -54,13 +55,13 @@ const AppBar = {
           </div>
 
           <nav class="desktop-nav-row">
-            <a href="#/" class="${isActive('#/')}">Dashboard</a>
-            <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">Komoditas</a>
-            <a href="#/laporan" class="${isActive('#/laporan')}">Laporan</a>
-            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">Pengaturan</a>
+            <a href="#/" class="${isActive('#/')}">DASHBOARD</a>
+            <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
+            <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
+            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">PENGATURAN</a>
           </nav>
         </div>
-
+        
         <div id="mobileSidebar" class="mobile-sidebar">
           <div class="sidebar-header-mobile">
             <div class="avatar-mobile-wrapper">
@@ -71,13 +72,9 @@ const AppBar = {
               <p class="mobile-u-name">${fullDisplayName}</p>
               <p class="mobile-u-email">${userEmail}</p> 
               <span class="mobile-u-role">${displayRole.toUpperCase()}</span>
-              
-              <button id="logoutMobileBtn" class="mobile-logout-inline-btn">
-                Logout Keluar Sistem
-              </button>
+              <button id="logoutMobileBtn" class="mobile-logout-inline-btn">Logout Keluar Sistem</button>
             </div>
           </div>
-          
           <nav class="mobile-nav-links">
             <a href="#/" class="${isActive('#/')}">📊 Dashboard</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">📦 Komoditas</a>
@@ -85,13 +82,13 @@ const AppBar = {
             <a href="#/pengaturan" class="${isActive('#/pengaturan')}">⚙️ Pengaturan</a>
           </nav>
         </div>
-
         <div id="sidebarOverlay" class="sidebar-overlay"></div>
       </header>
     `;
   },
 
   async afterRender() {
+    // ... Seluruh logic JS afterRender tetap sama ...
     const profileToggle = document.getElementById('profileToggle');
     const profileDropdown = document.getElementById('profileDropdown');
     const logoutBtn = document.getElementById('logoutBtn');
@@ -100,7 +97,6 @@ const AppBar = {
     const mobileSidebar = document.getElementById('mobileSidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-    // Toggle Dropdown (Desktop)
     if (profileToggle) {
       profileToggle.onclick = (e) => {
         e.stopPropagation();
@@ -108,7 +104,6 @@ const AppBar = {
       };
     }
 
-    // Toggle Sidebar (Mobile)
     if (menuMobileBtn) {
       menuMobileBtn.onclick = (e) => {
         e.stopPropagation();
@@ -124,7 +119,6 @@ const AppBar = {
 
     if (sidebarOverlay) sidebarOverlay.onclick = closeSidebar;
 
-    // Handle Logout
     const doLogout = () => {
       if (confirm('Yakin mau keluar sistem?')) {
         AuthService.logout();
