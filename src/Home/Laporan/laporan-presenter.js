@@ -4,7 +4,7 @@ import { CONFIG } from '../../config.js';
 class LaporanPresenter {
   constructor() {
     this.isSubmitting = false;
-    this.progress = { PAGI: 0, SORE: 0 }; // Akan diupdate dari database
+    this.progress = { PAGI: 0, SORE: 0 }; 
   }
 
   async init() {
@@ -98,7 +98,18 @@ class LaporanPresenter {
     const session = this.sessionSelect.value;
     const kandang = this.noKandangSelect.value;
 
-    // 1. Logic Detail Kesehatan
+    // 1. Logic Foto: WAJIB AWAIT biar gak kosong!
+    const photoInput = this.form.querySelector('.kandang-photo');
+    let photoData = "";
+    if (photoInput.files && photoInput.files[0]) {
+       photoData = await new Promise((resolve) => {
+         const reader = new FileReader();
+         reader.onload = e => resolve(e.target.result);
+         reader.readAsDataURL(photoInput.files[0]);
+       });
+    }
+
+    // 2. Logic Kesehatan
     let healthStatus = "SEHAT";
     let healthDetail = [];
     const healthSelect = this.form.querySelector('.health-status-select');
@@ -115,27 +126,16 @@ class LaporanPresenter {
       });
     }
 
-    // 2. Logic Detail Kelayakan & Foto
-    const kelayakanSelect = this.form.querySelector('.status-kandang-select').value;
-    const kelayakanStatus = kelayakanSelect === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK';
-    const note = this.form.querySelector('.kandang-note').value;
-    const photoInput = this.form.querySelector('.kandang-photo');
-    let photoData = "";
-
-    if (photoInput.files[0]) {
-       photoData = await new Promise(r => {
-         const reader = new FileReader();
-         reader.onload = e => r(e.target.result);
-         reader.readAsDataURL(photoInput.files[0]);
-       });
-    }
-
     const payload = {
         hewan: this.hewanSelect.value,
         deret: kandang,
         sesi: session,
         kesehatan: { status: healthStatus, detail: healthDetail },
-        kelayakan: { status: kelayakanStatus, note: note, photo: photoData },
+        kelayakan: { 
+            status: this.form.querySelector('.status-kandang-select').value === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK', 
+            note: this.form.querySelector('.kandang-note').value, 
+            photo: photoData 
+        },
         pekerjaan: this._getTaskList(),
         petugas: user.nama
     };
@@ -147,15 +147,14 @@ class LaporanPresenter {
             body: JSON.stringify(payload)
         });
         const result = await response.json();
-
         if (result.status === 'success') {
-            alert("Laporan Berhasil Masuk Cloud! ☁️");
+            alert("Laporan Tersimpan di Cloud! ☁️");
             this.progress[session] = parseInt(kandang);
             this._addNewRowToTable(result.data); 
             this.form.reset();
             this.stepSesi.style.display = 'none';
         }
-    } catch (err) { alert("Gagal Simpan Database Railway!"); }
+    } catch (err) { alert("Server Error!"); }
   }
 
   _getTaskList() {
@@ -173,7 +172,6 @@ class LaporanPresenter {
 
   _addNewRowToTable(data) {
     const time = new Date(data.tanggal_jam).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', ':');
-    // Sinkronisasi data JSONB
     const kesehatan = data.kesehatan_data || { status: 'SEHAT', detail: [] };
     const kelayakan = data.kelayakan_data || { status: 'LAYAK', note: '', photo: '' };
     const pekerjaan = data.pekerjaan_data || [];
@@ -206,15 +204,12 @@ class LaporanPresenter {
           </button>
         </td>
       </tr>`;
-
-    if (this.tableBody.innerHTML.includes('Belum ada')) this.tableBody.innerHTML = '';
     this.tableBody.insertAdjacentHTML('afterbegin', newRow);
     this._bindTableButtons(this.tableBody.firstElementChild);
   }
 
   _renderTaskTable(session) {
     const container = document.getElementById('taskContainer');
-    // Sesi sore tanpa Cek Kesehatan
     const tasks = session === 'PAGI' ? [
       { text: 'Pemberian Pakan Pagi', type: 'number', unit: 'Kg' },
       { text: 'Cek Kebersihan Alat Minum', type: 'check' },
@@ -227,19 +222,18 @@ class LaporanPresenter {
       { text: 'Monitoring Kegiatan SORE', type: 'check' },
       { text: 'Pengasapan SORE', type: 'check' }
     ];
-
     container.innerHTML = tasks.map(t => `
       <tr style="border-bottom: 1px solid #f4f7f5;">
         <td style="padding: 15px; font-weight: 700;">${t.text}</td>
         <td style="padding: 10px; text-align: center;">
           <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-            ${t.type === 'number' ? `<input type="number" class="task-input" data-unit="${t.unit}" placeholder="${t.unit}" style="width: 80px; padding: 8px; text-align: center; font-weight: 800; border-radius: 8px; border: 1px solid #ddd;">` : ''}
-            ${t.type === 'health' ? `<select class="health-status-select" style="padding: 8px; border-radius: 8px; font-weight: 700; border: 1px solid #ddd; width: 90px;"><option value="SEHAT">SEHAT</option><option value="SAKIT">SAKIT</option></select> <button type="button" class="add-health-btn" style="display:none; padding:6px 12px; border-radius:8px; background:#41644A; color:white; border:none; cursor:pointer; font-size:0.75rem; font-weight:900;">+ DATA SAKIT</button>` : ''}
+            ${t.type === 'number' ? `<input type="number" class="task-input" data-unit="${t.unit}" placeholder="${t.unit}" style="width: 80px; padding: 8px;">` : ''}
+            ${t.type === 'health' ? `<select class="health-status-select"><option value="SEHAT">SEHAT</option><option value="SAKIT">SAKIT</option></select> <button type="button" class="add-health-btn" style="display:none; padding:6px 12px; border-radius:8px; background:#41644A; color:white; border:none; cursor:pointer;">+ DATA SAKIT</button>` : ''}
           </div>
         </td>
-        <td style="padding: 15px; text-align: center;"><input type="checkbox" class="task-check" style="width: 24px; height: 24px; accent-color: #41644A;"></td>
+        <td style="padding: 15px; text-align: center;"><input type="checkbox" class="task-check" style="width: 24px; height: 24px;"></td>
       </tr>
-      ${t.type === 'health' ? `<tr class="health-detail-row" style="display: none; background: #fff5f5;"><td colspan="3" style="padding: 20px;"><div class="health-entries-container"><div class="health-entry-card" style="border: 1.5px solid #feb2b2; padding: 15px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">NOMOR KANDANG</label><input type="text" class="disease-kandang" placeholder="01" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">NOMOR AYAM</label><input type="text" class="disease-ayam" placeholder="12" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div class="form-group" style="grid-column: span 2;"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">INDIKASI PENYAKIT</label><input type="text" class="disease-name" placeholder="Gejala..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">KARANTINA?</label><select class="is-quarantine" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"><option value="TIDAK">TIDAK</option><option value="YA">YA</option></select></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030; display:block; margin-bottom:5px;">PEMULIHAN</label><input type="text" class="recovery-step" placeholder="Obat..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;"></div></div></div></td></tr>` : ''}
+      ${t.type === 'health' ? `<tr class="health-detail-row" style="display: none; background: #fff5f5;"><td colspan="3" style="padding: 20px;"><div class="health-entries-container"><div class="health-entry-card" style="border: 1.5px solid #feb2b2; padding: 15px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"><div class="form-group"><label>KANDANG</label><input type="text" class="disease-kandang"></div><div class="form-group"><label>AYAM #</label><input type="text" class="disease-ayam"></div></div></div></td></tr>` : ''}
     `).join('');
     this._bindHealthLogic(container);
   }
@@ -247,22 +241,11 @@ class LaporanPresenter {
   _bindHealthLogic(container) {
     const healthSelect = container.querySelector('.health-status-select');
     const addBtn = container.querySelector('.add-health-btn');
-    const healthRow = container.querySelector('.health-detail-row');
-    const entriesCont = container.querySelector('.health-entries-container');
-
     if (healthSelect) {
       healthSelect.onchange = (e) => {
         const isSakit = e.target.value === 'SAKIT';
-        healthRow.style.display = isSakit ? 'table-row' : 'none';
+        container.querySelector('.health-detail-row').style.display = isSakit ? 'table-row' : 'none';
         addBtn.style.display = isSakit ? 'inline-block' : 'none';
-      };
-      addBtn.onclick = () => {
-        const card = document.createElement('div');
-        card.className = 'health-entry-card';
-        card.style = "border: 1.5px solid #feb2b2; padding: 15px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; position: relative;";
-        card.innerHTML = `<button type="button" class="btn-remove-entry" style="position:absolute; top:-10px; right:-10px; background:#c53030; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">✕</button><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KANDANG</label><input type="text" class="disease-kandang" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">AYAM #</label><input type="text" class="disease-ayam" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group" style="grid-column:span 2;"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">INDIKASI</label><input type="text" class="disease-name" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KARANTINA?</label><select class="is-quarantine" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"><option value="TIDAK">TIDAK</option><option value="YA">YA</option></select></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">PEMULIHAN</label><input type="text" class="recovery-step" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>`;
-        card.querySelector('.btn-remove-entry').onclick = () => card.remove();
-        entriesCont.appendChild(card);
       };
     }
   }
@@ -270,22 +253,22 @@ class LaporanPresenter {
   _bindTableButtons(row) {
     row.querySelector('.btn-layak-pop').onclick = (e) => {
       const d = e.currentTarget.dataset;
-      if (d.status === 'LAYAK') return alert("Kandang Layak & Aman! ✅");
-      document.getElementById('modalNote').innerHTML = `<div style="background:#fff5f5; padding:15px; border-radius:15px;"><h3 style="color:#c53030; margin:0 0 10px;">⚠️ TIDAK LAYAK: ${d.note}</h3>${d.photo ? `<img src="${d.photo}" style="width:100%; border-radius:12px; border:1px solid #ddd;">` : ''}</div>`;
+      if (d.status === 'LAYAK') return alert("Kandang Aman! ✅");
+      document.getElementById('modalNote').innerHTML = `<h3 style="color:#c53030;">⚠️ TIDAK LAYAK: ${d.note}</h3>${d.photo ? `<img src="${d.photo}" style="width:100%; border-radius:12px;">` : ''}`;
       document.getElementById('statusModal').style.display = 'flex';
     };
 
     row.querySelector('.btn-health-pop').onclick = (e) => {
       const status = e.currentTarget.dataset.status;
-      if (status === 'SEHAT') return alert("Semua hewan sehat walafiat! ✅");
+      if (status === 'SEHAT') return alert("Hewan Sehat! ✅");
       const detail = JSON.parse(e.currentTarget.dataset.detail);
-      document.getElementById('modalNote').innerHTML = `<h3 style="color:#c53030; text-align:center; margin-bottom:15px;">DETAIL HEWAN SAKIT</h3>` + detail.map(d => `<div style="border:1px solid #feb2b2; padding:12px; margin-top:10px; border-radius:10px; background:#fff5f5;"><b style="color:#c53030;">Kandang: ${d.kandang}</b> | Ayam #: ${d.ayam}<br><b>Penyakit:</b> ${d.penyakit}<br><small>Karantina: ${d.karantina} | Pemulihan: ${d.pemulihan}</small></div>`).join('');
+      document.getElementById('modalNote').innerHTML = `<h3>DETAIL HEWAN SAKIT</h3>` + detail.map(d => `<div style="border:1px solid #feb2b2; padding:12px; margin-top:10px; border-radius:10px; background:#fff5f5;"><b>Kandang: ${d.kandang}</b> | Ayam #: ${d.ayam}<br><b>Penyakit:</b> ${d.penyakit}</div>`).join('');
       document.getElementById('statusModal').style.display = 'flex';
     };
 
     row.querySelector('.btn-task-pop').onclick = (e) => {
       const tasks = JSON.parse(e.currentTarget.dataset.tasks);
-      document.getElementById('taskListContent').innerHTML = tasks.map(t => `<div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #eee;"><span>${t.status ? '✅' : '❌'} ${t.name}</span><b style="color:#41644A;">${t.val ? t.val + ' ' + t.unit : ''}</b></div>`).join('');
+      document.getElementById('taskListContent').innerHTML = tasks.map(t => `<div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #eee;"><span>${t.status ? '✅' : '❌'} ${t.name}</span><b>${t.val ? t.val + ' ' + t.unit : ''}</b></div>`).join('');
       document.getElementById('taskModal').style.display = 'flex';
     };
   }
