@@ -99,15 +99,28 @@ class LaporanPresenter {
     const kandang = this.noKandangSelect.value;
 
     // 1. Logic Foto: WAJIB AWAIT biar gak kosong!
-    const photoInput = this.form.querySelector('.kandang-photo');
-    let photoData = "";
-    if (photoInput.files && photoInput.files[0]) {
-       photoData = await new Promise((resolve) => {
-         const reader = new FileReader();
-         reader.onload = e => resolve(e.target.result);
-         reader.readAsDataURL(photoInput.files[0]);
-       });
-    }
+    // ✅ UPLOAD FOTO KE SERVER → SUPABASE
+const photoInput = this.form.querySelector('.kandang-photo');
+let photoUrl = "";
+
+if (photoInput.files && photoInput.files[0]) {
+  const formData = new FormData();
+  formData.append('foto', photoInput.files[0]);
+
+  const uploadRes = await fetch(`${CONFIG.BASE_URL}/upload-foto`, {
+    method: 'POST',
+    body: formData
+  });
+
+  const uploadResult = await uploadRes.json();
+
+  if (uploadResult.status === 'success') {
+    photoUrl = uploadResult.foto; // 🔥 URL FINAL
+  } else {
+    alert('Upload foto gagal');
+    return;
+  }
+}
 
     // 2. Logic Kesehatan
     let healthStatus = "SEHAT";
@@ -134,7 +147,7 @@ class LaporanPresenter {
         kelayakan: { 
             status: this.form.querySelector('.status-kandang-select').value === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK', 
             note: this.form.querySelector('.kandang-note').value, 
-            photo: photoData 
+            photo: photoUrl
         },
         pekerjaan: this._getTaskList(),
         petugas: user.nama
