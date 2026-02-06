@@ -28,7 +28,7 @@ const init = async () => {
     // Route Auth
     try { server.route(authRoutes); } catch (err) { console.error('Peringatan: Cek file auth.js'); }
 
-    // Main Routes (1-16)
+    // Main Routes (1-17)
     server.route([
         {
             // 1. GET Semua Kategori
@@ -41,9 +41,8 @@ const init = async () => {
                     const result = categories.rows.map(cat => {
                         const catProducts = products.rows.filter(p => p.category_id === cat.id);
                         return {
-                            id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '', foto: cat.foto || null,
-                            aktif: catProducts.some(p => p.aktif === true),
-                            details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
+                            id: cat.id, nama: cat.nama, aktif: catProducts.some(p => p.aktif === true),
+                            details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga) }))
                         };
                     });
                     return { status: 'success', data: result };
@@ -171,7 +170,7 @@ const init = async () => {
             }    
         },
         {
-            // 14. GET Histori Laporan (Antrian)
+            // 14. GET Histori Laporan (Antrian Panen)
             method: 'GET',
             path: '/api/laporan',
             handler: async () => {
@@ -180,7 +179,7 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan (PETUGAS DIHAPUS - ALUR DISTRIBUSI LANGSUNG)
+            // 15. POST Proses Pembibitan (Telur -> DOC | TANPA PETUGAS)
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
@@ -188,25 +187,21 @@ const init = async () => {
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
-                    // A. MASUK KE STOK DOC
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-                    // B. MASUK KE STOK TELUR FERTIL JUAL (Hasil Sortir)
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [gagal, kategori_id]);
-                    // C. MASUK KE STOK TELUR KONSUMSI
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
                     
-                    // D. SIMPAN HISTORI PROSES (TANPA KOLOM PETUGAS)
                     const totalPanen = (parseInt(berhasil) || 0) + (parseInt(gagal) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
                     await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalPanen, berhasil, gagal, sisa_ke_konsumsi]);
                     
                     await client.query('COMMIT');
                     return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
+                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
                 finally { client.release(); }
             }
         },
         {
-            // 16. GET Histori Pembibitan (Audit Trail)
+            // 16. GET Histori Pembibitan (Audit Trail Penetasan)
             method: 'GET',
             path: '/api/pembibitan/history',
             handler: async () => {
@@ -215,30 +210,35 @@ const init = async () => {
             }
         },
         {
-    // 17. POST Proses DOC ke Pullet (Logika Murni Stok)
-    method: 'POST',
-    path: '/api/doc/process',
-    handler: async (request, h) => {
-        const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
-        const totalKeluar = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
+            // 17. POST Proses DOC ke Pullet (Logika Murni Stok ke 'Pullet (8 Minggu)')
+            method: 'POST',
+            path: '/api/doc/process',
+            handler: async (request, h) => {
+                const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
+                const stokAwalDoc = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
 
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-            // 1. Potong Habis Stok DOC di kategori ini
-            await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%DOC%'`, [totalKeluar, kategori_id]);
-            // 2. Tambah ke stok Pullet (8 Minggu)
-            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`, [jumlah_hidup, kategori_id]);
-            await client.query('COMMIT');
-            return { status: 'success' };
-        } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
-        finally { client.release(); }
-    }
-}
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    // A. Potong Habis Stok DOC
+                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [stokAwalDoc, kategori_id]);
+                    
+                    // B. Tambah ke stok Pullet (8 Minggu)
+                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama = 'Pullet (8 Minggu)'`, [jumlah_hidup, kategori_id]);
+                    
+                    // C. Simpan Histori ke tabel baru
+                    await client.query(`INSERT INTO pullet_process (kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) VALUES ($1, $2, $3, $4)`, [kategori_id, stokAwalDoc, jumlah_hidup, jumlah_mati]);
+                    
+                    await client.query('COMMIT');
+                    return { status: 'success' };
+                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
+                finally { client.release(); }
+            }
+        }
     ]);
 
     await server.start();
-    console.log(`🚀 API Dunax Farm FIX TOTAL! Laporan ada petugas, Proses murni stok!`);
+    console.log(`🚀 API Dunax Farm FIX 1-17! Laporan ada petugas, Stok Mentereng!`);
 };
 
 process.on('unhandledRejection', (err) => { console.error(err); });
