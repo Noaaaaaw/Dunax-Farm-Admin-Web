@@ -5,6 +5,7 @@ import LaporanMain from '../Home/Operasional/laporan-main.js';
 import LaporanKandang from '../Home/Laporan/laporan.js';
 import Pembibitan from '../Home/Pembibitan/pembibitan.js';
 import Bibit from '../Home/Bibit/bibit.js'; 
+import Doc from '../Home/DOC/doc.js'; 
 import Login from '../auth/Login/login.js';
 import AuthService from '../auth/auth-services.js';
 
@@ -15,8 +16,8 @@ const routes = {
   '#/laporan': LaporanMain, 
   '#/laporan-harian-kandang': LaporanKandang,
   '#/pembibitan': Pembibitan,
-  // 2. DAFTARKAN ROUTE MASTER PEMBIBITAN
-  '#/bibit': Bibit, 
+  '#/bibit': Bibit,
+  '#/doc': Doc, 
   '#/login': Login,
 };
 
@@ -25,16 +26,14 @@ export const resolveRoute = async () => {
   if (!AuthService.checkAccess()) return null;
 
   let page = routes[hash];
-
-  // 3. LOGIC DYNAMIC ROUTING UNTUK SETTING PRODUK
   if (!page && hash.startsWith('#/setting-')) {
     page = SettingProdukPage; 
   }
-
-  // 4. LOGIC DYNAMIC ROUTING UNTUK DETAIL BIBIT PER KATEGORI
-  // Contoh: #/bibit-ayam-kampung bakal lari ke halaman Bibit
   if (!page && hash.startsWith('#/bibit-')) {
     page = Bibit; 
+  }
+  if (!page && hash.startsWith('#/doc-')) {
+    page = Doc; 
   }
 
   if (!page) {

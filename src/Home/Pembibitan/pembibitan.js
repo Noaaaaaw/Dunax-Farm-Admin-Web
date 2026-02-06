@@ -11,7 +11,6 @@ const Pembibitan = {
         </div>
 
         <div class="main-content-card" style="background: white; padding: 45px; border-radius: 35px; border: 1px solid #e0eadd; box-shadow: 0 15px 35px rgba(0,0,0,0.05);">
-            
             <div id="pembibitanCategoryGrid" class="breed-grid-colorful">
                 <div style="padding: 50px; text-align: center; grid-column: 1/-1; color: #888; font-weight: 600;">
                   Menghubungkan ke server cloud...
@@ -24,42 +23,40 @@ const Pembibitan = {
         .breed-grid-colorful {
             display: grid;
             grid-template-columns: repeat(2, 1fr); 
-            gap: 20px;
+            gap: 25px;
         }
 
         .pembibitan-card-solid {
-            border-radius: 22px;
-            padding: 25px 30px;
+            border-radius: 28px;
+            padding: 30px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 140px;
-            cursor: pointer;
+            min-height: 180px;
             transition: 0.3s ease;
             border: 1px solid rgba(0,0,0,0.05);
             position: relative;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
         }
 
         .pembibitan-card-solid:hover {
-            transform: scale(1.02);
-            filter: brightness(1.1);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.12);
         }
 
         .card-top-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 20px;
         }
 
         .card-top-row h3 {
             margin: 0;
             color: white; 
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
@@ -68,32 +65,40 @@ const Pembibitan = {
             height: 14px;
             border-radius: 50%;
             border: 3px solid white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
         }
 
-        .btn-kelola-white {
+        .button-group-pembibitan {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Styling Tombol Universal */
+        .btn-kelola-pembibitan {
             background: rgba(255, 255, 255, 0.2);
             color: white;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            padding: 10px 18px;
-            border-radius: 12px;
+            border: 1.5px solid rgba(255, 255, 255, 0.4);
+            padding: 14px 20px;
+            border-radius: 16px;
             font-weight: 800;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             text-transform: uppercase;
-            width: fit-content;
-            margin-top: 20px;
-            transition: 0.2s;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            flex: 1;
+            text-align: center;
         }
         
-        .btn-kelola-white:hover {
-            background: white;
-            color: #333;
+        /* Efek Hover Disamakan (Putih Solid) */
+        .btn-kelola-pembibitan:hover {
+            background: white !important;
+            color: #1f3326 !important; /* Warna teks gelap saat hover */
+            transform: scale(1.03);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         @media (max-width: 768px) {
-            .breed-grid-colorful {
-                grid-template-columns: 1fr;
-            }
+            .breed-grid-colorful { grid-template-columns: 1fr; }
         }
       </style>
     `;
@@ -117,24 +122,28 @@ const Pembibitan = {
 
     container.innerHTML = categories.map((cat, i) => {
       const bgColor = bgColors[i % bgColors.length];
-      
-      // ARAHKAN KE ALAMAT BIBIT SESUAI ROUTES.JS
-      // Format: #/bibit-namaid
-      const targetHash = `#/bibit-${cat.id.toLowerCase()}`;
+      const categoryId = cat.id.toLowerCase();
+      const isAyam = cat.nama.toUpperCase().includes('AYAM');
 
       return `
-        <div class="pembibitan-card-solid" 
-             style="background-color: ${bgColor};" 
-             onclick="location.hash = '${targetHash}'">
+        <div class="pembibitan-card-solid" style="background-color: ${bgColor};">
           
           <div class="card-top-row">
             <h3>${cat.nama}</h3>
             <div class="status-dot-white" style="background: ${cat.aktif ? '#2ecc71' : '#e74c3c'}"></div>
           </div>
 
-          <button class="btn-kelola-white">
-              KELOLA BIBIT
-          </button>
+          <div class="button-group-pembibitan">
+            <button class="btn-kelola-pembibitan" onclick="location.hash = '#/bibit-${categoryId}'">
+                KELOLA BIBIT
+            </button>
+            
+            ${isAyam ? `
+            <button class="btn-kelola-pembibitan" onclick="location.hash = '#/doc-${categoryId}'">
+                KELOLA DOC
+            </button>` : ''}
+          </div>
+
         </div>
       `;
     }).join('');

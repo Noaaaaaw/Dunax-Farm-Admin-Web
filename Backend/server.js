@@ -213,7 +213,28 @@ const init = async () => {
                 const res = await pool.query('SELECT * FROM hatchery_process ORDER BY tanggal_proses DESC');
                 return { status: 'success', data: res.rows };
             }
-        }
+        },
+        {
+    // 17. POST Proses DOC ke Pullet (Logika Murni Stok)
+    method: 'POST',
+    path: '/api/doc/process',
+    handler: async (request, h) => {
+        const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
+        const totalKeluar = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            // 1. Potong Habis Stok DOC di kategori ini
+            await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%DOC%'`, [totalKeluar, kategori_id]);
+            // 2. Tambah ke stok Pullet (8 Minggu)
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`, [jumlah_hidup, kategori_id]);
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
+        finally { client.release(); }
+    }
+}
     ]);
 
     await server.start();

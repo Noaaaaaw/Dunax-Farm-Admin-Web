@@ -40,7 +40,7 @@ const Bibit = {
         </div>
 
         <div class="main-content-card" style="background: white; padding: 45px; border-radius: 35px; border: 1px solid #e0eadd; box-shadow: 0 15px 35px rgba(0,0,0,0.05);">
-            <div id="processArea" style="display: flex; flex-direction: column; gap: 35px;">
+           <div id="processArea" style="display: flex; flex-direction: column; gap: 35px;">
               <button id="btnProsesBerantai" style="width: 100%; padding: 25px; background: #6CA651; color: white; border: none; border-radius: 22px; font-weight: 1200; font-size: 1.3rem; cursor: pointer; box-shadow: 0 8px 0 #4a7337; transition: 0.3s; letter-spacing: 1px;">UPDATE STOK</button>
 
               <div id="resultArea" style="display: none; flex-direction: column; gap: 25px; background: #fcfdfc; padding: 35px; border-radius: 30px; border: 2px solid #eef2ed; animation: slideDown 0.4s ease;">
@@ -63,9 +63,16 @@ const Bibit = {
 
                  <button id="btnFinalSubmit" style="width: 100%; padding: 22px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 1200; font-size: 1.1rem; cursor: pointer; transition: 0.2s;">KONFIRMASI</button>
               </div>
-            </div>
+           </div>
         </div>
       </section>
+
+      <style>
+        .filter-sesi-btn { background: #f0f4f0; color: #41644A; border: 1.5px solid #e0eadd; padding: 6px 15px; border-radius: 10px; font-size: 0.75rem; font-weight: 900; cursor: pointer; transition: 0.2s; }
+        .filter-sesi-btn.active { background: #41644A !important; color: white !important; }
+        .egg-card-item { flex: 1 1 calc(50% - 20px); min-width: 280px; background: #ffffff; border: 2px dashed #6CA651; padding: 15px 25px; border-radius: 18px; display: flex; justify-content: space-between; align-items: center; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+      </style>
     `;
   },
 
@@ -95,10 +102,13 @@ const Bibit = {
       const valBerhasil = (parseInt(inputBerhasil.value) || 0);
       const valGagal = (parseInt(inputGagal.value) || 0);
       
+      // LOGIKA SISA: PANEN (100) - DOC (85) - FERTIL JUAL (10) = KONSUMSI (5)
       const sisaFinal = currentSaldoSisa - (valBerhasil + valGagal);
 
       totalDisplay.innerText = `${(Math.max(0, sisaFinal)).toLocaleString()} BUTIR`;
       totalDisplay.style.color = sisaFinal < 0 ? '#e74c3c' : '#6CA651';
+      
+      // Update angka indikator konsumsi di bawah input
       autoKonsumsi.innerText = `${(Math.max(0, sisaFinal)).toLocaleString()} BUTIR`;
 
       if (filtered.length === 0) {
@@ -151,13 +161,14 @@ const Bibit = {
 
         if (alokasiTotal > currentSaldoSisa) return alert("Melebihi sisa antrian telur!");
 
+        // HITUNG SISA OTOMATIS KE KONSUMSI
         const sisaKonsumsi = Math.max(0, currentSaldoSisa - alokasiTotal);
 
         const res = await presenter.submitBibitProcess({
             kategori_id: window.location.hash.split('-').slice(1).join('-'),
-            berhasil: valBerhasil, 
-            gagal: valGagal, 
-            sisa_ke_konsumsi: sisaKonsumsi 
+            berhasil: valBerhasil,      // Jadi DOC
+            gagal: valGagal,            // Jadi Fertil Jual
+            sisa_ke_konsumsi: sisaKonsumsi // Sisa otomatis ke konsumsi
         });
 
         if (res.status === 'success') {
