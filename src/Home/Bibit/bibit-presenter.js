@@ -9,18 +9,24 @@ class BibitPresenter {
 
   async init(selectedDate = new Date()) {
     try {
-      const resCat = await fetch(`${this.baseUrl}/commodities`);
+      // 1. TARIK DATA DARI 3 ENDPOINT SEKALIGUS
+      const [resCat, resLaporan, resHistory] = await Promise.all([
+        fetch(`${this.baseUrl}/commodities`),
+        fetch(`${this.baseUrl}/api/laporan`),
+        fetch(`${this.baseUrl}/api/pembibitan/history`) // ENDPOINT BARU UNTUK TABEL hatchery_process
+      ]);
+
       const resultCat = await resCat.json();
-      const resLaporan = await fetch(`${this.baseUrl}/api/laporan`);
       const resultLaporan = await resLaporan.json();
+      const resultHistory = await resHistory.json();
 
       if (resultCat.status === 'success') this.onDataReady(resultCat.data);
 
-      if (resultLaporan.status === 'success') {
+      if (resultLaporan.status === 'success' && resultHistory.status === 'success') {
         const targetDate = new Date(selectedDate);
         targetDate.setHours(0, 0, 0, 0);
 
-        // 1. FILTER DATA PANEN RYAN
+        // 2. FILTER DATA PANEN RYAN (ANTRIAN MASUK)
         const dataPanen = resultLaporan.data.filter(item => {
           const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
           return d.getTime() === targetDate.getTime() && item.petugas !== 'ADMIN' &&
@@ -28,27 +34,26 @@ class BibitPresenter {
         }).map(item => {
           const panenTask = item.pekerjaan_data.find(p => p.name.toLowerCase().includes('panen telur'));
           return {
-            id_laporan: item.id,
             hewan: item.hewan,
-            deret: item.deret_kandang, // INI KUNCI NOMOR DERET
+            deret: item.deret_kandang,
             jumlah: parseInt(panenTask.val),
-            sesi: item.sesi,
-            tanggal: item.tanggal_jam
+            sesi: item.sesi
           };
         });
 
-        // 2. HITUNG TOTAL YANG SUDAH DIPROSES ADMIN
-        const totalSudahDiproses = resultLaporan.data.filter(item => {
-          const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
-          return d.getTime() === targetDate.getTime() && item.petugas === 'ADMIN';
-        }).reduce((acc, curr) => {
-          const p = curr.pekerjaan_data.find(task => task.name === "Realisasi Tetas");
-          return acc + (p ? parseInt(p.val) : 0);
-        }, 0);
+        // 3. HITUNG TOTAL DARI TABEL BARU (ANTRIAN KELUAR)
+        // Inilah yang bikin angka sisa berkurang pas Admin klik konfirmasi
+        const totalSudahDiproses = resultHistory.data.filter(item => {
+          const d = new Date(item.tanggal_proses); d.setHours(0,0,0,0);
+          return d.getTime() === targetDate.getTime();
+        }).reduce((acc, curr) => acc + (parseInt(curr.total_panen) || 0), 0);
 
+        // Kirim ke UI buat dikurangin
         this.onEggsReady(dataPanen, totalSudahDiproses);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error("Presenter Error:", err); 
+    }
   }
 
   async submitBibitProcess(payload) {

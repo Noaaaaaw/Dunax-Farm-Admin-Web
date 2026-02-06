@@ -12,7 +12,7 @@ const Bibit = {
         <div class="dashboard-card" style="background: #fff; padding: 30px; border-radius: 28px; border: 1px solid #eef2ed; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
           <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; margin-bottom: 30px;">
             <div style="width: 100%;">
-              <h3 style="font-weight: 1200; color: #41644A; margin: 0; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">🥚 ANTRIAN HASIL PANEN</h3>
+              <h3 style="font-weight: 1200; color: #41644A; margin: 0; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">ANTRIAN HASIL PANEN</h3>
               <div style="display: flex; justify-content: center; gap: 8px; margin-top: 12px;">
                 <button class="filter-sesi-btn active" data-sesi="SEMUA">SEMUA</button>
                 <button class="filter-sesi-btn" data-sesi="PAGI">PAGI</button>
@@ -61,7 +61,7 @@ const Bibit = {
                     <span style="font-size: 0.85rem; font-weight: 700; color: #475569;">SISA MASUK TELUR KONSUMSI: <span id="autoKonsumsi" style="color: #1e293b; font-weight: 900;">0 BUTIR</span></span>
                  </div>
 
-                 <button id="btnFinalSubmit" style="width: 100%; padding: 22px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 1200; font-size: 1.1rem; cursor: pointer; transition: 0.2s;">KONFIRMASI DISTRIBUSI 🐣</button>
+                 <button id="btnFinalSubmit" style="width: 100%; padding: 22px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 1200; font-size: 1.1rem; cursor: pointer; transition: 0.2s;">KONFIRMASI</button>
               </div>
            </div>
         </div>
