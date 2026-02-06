@@ -258,6 +258,33 @@ const init = async () => {
             client.release(); 
                }
             }
+        },
+        {
+    // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
+    method: 'POST',
+    path: '/api/pullet/process',
+    handler: async (request, h) => {
+        const { kategori_id, pejantan, petelur, stay, pedaging } = request.payload;
+        const totalKeluarDariStokPullet = pejantan + petelur + pedaging; // stay tidak dihitung karena tetap di pullet
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            // 1. Kurangi Stok Pullet (8 Minggu)
+            await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama = 'Pullet (8 Minggu)'`, [totalKeluarDariStokPullet, kategori_id]);
+            // 2. Tambah Pejantan/Petelur (Asumsi ada produk dengan nama ini)
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pejantan%'`, [pejantan, kategori_id]);
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Petelur%'`, [petelur, kategori_id]);
+            // 3. Tambah ke Ayam Pedaging Konsumsi
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama = 'Ayam Pedaging Konsumsi'`, [pedaging, kategori_id]);
+            // 4. Catat Histori ke tabel baru
+            await client.query(`INSERT INTO maturity_process (kategori_id, stok_awal_pullet, hasil_pejantan, hasil_petelur, hasil_stay_pullet, hasil_pedaging_konsumsi) VALUES ($1, (SELECT stok + $2 FROM komoditas WHERE category_id = $1 AND nama = 'Pullet (8 Minggu)'), $3, $4, $5, $6)`, [kategori_id, totalKeluarDariStokPullet, pejantan, petelur, stay, pedaging]);
+            
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
+        finally { client.release(); }
+           }
         }
     ]);
 

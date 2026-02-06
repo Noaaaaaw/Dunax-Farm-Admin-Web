@@ -5,7 +5,8 @@ import LaporanMain from '../Home/Operasional/laporan-main.js';
 import LaporanKandang from '../Home/Laporan/laporan.js';
 import Pembibitan from '../Home/Pembibitan/pembibitan.js';
 import Bibit from '../Home/Bibit/bibit.js'; 
-import Doc from '../Home/DOC/doc.js'; 
+import Doc from '../Home/DOC/doc.js';
+import Pullet from '../Home/Pullet/pullet.js'; 
 import Login from '../auth/Login/login.js';
 import AuthService from '../auth/auth-services.js';
 
@@ -17,7 +18,8 @@ const routes = {
   '#/laporan-harian-kandang': LaporanKandang,
   '#/pembibitan': Pembibitan,
   '#/bibit': Bibit,
-  '#/doc': Doc, 
+  '#/doc': Doc,
+  '#/pullet': Pullet, 
   '#/login': Login,
 };
 
@@ -26,6 +28,7 @@ export const resolveRoute = async () => {
   if (!AuthService.checkAccess()) return null;
 
   let page = routes[hash];
+  
   if (!page && hash.startsWith('#/setting-')) {
     page = SettingProdukPage; 
   }
@@ -34,6 +37,9 @@ export const resolveRoute = async () => {
   }
   if (!page && hash.startsWith('#/doc-')) {
     page = Doc; 
+  }
+  if (!page && hash.startsWith('#/pullet-')) {
+    page = Pullet; 
   }
 
   if (!page) {

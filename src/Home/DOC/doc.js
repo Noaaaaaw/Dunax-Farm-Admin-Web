@@ -19,11 +19,11 @@ const Doc = {
             <div style="display: flex; flex-direction: column; gap: 25px;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div style="background: #f0f7f0; padding: 25px; border-radius: 20px; text-align: center; border: 2px solid #6CA651;">
-                        <label style="display: block; font-weight: 900; color: #2d4a36; margin-bottom: 10px;">HIDUP (KE PULLET)</label>
+                        <label style="display: block; font-weight: 900; color: #2d4a36; margin-bottom: 10px;">HIDUP</label>
                         <input type="number" id="inputHidup" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #6CA651; font-weight: 900; font-size: 1.5rem; text-align: center;">
                     </div>
                     <div style="background: #fff5f5; padding: 25px; border-radius: 20px; text-align: center; border: 2px solid #e74c3c;">
-                        <label style="display: block; font-weight: 900; color: #c53030; margin-bottom: 10px;">MATI (HAPUS STOK)</label>
+                        <label style="display: block; font-weight: 900; color: #c53030; margin-bottom: 10px;">MATI</label>
                         <input type="number" id="inputMati" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #e74c3c; font-weight: 900; font-size: 1.5rem; text-align: center;">
                     </div>
                 </div>

@@ -56,9 +56,9 @@ const AppBar = {
 
           <nav class="desktop-nav-row">
             <a href="#/" class="${isActive('#/')}">DASHBOARD</a>
+            <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
             <a href="#/pembibitan" class="${isActive('#/pembibitan')}">PEMBIBITAN</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
-            <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
             <a href="#/pengaturan" class="${isActive('#/pengaturan')}">PENGATURAN</a>
           </nav>
         </div>

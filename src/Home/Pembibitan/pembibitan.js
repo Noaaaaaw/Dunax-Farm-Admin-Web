@@ -32,7 +32,7 @@ const Pembibitan = {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 180px;
+            min-height: 200px;
             transition: 0.3s ease;
             border: 1px solid rgba(0,0,0,0.05);
             position: relative;
@@ -69,32 +69,33 @@ const Pembibitan = {
 
         .button-group-pembibitan {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
         }
 
-        /* Styling Tombol Universal */
+        /* Styling Tombol Universal - Disamakan Semua */
         .btn-kelola-pembibitan {
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border: 1.5px solid rgba(255, 255, 255, 0.4);
-            padding: 14px 20px;
-            border-radius: 16px;
+            padding: 12px 15px;
+            border-radius: 14px;
             font-weight: 800;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             cursor: pointer;
             transition: all 0.2s ease-in-out;
             flex: 1;
             text-align: center;
+            min-width: 120px;
         }
         
-        /* Efek Hover Disamakan (Putih Solid) */
+        /* Efek Hover Putih Solid untuk Semua Tombol */
         .btn-kelola-pembibitan:hover {
             background: white !important;
-            color: #1f3326 !important; /* Warna teks gelap saat hover */
-            transform: scale(1.03);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            color: #1f3326 !important;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
         @media (max-width: 768px) {
@@ -123,7 +124,10 @@ const Pembibitan = {
     container.innerHTML = categories.map((cat, i) => {
       const bgColor = bgColors[i % bgColors.length];
       const categoryId = cat.id.toLowerCase();
-      const isAyam = cat.nama.toUpperCase().includes('AYAM');
+      const categoryName = cat.nama.toUpperCase();
+      
+      const isAyam = categoryName.includes('AYAM');
+      const isKuntara4 = categoryName.includes('KUNTARA 4'); // Pengecekan nama untuk Kuntara 4
 
       return `
         <div class="pembibitan-card-solid" style="background-color: ${bgColor};">
@@ -141,6 +145,11 @@ const Pembibitan = {
             ${isAyam ? `
             <button class="btn-kelola-pembibitan" onclick="location.hash = '#/doc-${categoryId}'">
                 KELOLA DOC
+            </button>` : ''}
+
+            ${isKuntara4 ? `
+            <button class="btn-kelola-pembibitan" onclick="location.hash = '#/pullet-${categoryId}'">
+                KELOLA PULLET
             </button>` : ''}
           </div>
 
