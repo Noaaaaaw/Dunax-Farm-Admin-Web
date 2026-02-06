@@ -33,7 +33,7 @@ const Bibit = {
           <div style="margin-top: 25px; padding-top: 20px; border-top: 3px solid #f4f7f4; display: flex; justify-content: center; align-items: center;">
             <div style="background: #f9fbf9; padding: 15px 40px; border-radius: 20px; border: 1px solid #eef2ed; text-align: center;">
               <span style="font-weight: 1200; color: #1f3326; font-size: 1.1rem; text-transform: uppercase;">
-                TOTAL SISA: <span id="totalEggDay" style="color: #6CA651; font-size: 2.2rem; margin-left: 10px;">0 BUTIR</span>
+                TOTAL SISA<span id="totalEggDay" style="color: #6CA651; font-size: 1.2rem; margin-left: 10px;">0 BUTIR</span>
               </span>
             </div>
           </div>

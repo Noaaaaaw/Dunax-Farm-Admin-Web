@@ -32,7 +32,7 @@ const Pembibitan = {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 200px;
+            min-height: 220px; /* Gue tinggiin dikit biar muat banyak tombol */
             transition: 0.3s ease;
             border: 1px solid rgba(0,0,0,0.05);
             position: relative;
@@ -73,7 +73,6 @@ const Pembibitan = {
             flex-wrap: wrap;
         }
 
-        /* Styling Tombol Universal - Disamakan Semua */
         .btn-kelola-pembibitan {
             background: rgba(255, 255, 255, 0.2);
             color: white;
@@ -87,10 +86,9 @@ const Pembibitan = {
             transition: all 0.2s ease-in-out;
             flex: 1;
             text-align: center;
-            min-width: 120px;
+            min-width: 130px; /* Disesuaikan biar rapi */
         }
         
-        /* Efek Hover Putih Solid untuk Semua Tombol */
         .btn-kelola-pembibitan:hover {
             background: white !important;
             color: #1f3326 !important;
@@ -127,7 +125,7 @@ const Pembibitan = {
       const categoryName = cat.nama.toUpperCase();
       
       const isAyam = categoryName.includes('AYAM');
-      const isKuntara4 = categoryName.includes('KUNTARA 4'); // Pengecekan nama untuk Kuntara 4
+      const isKuntara4 = categoryName.includes('KUNTARA 4');
 
       return `
         <div class="pembibitan-card-solid" style="background-color: ${bgColor};">
@@ -150,6 +148,9 @@ const Pembibitan = {
             ${isKuntara4 ? `
             <button class="btn-kelola-pembibitan" onclick="location.hash = '#/pullet-${categoryId}'">
                 KELOLA PULLET
+            </button>
+            <button class="btn-kelola-pembibitan" onclick="location.hash = '#/ayam-${categoryId}'">
+                KELOLA AYAM
             </button>` : ''}
           </div>
 

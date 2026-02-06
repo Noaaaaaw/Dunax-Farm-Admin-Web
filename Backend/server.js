@@ -285,7 +285,61 @@ const init = async () => {
         } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
         finally { client.release(); }
            }
+        },
+        {
+    // 19. POST Proses Penjualan Ayam (Pejantan/Petelur ke Pedaging Konsumsi)
+    method: 'POST',
+    path: '/api/production/process',
+    handler: async (request, h) => {
+        const { kategori_id, sell_pejantan, sell_petelur, awal_pejantan, awal_petelur } = request.payload;
+        const totalMasukKePedaging = (parseInt(sell_pejantan) || 0) + (parseInt(sell_petelur) || 0);
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // A. Kurangi stok Pejantan & Petelur yang dipilih untuk dijual
+            if (sell_pejantan > 0) {
+                await client.query(
+                    `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Pejantan%'`, 
+                    [sell_pejantan, kategori_id]
+                );
+            }
+            if (sell_petelur > 0) {
+                await client.query(
+                    `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Petelur%'`, 
+                    [sell_petelur, kategori_id]
+                );
+            }
+
+            // B. Tambah ke stok Ayam Pedaging Konsumsi
+            if (totalMasukKePedaging > 0) {
+                await client.query(
+                    `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama = 'Ayam Pedaging Konsumsi'`, 
+                    [totalMasukKePedaging, kategori_id]
+                );
+            }
+
+            // C. Catat Histori ke tabel production_process
+            const sisaJantan = (parseInt(awal_pejantan) || 0) - (parseInt(sell_pejantan) || 0);
+            const sisaBetina = (parseInt(awal_petelur) || 0) - (parseInt(sell_petelur) || 0);
+
+            await client.query(
+                `INSERT INTO production_process (kategori_id, stok_awal_pejantan, stok_awal_petelur, pejantan_dijual, petelur_dijual, sisa_pejantan_simpan, sisa_petelur_simpan) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`, 
+                [kategori_id, awal_pejantan, awal_petelur, sell_pejantan, sell_petelur, sisaJantan, sisaBetina]
+            );
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) { 
+            await client.query('ROLLBACK'); 
+            return h.response({ status: 'error', message: err.message }).code(500); 
+        } finally { 
+            client.release(); 
         }
+    }
+}
     ]);
 
     await server.start();

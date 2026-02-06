@@ -9,11 +9,19 @@ const Doc = {
           <h2 id="displayCategoryName" style="margin: 10px 0 0; color: #1f3326; font-weight: 900; text-transform: uppercase; font-size: 1.5rem;"></h2>
         </div>
 
-        <div class="dashboard-card" style="background: #fff; padding: 40px; border-radius: 28px; border: 1px solid #eef2ed; text-align: center;">
-            <h3 style="font-weight: 900; color: #41644A; margin-bottom: 10px;">STOK DOC TERSEDIA</h3>
-            <span id="stokDocTersedia" style="font-size: 3.5rem; font-weight: 1200; color: #6CA651;">0</span>
-            <small style="display: block; color: #888; font-weight: 700;">EKOR</small>
-        </div>
+       <div class="dashboard-card" style="background: #fff; padding: 40px; border-radius: 28px; border: 1px solid #eef2ed; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+    <h3 style="margin: 0 0 10px 0; font-weight: 900; color: #41644A; letter-spacing: 1px; font-size: 1.2rem; text-transform: uppercase;">
+        STOK DOC TERSEDIA
+    </h3>
+    
+    <div id="stokDocTersedia" style="font-size: 3rem; font-weight: 1200; color: #6CA651; line-height: 1; margin: 10px 0;">
+        0
+    </div>
+    
+    <div style="font-size: 1.2rem; font-weight: 900; color: #41644A; text-transform: uppercase; letter-spacing: 2px;">
+        EKOR
+    </div>
+</div>
 
         <div class="main-content-card" style="background: white; padding: 45px; border-radius: 35px; border: 1px solid #e0eadd; box-shadow: 0 15px 35px rgba(0,0,0,0.05);">
             <div style="display: flex; flex-direction: column; gap: 25px;">

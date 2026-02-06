@@ -7,6 +7,7 @@ import Pembibitan from '../Home/Pembibitan/pembibitan.js';
 import Bibit from '../Home/Bibit/bibit.js'; 
 import Doc from '../Home/DOC/doc.js';
 import Pullet from '../Home/Pullet/pullet.js'; 
+import Ayam from '../Home/Ayam/ayam.js';
 import Login from '../auth/Login/login.js';
 import AuthService from '../auth/auth-services.js';
 
@@ -20,6 +21,7 @@ const routes = {
   '#/bibit': Bibit,
   '#/doc': Doc,
   '#/pullet': Pullet, 
+  '#/ayam': Ayam,
   '#/login': Login,
 };
 
@@ -40,6 +42,9 @@ export const resolveRoute = async () => {
   }
   if (!page && hash.startsWith('#/pullet-')) {
     page = Pullet; 
+  }
+  if (!page && hash.startsWith('#/ayam-')) {
+    page = Ayam; 
   }
 
   if (!page) {
