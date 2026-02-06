@@ -150,7 +150,7 @@ class HomePresenter {
                   <th style="padding: 18px; text-align: center;">KESEHATAN</th>
                   <th style="padding: 18px; text-align: center;">KELAYAKAN</th>
                   <th style="padding: 18px; text-align: center;">PETUGAS</th>
-                  <th style="padding: 18px; text-align: center;">AKSI</th>
+                  <th style="padding: 18px; text-align: center;">DAFTAR PEKERJAAN</th>
                 </tr>
               </thead>
               <tbody id="opTableBodyHome"></tbody>
@@ -236,7 +236,12 @@ class HomePresenter {
           <td style="padding: 15px;"><button class="btn-pop-health" data-status="${kesehatan.status}" data-detail='${JSON.stringify(kesehatan.detail)}' style="border:none; padding:6px 15px; border-radius:10px; font-weight:1200; cursor:pointer; background:${hColor.bg}; color:${hColor.txt};">${kesehatan.status}</button></td>
           <td style="padding: 15px;"><button class="btn-pop-layak" data-status="${kelayakan.status}" data-note="${kelayakan.note}" data-photo="${kelayakan.photo}" style="border:none; padding:6px 15px; border-radius:10px; font-weight:1200; cursor:pointer; background:${lColor.bg}; color:${lColor.txt};">${kelayakan.status}</button></td>
           <td style="padding: 15px; font-weight: 900;">${item.petugas}</td>
-          <td style="padding: 15px;"><button class="btn-pop-task" data-tasks='${JSON.stringify(pekerjaan)}' style="border:none; padding:8px 18px; border-radius:10px; font-weight:1200; color:white; background:${isAman ? '#41644A' : '#e74c3c'}; cursor:pointer;">${isAman ? 'AMAN' : 'PERIKSA'}</button></td>
+          <td style="padding: 15px;">
+            <button class="btn-pop-task" data-tasks='${JSON.stringify(pekerjaan)}' 
+                style="border:none; padding:8px 18px; border-radius:10px; font-weight:1200; color:white; background:${isAman ? '#41644A' : '#e74c3c'}; cursor:pointer;">
+                ${isAman ? 'AMAN' : 'PERIKSA'}
+            </button>
+          </td>
         </tr>`;
     }).join('');
     this._bindTableButtons();
@@ -268,9 +273,9 @@ class HomePresenter {
                   <th style="padding:10px; border:1px solid #feb2b2;">KARANTINA</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody style="text-align:center;">
                 ${details.map(d => `
-                  <tr style="text-align:center;">
+                  <tr>
                     <td style="padding:10px; border:1px solid #feb2b2; font-weight:900;">${d.kandang}</td>
                     <td style="padding:10px; border:1px solid #feb2b2;">${d.ayam}</td>
                     <td style="padding:10px; border:1px solid #feb2b2; text-align:left;">${d.penyakit}</td>
@@ -294,23 +299,30 @@ class HomePresenter {
       };
     });
 
+    // --- REVISI POPUP DETAIL PEKERJAAN (3 KOLOM: TUGAS, HASIL, STATUS) ---
     this.container.querySelectorAll('.btn-pop-task').forEach(btn => {
       btn.onclick = () => {
         const tasks = JSON.parse(btn.dataset.tasks);
         document.getElementById('taskListContent').innerHTML = `
-          <div style="overflow-x:auto; border-radius:12px; border:1px solid #eef2ed; margin-top:10px;">
+          <div style="overflow-x:auto; border-radius:12px; border:1px solid #eef2ed; margin-top:10px; width: 100%;">
             <table style="width:100%; border-collapse:collapse; background:white; font-size:0.85rem;">
               <thead style="background:#6CA651; color:white;">
                 <tr>
-                  <th style="padding:10px; border:1px solid #eef2ed; text-align:center;">TUGAS</th>
-                  <th style="padding:10px; border:1px solid #eef2ed; text-align:center;">HASIL</th>
+                  <th style="padding:12px; border:1px solid #eef2ed; text-align:center;">TUGAS</th>
+                  <th style="padding:12px; border:1px solid #eef2ed; text-align:center;">HASIL</th>
+                  <th style="padding:12px; border:1px solid #eef2ed; text-align:center;">STATUS</th>
                 </tr>
               </thead>
               <tbody style="text-align:center;">
                 ${tasks.map(t => `
-                  <tr>
-                    <td style="padding:10px; border:1px solid #eef2ed;">${t.status?'✅':'❌'} ${t.name}</td>
-                    <td style="padding:10px; border:1px solid #eef2ed; font-weight:900; color:#41644A;">${t.val || '-'} ${t.unit || ''}</td>
+                  <tr style="border-bottom: 1px solid #f0f0f0;">
+                    <td style="padding:12px; border:1px solid #eef2ed; text-align:left; font-weight: 600;">${t.name}</td>
+                    <td style="padding:12px; border:1px solid #eef2ed; font-weight:900; color:#41644A;">${t.val || '-'} ${t.unit || ''}</td>
+                    <td style="padding:12px; border:1px solid #eef2ed;">
+                        <span style="font-weight: 800; color:${t.status ? '#2ecc71' : '#e74c3c'}">
+                            ${t.status ? '✅' : '❌'}
+                        </span>
+                    </td>
                   </tr>`).join('')}
               </tbody>
             </table>
@@ -338,7 +350,7 @@ class HomePresenter {
                 <tbody style="text-align:center;">
                   ${products.map(p => `
                     <tr style="border-bottom:1px solid #eee; background:white;">
-                      <td style="padding:12px; font-weight:700;">${p.nama}</td>
+                      <td style="padding:12px; text-align:left; font-weight:700;">${p.nama}</td>
                       <td style="padding:12px; font-weight:900;">${p.stok}</td>
                       <td style="padding:12px;">
                         <span style="font-size:0.7rem; font-weight:900; color:${p.aktif ? '#2ecc71' : '#e74c3c'}">
