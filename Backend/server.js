@@ -31,21 +31,31 @@ const init = async () => {
     // Main Routes (1-16)
     server.route([
         {
-            // 1. GET Semua Kategori
+            // 1. GET Semua Kategori (LOGIKA SINKRON STATUS AKTIF)
             method: 'GET',
             path: '/commodities',
             handler: async (request, h) => {
-                const categories = await pool.query('SELECT * FROM categories ORDER BY id ASC');
-                const products = await pool.query('SELECT * FROM komoditas ORDER BY id ASC');
-                const result = categories.rows.map(cat => {
-                    const catProducts = products.rows.filter(p => p.category_id === cat.id);
-                    return {
-                        id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '',
-                        foto: cat.foto || null,
-                        details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga) }))
-                    };
-                });
-                return { status: 'success', data: result };
+                try {
+                    const categories = await pool.query('SELECT * FROM categories ORDER BY id ASC');
+                    const products = await pool.query('SELECT * FROM komoditas');
+                    
+                    const result = categories.rows.map(cat => {
+                        const catProducts = products.rows.filter(p => p.category_id === cat.id);
+                        
+                        // LOGIKA BARU: Online (aktif: true) jika minimal ada 1 produk yang statusnya aktif
+                        const isOnline = catProducts.some(p => p.aktif === true);
+
+                        return {
+                            id: cat.id, 
+                            nama: cat.nama, 
+                            keterangan: cat.keterangan || '',
+                            foto: cat.foto || null,
+                            aktif: isOnline, // Data ini yang dipake buat titik merah/hijau di UI
+                            details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga) }))
+                        };
+                    });
+                    return { status: 'success', data: result };
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
             }
         },
         {
@@ -56,7 +66,18 @@ const init = async () => {
                 const { id } = request.params;
                 const catRes = await pool.query('SELECT * FROM categories WHERE id = $1', [id.toLowerCase()]);
                 const prodRes = await pool.query('SELECT * FROM komoditas WHERE category_id = $1 ORDER BY id ASC', [id.toLowerCase()]);
-                return { status: 'success', data: { ...catRes.rows[0], details: prodRes.rows } };
+                
+                // Status kategori di detail juga dihitung dinamis
+                const isOnline = prodRes.rows.some(p => p.aktif === true);
+
+                return { 
+                    status: 'success', 
+                    data: { 
+                        ...catRes.rows[0], 
+                        aktif: isOnline,
+                        details: prodRes.rows 
+                    } 
+                };
             }
         },
         {
@@ -183,27 +204,16 @@ const init = async () => {
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
                 const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
-                
-                // HITUNG NETTO: Yang keluar dari Fertil cuma yang jadi DOC dan KONSUMSI
-                const stokFertilYangHilang = (parseInt(berhasil) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
-                const totalAntrianDikelola = stokFertilYangHilang + (parseInt(gagal) || 0);
+                const stokHilang = (parseInt(berhasil) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
+                const totalAntrian = stokHilang + (parseInt(gagal) || 0);
 
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
-
-                    // A. POTONG STOK FERTIL SESUAI NETTO
-                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [stokFertilYangHilang, kategori_id]);
-
-                    // B. MASUK KE STOK DOC
+                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [stokHilang, kategori_id]);
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-
-                    // C. MASUK KE STOK TELUR KONSUMSI
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
-
-                    // D. SIMPAN KE TABEL PROSES
-                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalAntrianDikelola, berhasil, gagal, sisa_ke_konsumsi]);
-
+                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalAntrian, berhasil, gagal, sisa_ke_konsumsi]);
                     await client.query('COMMIT');
                     return { status: 'success' };
                 } catch (err) {
@@ -224,7 +234,7 @@ const init = async () => {
     ]);
 
     await server.start();
-    console.log(`🚀 API Aktif di: ${server.info.uri}`);
+    console.log(`🚀 API Dunax Farm Sinkron di: ${server.info.uri}`);
 };
 
 process.on('unhandledRejection', (err) => { console.error(err); });
