@@ -22,14 +22,10 @@ const init = async () => {
     server.route({
         method: 'GET',
         path: '/',
-        handler: () => ({ 
-            status: 'success', 
-            message: 'Dunax Farm API is Cloud Powered! ☁️',
-            uptime: Math.floor(process.uptime()) + ' seconds'
-        }),
+        handler: () => ({ status: 'success', message: 'Dunax Farm API is Cloud Powered! ☁️' }),
     });
 
-    // Route Auth (Login/Register)
+    // Route Auth
     try { server.route(authRoutes); } catch (err) { console.error('Cek file ./routes/auth.js lo.'); }
 
     // Main Routes (1-16)
@@ -44,11 +40,10 @@ const init = async () => {
                     const products = await pool.query('SELECT * FROM komoditas');
                     const result = categories.rows.map(cat => {
                         const catProducts = products.rows.filter(p => p.category_id === cat.id);
-                        const isOnline = catProducts.some(p => p.aktif === true);
                         return {
                             id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '', foto: cat.foto || null,
-                            aktif: isOnline,
-                            details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
+                            aktif: catProducts.some(p => p.aktif === true),
+                            details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga) }))
                         };
                     });
                     return { status: 'success', data: result };
@@ -63,8 +58,7 @@ const init = async () => {
                 const { id } = request.params;
                 const catRes = await pool.query('SELECT * FROM categories WHERE id = $1', [id.toLowerCase()]);
                 const prodRes = await pool.query('SELECT * FROM komoditas WHERE category_id = $1 ORDER BY id ASC', [id.toLowerCase()]);
-                const isOnline = prodRes.rows.some(p => p.aktif === true);
-                return { status: 'success', data: { ...catRes.rows[0], aktif: isOnline, details: prodRes.rows } };
+                return { status: 'success', data: { ...catRes.rows[0], details: prodRes.rows } };
             }
         },
         {
@@ -84,7 +78,7 @@ const init = async () => {
             handler: async (request) => {
                 const { id, harga, stok, aktif } = request.payload;
                 await pool.query('UPDATE komoditas SET harga = $1, stok = $2, aktif = $3 WHERE id = $4', [harga, stok, aktif, id]);
-                return { status: 'success', message: 'Data Berhasil Disimpan! 🚀' };
+                return { status: 'success' };
             }
         },
         {
@@ -93,8 +87,8 @@ const init = async () => {
             path: '/api/commodities/add',
             handler: async (request) => {
                 const { category_id, nama, harga, stok, aktif } = request.payload;
-                const result = await pool.query('INSERT INTO komoditas (category_id, nama, harga, stok, aktif) VALUES ($1, $2, $3, $4, $5) RETURNING *', [category_id, nama, harga, stok, aktif]);
-                return { status: 'success', data: result.rows[0] };
+                await pool.query('INSERT INTO komoditas (category_id, nama, harga, stok, aktif) VALUES ($1, $2, $3, $4, $5)', [category_id, nama, harga, stok, aktif]);
+                return { status: 'success' };
             }
         },
         {
@@ -104,7 +98,7 @@ const init = async () => {
             handler: async (request) => {
                 const { id, nama, keterangan, foto } = request.payload;
                 await pool.query('UPDATE categories SET nama = $1, keterangan = $2, foto = COALESCE($3, foto) WHERE id = $4', [nama.toUpperCase(), keterangan, foto, id]);
-                return { status: 'success', message: 'Kategori Diperbarui!' };
+                return { status: 'success' };
             }
         },
         {
@@ -114,7 +108,7 @@ const init = async () => {
             handler: async (request) => {
                 const { id, nama, keterangan, foto } = request.payload;
                 await pool.query('INSERT INTO categories (id, nama, aktif, keterangan, foto) VALUES ($1, $2, false, $3, $4)', [id.toLowerCase(), nama.toUpperCase(), keterangan, foto]);
-                return { status: 'success', message: 'Kategori Berhasil Dibuat!' };
+                return { status: 'success' };
             }
         },
         {
@@ -123,7 +117,7 @@ const init = async () => {
             path: '/api/commodities/delete-product/{id}',
             handler: async (request) => {
                 await pool.query('DELETE FROM komoditas WHERE id = $1', [request.params.id]);
-                return { status: 'success', message: 'Produk Dihapus!' };
+                return { status: 'success' };
             }
         },
         {
@@ -134,7 +128,7 @@ const init = async () => {
                 const { id } = request.params;
                 await pool.query('DELETE FROM komoditas WHERE category_id = $1', [id]);
                 await pool.query('DELETE FROM categories WHERE id = $1', [id]);
-                return { status: 'success', message: 'Kategori Dihapus!' };
+                return { status: 'success' };
             }
         },
         {
@@ -165,8 +159,7 @@ const init = async () => {
             }
         },
         {
-            // 13. POST Laporan Operasional (Panen Ryan)
-            // STOK JANGAN BERTAMBAH DI SINI BIAR GAK MINUS PAS DIPROSES
+            // 13. POST Laporan Panen (Hanya Catat Laporan, JANGAN Tambah Stok)
             method: 'POST',
             path: '/api/laporan/save',
             handler: async (request) => {
@@ -178,7 +171,7 @@ const init = async () => {
             }    
         },
         {
-            // 14. GET Histori Laporan (Antrian)
+            // 14. GET Histori Laporan (Antrian Panen)
             method: 'GET',
             path: '/api/laporan',
             handler: async () => {
@@ -191,19 +184,19 @@ const init = async () => {
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
-                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
+                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, petugas } = request.payload;
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
-                    // A. MASUK KE STOK DOC
+                    // A. TAMBAH STOK DOC
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-                    // B. MASUK KE STOK TELUR FERTIL (HASIL SORTIR JUAL)
+                    // B. TAMBAH STOK TELUR FERTIL JUAL
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [gagal, kategori_id]);
-                    // C. MASUK KE STOK TELUR KONSUMSI
+                    // C. TAMBAH STOK TELUR KONSUMSI
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
-                    // D. SIMPAN HISTORI
+                    // D. SIMPAN HISTORI (SIMPAN PETUGAS DARI LOGIN)
                     const totalPanen = (parseInt(berhasil) || 0) + (parseInt(gagal) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
-                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalPanen, berhasil, gagal, sisa_ke_konsumsi]);
+                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi, petugas) VALUES ($1, $2, $3, $4, $5, $6)`, [kategori_id, totalPanen, berhasil, gagal, sisa_ke_konsumsi, petugas || 'USER']);
                     await client.query('COMMIT');
                     return { status: 'success' };
                 } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
@@ -222,7 +215,7 @@ const init = async () => {
     ]);
 
     await server.start();
-    console.log(`🚀 API Dunax Farm FIXED & MENTERENG!`);
+    console.log(`🚀 API Dunax Farm FIX 1-16!`);
 };
 
 process.on('unhandledRejection', (err) => { console.error(err); });

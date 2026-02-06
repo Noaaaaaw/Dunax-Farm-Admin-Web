@@ -133,7 +133,7 @@ const Pembibitan = {
           </div>
 
           <button class="btn-kelola-white">
-              KELOLA BIBIT &rarr;
+              KELOLA BIBIT
           </button>
         </div>
       `;
