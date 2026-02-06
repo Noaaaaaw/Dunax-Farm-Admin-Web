@@ -11,7 +11,7 @@ const JualKomoditas = {
           </h1>
         </div>
 
-        <div class="action-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px;">
+        <div class="action-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; margin-bottom: 40px;">
           <div class="action-card" id="openModalCatBtn" style="cursor: pointer; display: flex; align-items: center; gap: 25px; padding: 40px 35px;">
             <div class="icon-box-clean" style="width: 85px; height: 85px; border-radius: 20px;">
                <span style="font-size: 3.5rem;">📁</span>
@@ -33,27 +33,15 @@ const JualKomoditas = {
           </div>
         </div>
 
-        <div class="action-card" id="goToPembibitanBtn" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 35px 45px; background: linear-gradient(135deg, #41644A 0%, #2d4533 100%) !important; border-radius: 25px; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; box-shadow: 0 12px 30px rgba(65, 100, 74, 0.15);">
-            <div style="display: flex; align-items: center; gap: 25px;">
-                <div class="icon-box-clean" style="width: 75px; height: 75px; border-radius: 18px; background: rgba(255,255,255,0.2) !important; display: flex; align-items: center; justify-content: center;">
-                    <span style="font-size: 3rem;">🐣</span>
-                </div>
-                <div>
-                    <h3 style="margin: 0; font-size: 1.7rem; font-weight: 950; color: #fff; letter-spacing: 0.5px;">MASTER PEMBIBITAN</h3>
-                    <p style="margin: 5px 0 0; color: rgba(255,255,255,0.85); font-size: 1rem; font-weight: 600;">Kelola data penetasan dan pembibitan hewan</p>
-                </div>
-            </div>
-        </div>
-
         <div class="main-content-card">
             <h2 class="section-title-centered">
                 <span style="opacity: 0.5;"></span> Daftar Kategori Komoditas
             </h2>
             
             <div id="categoryCardsGrid" class="category-grid-system">
-                <div style="padding: 50px; text-align: center; grid-column: 1/-1; color: #888; font-weight: 600;">
+               <div style="padding: 50px; text-align: center; grid-column: 1/-1; color: #888; font-weight: 600;">
                   Menghubungkan ke server cloud...
-                </div>
+               </div>
             </div>
         </div>
 
@@ -134,10 +122,12 @@ const JualKomoditas = {
         .action-card:hover { transform: translateY(-8px) scale(1.02) !important; background: #568563 !important; box-shadow: 0 20px 40px rgba(65, 100, 74, 0.25) !important; }
         .icon-box-clean { background: rgba(255,255,255,0.15) !important; display: flex; align-items: center; justify-content: center; }
 
+        /* MAIN CONTENT CARD WRAPPER */
         .main-content-card { background: white; border-radius: 32px; border: 1px solid #e0eadd; box-shadow: 0 10px 30px rgba(0,0,0,0.03); padding: 45px; margin-bottom: 40px; }
         .section-title-centered { margin-bottom: 40px; color: #1f3326; font-weight: 950; font-size: 1.8rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 12px; }
         .category-grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
 
+        /* MODALS & FORMS */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); z-index: 4000; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: white; padding: 50px; border-radius: 40px; width: 100%; max-width: 550px; box-shadow: 0 35px 80px rgba(0,0,0,0.3); position: relative; }
         .form-group label { display: block; font-size: 0.8rem; font-weight: 900; color: #4a5a4d; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -148,6 +138,7 @@ const JualKomoditas = {
         .close-modal-x { position: absolute; top: 30px; right: 30px; background: none; border: none; font-size: 2.2rem; cursor: pointer; color: #ccc; transition: 0.2s; }
         .close-modal-x:hover { color: #e74c3c; transform: rotate(90deg); }
 
+        /* CATEGORY INDIVIDUAL CARD */
         .category-card { background: #f9fbf9; border: 1px solid #eef2ed; border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; transition: 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); }
         .category-card:hover { transform: translateY(-12px); background: white; border-color: #41644A; box-shadow: 0 25px 50px rgba(0,0,0,0.12); }
       </style>
@@ -166,11 +157,6 @@ const JualKomoditas = {
 
     const SUPABASE_URL = CONFIG.SUPABASE_URL; 
     const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
-
-    // EVENT TAMBAHAN: NAVIGASI KE PEMBIBITAN
-    document.getElementById('goToPembibitanBtn').onclick = () => {
-        location.hash = '#/pembibitan';
-    };
 
     const uploadToStorage = async (file) => {
       const cleanFileName = file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9.-]/g, '');
