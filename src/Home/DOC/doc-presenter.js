@@ -12,14 +12,17 @@ class DocPresenter {
       const hash = window.location.hash.slice(1);
       const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
 
+      // Narik detail kategori buat dapet stok produk di dalamnya
       const response = await fetch(`${this.baseUrl}/commodities/${categoryId}`);
       const result = await response.json();
 
       if (result.status === 'success') {
         this.onDataReady(result.data);
         
-        // Cari item DOC khusus kategori ini
-        const docItem = result.data.details.find(p => p.nama.toUpperCase() === 'DOC');
+        // Cari item DOC/DOD di dalam kategori ini
+        const docItem = result.data.details.find(p => 
+          p.nama.toUpperCase().includes('DOC') || p.nama.toUpperCase().includes('DOD')
+        );
         this.onDocReady(docItem || { stok: 0 });
       }
     } catch (err) {
@@ -28,7 +31,7 @@ class DocPresenter {
   }
 
   async submitDocProcess(payload) {
-    // Alur: Stok DOC berkurang -> Stok Pullet bertambah -> Catat Histori
+    // Ngirim payload: kategori_id, jumlah_hidup, jumlah_mati
     const response = await fetch(`${this.baseUrl}/api/doc/process`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -214,32 +214,51 @@ const init = async () => {
                 return { status: 'success', data: res.rows };
             }
         },
-        // Route 17 di server.js lu harus begini:
-{
+        {
+    // 17. POST Proses DOC ke Pullet (LOGIKA DISTRIBUSI SEBAGIAN)
     method: 'POST',
     path: '/api/doc/process',
     handler: async (request, h) => {
         const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
-        const totalKeluar = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
+        
+        // Total yang benar-benar keluar dari gudang DOC (Mati + Jadi Pullet)
+        const totalKeluarDariDOC = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
 
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
-            // A. Potong Habis Stok DOC
-            await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [totalKeluar, kategori_id]);
+
+            // A. Potong Stok DOC SEBESAR YANG DIPROSES SAJA
+            // Jadi kalau ada 100, lu input 10 hidup & 10 mati, stok sisa 80.
+            await client.query(
+                `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
+                [totalKeluarDariDOC, kategori_id]
+            );
             
             // B. Tambah ke stok Pullet (8 Minggu)
-            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama = 'Pullet (8 Minggu)'`, [jumlah_hidup, kategori_id]);
+            if (parseInt(jumlah_hidup) > 0) {
+                await client.query(
+                    `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama = 'Pullet (8 Minggu)'`, 
+                    [jumlah_hidup, kategori_id]
+                );
+            }
             
             // C. Simpan Histori ke tabel pullet_process
-            await client.query(`INSERT INTO pullet_process (kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) VALUES ($1, $2, $3, $4)`, [kategori_id, totalKeluar, jumlah_hidup, jumlah_mati]);
+            await client.query(
+                `INSERT INTO pullet_process (kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) VALUES ($1, (SELECT stok + $2 FROM komoditas WHERE category_id = $1 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')), $3, $4)`, 
+                [kategori_id, totalKeluarDariDOC, jumlah_hidup, jumlah_mati]
+            );
             
             await client.query('COMMIT');
             return { status: 'success' };
-        } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
-        finally { client.release(); }
-    }
-}
+        } catch (err) { 
+            await client.query('ROLLBACK'); 
+            return h.response({ status: 'error', message: err.message }).code(500); 
+        } finally { 
+            client.release(); 
+               }
+            }
+        }
     ]);
 
     await server.start();

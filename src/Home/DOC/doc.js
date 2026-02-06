@@ -17,18 +17,23 @@ const Doc = {
 
         <div class="main-content-card" style="background: white; padding: 45px; border-radius: 35px; border: 1px solid #e0eadd; box-shadow: 0 15px 35px rgba(0,0,0,0.05);">
             <div style="display: flex; flex-direction: column; gap: 25px;">
-                <div style="background: #f0f7f0; padding: 30px; border-radius: 24px; text-align: center; border: 2px solid #6CA651;">
-                    <label style="display: block; font-weight: 900; color: #2d4a36; margin-bottom: 15px; text-transform: uppercase;">Jumlah DOC Hidup (Jadi Pullet)</label>
-                    <input type="number" id="inputHidup" value="0" min="0" 
-                           style="width: 100%; max-width: 300px; padding: 20px; border-radius: 15px; border: 3px solid #6CA651; font-size: 2rem; font-weight: 900; text-align: center;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="background: #f0f7f0; padding: 25px; border-radius: 20px; text-align: center; border: 2px solid #6CA651;">
+                        <label style="display: block; font-weight: 900; color: #2d4a36; margin-bottom: 10px;">HIDUP (KE PULLET)</label>
+                        <input type="number" id="inputHidup" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #6CA651; font-weight: 900; font-size: 1.5rem; text-align: center;">
+                    </div>
+                    <div style="background: #fff5f5; padding: 25px; border-radius: 20px; text-align: center; border: 2px solid #e74c3c;">
+                        <label style="display: block; font-weight: 900; color: #c53030; margin-bottom: 10px;">MATI (HAPUS STOK)</label>
+                        <input type="number" id="inputMati" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #e74c3c; font-weight: 900; font-size: 1.5rem; text-align: center;">
+                    </div>
                 </div>
 
-                <div style="background: #fff5f5; padding: 20px; border-radius: 18px; text-align: center; border: 1px dashed #e74c3c;">
-                    <span style="font-weight: 800; color: #c53030;">DOC MATI (OTOMATIS): <span id="autoMati">0</span> EKOR</span>
+                <div style="background: #f1f5f9; padding: 20px; border-radius: 18px; text-align: center; border: 1px dashed #475569;">
+                    <span style="font-weight: 800; color: #475569;">SISA TETAP JADI DOC: <span id="autoSisaStay" style="color: #1f3326; font-size: 1.2rem;">0</span> EKOR</span>
                 </div>
 
                 <button id="btnKonfirmasiDoc" style="width: 100%; padding: 25px; background: #1f3326; color: white; border: none; border-radius: 22px; font-weight: 1200; font-size: 1.3rem; cursor: pointer; transition: 0.3s;">
-                    SIMPAN KE STOK PULLET
+                    PROSES DISTRIBUSI
                 </button>
             </div>
         </div>
@@ -38,9 +43,32 @@ const Doc = {
 
   async afterRender() {
     const inputHidup = document.getElementById('inputHidup');
-    const autoMati = document.getElementById('autoMati');
+    const inputMati = document.getElementById('inputMati');
+    const autoSisaStay = document.getElementById('autoSisaStay');
     const stokDocDisplay = document.getElementById('stokDocTersedia');
+    const btnSubmit = document.getElementById('btnKonfirmasiDoc');
     let currentDocStok = 0;
+
+    const refreshSisaUI = () => {
+      const hidup = parseInt(inputHidup.value) || 0;
+      const mati = parseInt(inputMati.value) || 0;
+      const totalProses = hidup + mati;
+      
+      const sisa = Math.max(0, currentDocStok - totalProses);
+      autoSisaStay.innerText = sisa.toLocaleString();
+
+      // Validasi: Cegah input melebihi stok yang ada
+      if (totalProses > currentDocStok) {
+        autoSisaStay.innerText = "OVER CAPACITY!";
+        autoSisaStay.style.color = "#e74c3c";
+        btnSubmit.disabled = true;
+        btnSubmit.style.opacity = '0.5';
+      } else {
+        autoSisaStay.style.color = "#1f3326";
+        btnSubmit.disabled = false;
+        btnSubmit.style.opacity = '1';
+      }
+    };
 
     const presenter = new DocPresenter({
       onDataReady: (cat) => {
@@ -49,37 +77,28 @@ const Doc = {
       onDocReady: (docItem) => {
         currentDocStok = docItem.stok;
         stokDocDisplay.innerText = currentDocStok.toLocaleString();
+        refreshSisaUI();
       }
     });
 
-    inputHidup.oninput = () => {
-      const valHidup = parseInt(inputHidup.value) || 0;
-      // Logika: Sisa otomatis mati
-      const valMati = Math.max(0, currentDocStok - valHidup);
-      autoMati.innerText = valMati.toLocaleString();
-      
-      if (valHidup > currentDocStok) {
-        inputHidup.style.borderColor = '#e74c3c';
-      } else {
-        inputHidup.style.borderColor = '#6CA651';
-      }
-    };
+    inputHidup.oninput = refreshSisaUI;
+    inputMati.oninput = refreshSisaUI;
 
-    document.getElementById('btnKonfirmasiDoc').onclick = async () => {
-      const valHidup = parseInt(inputHidup.value) || 0;
-      
-      if (valHidup > currentDocStok) return alert("Jumlah hidup melebihi stok DOC!");
-      if (valHidup <= 0) return alert("Input jumlah hidup dulu!");
+    btnSubmit.onclick = async () => {
+      const hidup = parseInt(inputHidup.value) || 0;
+      const mati = parseInt(inputMati.value) || 0;
+
+      if ((hidup + mati) <= 0) return alert("Input jumlah hidup atau mati dulu!");
 
       const res = await presenter.submitDocProcess({
         kategori_id: window.location.hash.split('-').slice(1).join('-'),
-        jumlah_hidup: valHidup, // Akan nambah ke Pullet
-        jumlah_mati: currentDocStok - valHidup // Akan memotong stok DOC sampai habis
+        jumlah_hidup: hidup,
+        jumlah_mati: mati
       });
 
       if (res.status === 'success') {
-        alert("DOC Berhasil Diproses Jadi Pullet! 🚀");
-        location.hash = '#/pembibitan';
+        alert("Distribusi Sebagian Sukses! 🚀");
+        location.reload();
       }
     };
 
