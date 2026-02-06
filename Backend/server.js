@@ -261,48 +261,63 @@ const init = async () => {
             }
         },
         {
-    // 15. POST Proses Pembibitan Berantai
-    method: 'POST',
-    path: '/api/pembibitan/process',
-    handler: async (request, h) => {
-        const { kategori_id, berhasil, gagal } = request.payload;
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN'); // Mulai transaksi biar aman
+            // 15. POST Proses Pembibitan Berantai (OTOMATIS POTONG FERTIL & TAMBAH HASIL)
+            method: 'POST',
+            path: '/api/pembibitan/process',
+            handler: async (request, h) => {
+                const { kategori_id, berhasil, gagal } = request.payload;
+                const totalDigunakan = berhasil + gagal; // Total telur yang diambil dari inventaris
+                const client = await pool.connect();
+                
+                try {
+                    await client.query('BEGIN'); // Mulai transaksi biar aman
 
-            // A. UPDATE STOK DOC (DITETAS)
-            // Kita cari produk yang category_id-nya sama dan namanya mengandung 'DOC' atau 'DOD'
-            await client.query(`
-                UPDATE komoditas 
-                SET stok = stok + $1 
-                WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
-            `, [berhasil, kategori_id]);
+                    // A. POTONG STOK TELUR FERTIL (PENGURANGAN DATABASE)
+                    // Ini yang bikin stok di "Setting Produk" lu beneran berkurang.
+                    const potongRes = await client.query(`
+                        UPDATE komoditas 
+                        SET stok = stok - $1 
+                        WHERE category_id = $2 AND nama ILIKE '%Fertil%'
+                        RETURNING stok
+                    `, [totalDigunakan, kategori_id]);
 
-            // B. UPDATE STOK TELUR KONSUMSI (TIDAK DITETAS)
-            // Kita cari produk yang category_id-nya sama dan namanya mengandung 'Telur'
-            await client.query(`
-                UPDATE komoditas 
-                SET stok = stok + $1 
-                WHERE category_id = $2 AND nama ILIKE '%Telur%'
-            `, [gagal, kategori_id]);
+                    if (potongRes.rowCount === 0) {
+                        throw new Error('Gagal! Produk Telur Fertil tidak ditemukan untuk kategori ini.');
+                    }
 
-            // C. CATAT LOG KE LAPORAN (Opsional, biar ada historinya)
-            await client.query(`
-                INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
-                VALUES ($1, 'SISTEM', 'ADMIN', $2)
-            `, [kategori_id.toUpperCase(), JSON.stringify([
-                { name: "Penetasan Berhasil", val: berhasil, unit: "Ekor" },
-                { name: "Gagal Tetas (Konsumsi)", val: gagal, unit: "Butir" }
-            ])]);
+                    // B. TAMBAH STOK DOC (DITETAS)
+                    await client.query(`
+                        UPDATE komoditas 
+                        SET stok = stok + $1 
+                        WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
+                    `, [berhasil, kategori_id]);
 
-            await client.query('COMMIT');
-            return { status: 'success', message: 'Stok Berantai Berhasil Disinkronkan! 🚀' };
-        } catch (err) {
-            await client.query('ROLLBACK');
-            console.error('Error Proses Berantai:', err);
-            return h.response({ status: 'error', message: 'Gagal update stok' }).code(500);
-        } finally {
-            client.release();
+                    // C. TAMBAH STOK TELUR KONSUMSI (TIDAK DITETAS)
+                    // Pastikan yang ditambah adalah telur konsumsi biasa, bukan fertil lagi
+                    await client.query(`
+                        UPDATE komoditas 
+                        SET stok = stok + $1 
+                        WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'
+                    `, [gagal, kategori_id]);
+
+                    // D. CATAT JEJAK AUDIT KE LAPORAN SISTEM
+                    await client.query(`
+                        INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
+                        VALUES ($1, 'SISTEM', 'ADMIN', $2)
+                    `, [kategori_id.toUpperCase(), JSON.stringify([
+                        { name: "Proses Tetas (Fertil Keluar)", val: totalDigunakan, unit: "Butir" },
+                        { name: "Hasil DOC (Masuk)", val: berhasil, unit: "Ekor" },
+                        { name: "Hasil Konsumsi (Masuk)", val: gagal, unit: "Butir" }
+                    ])]);
+
+                    await client.query('COMMIT');
+                    return { status: 'success', message: 'Stok Berantai Sukses! Telur Fertil Berhasil Dipotong. 🚀' };
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    console.error('Error Proses Berantai:', err.message);
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                } finally {
+                    client.release();
                 }
             }
         }
