@@ -49,11 +49,11 @@ const Bibit = {
                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
                     <div style="background: #f0f7f0; padding: 25px; border-radius: 20px; text-align: center;">
                        <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #2d4a36; margin-bottom: 12px;">DITETAS (STOK DOC)</label>
-                       <input type="number" id="inputBerhasil" placeholder="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #6CA651; font-weight: 900; font-size: 1.5rem; text-align: center; color: #14280a;">
+                       <input type="number" id="inputBerhasil" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #6CA651; font-weight: 900; font-size: 1.5rem; text-align: center; color: #14280a;">
                     </div>
                     <div style="background: #fff5f5; padding: 25px; border-radius: 20px; text-align: center;">
                        <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #c53030; margin-bottom: 12px;">TIDAK DITETAS (FERTIL JUAL)</label>
-                       <input type="number" id="inputGagal" placeholder="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #e74c3c; font-weight: 900; font-size: 1.5rem; text-align: center; color: #742a2a;">
+                       <input type="number" id="inputGagal" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #e74c3c; font-weight: 900; font-size: 1.5rem; text-align: center; color: #742a2a;">
                     </div>
                  </div>
 
@@ -86,8 +86,8 @@ const Bibit = {
     const totalDisplay = document.getElementById('totalEggDay');
     const inputBerhasil = document.getElementById('inputBerhasil');
     const inputGagal = document.getElementById('inputGagal');
-    const eggQueue = document.getElementById('eggQueue');
     const autoKonsumsi = document.getElementById('autoKonsumsi');
+    const eggQueue = document.getElementById('eggQueue');
 
     const refreshUI = () => {
       const hash = window.location.hash.slice(1);
@@ -96,18 +96,14 @@ const Bibit = {
       let filtered = rawEggsPanen.filter(e => e.hewan.toLowerCase().includes(categoryId.split('-')[0]));
       if (currentFilterSesi !== 'SEMUA') filtered = filtered.filter(e => e.sesi === currentFilterSesi);
 
-      const totalPanenFilter = filtered.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
-      currentSaldoSisa = totalPanenFilter - processedTotalGlobal; 
+      const totalPanenHarian = filtered.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
+      currentSaldoSisa = totalPanenHarian - processedTotalGlobal; 
       
       const valBerhasil = (parseInt(inputBerhasil.value) || 0);
       const valGagal = (parseInt(inputGagal.value) || 0);
       const sisaFinal = currentSaldoSisa - (valBerhasil + valGagal);
 
-      // UPDATE SALDO TENGAH
       totalDisplay.innerText = `${(Math.max(0, sisaFinal)).toLocaleString()} BUTIR`;
-      totalDisplay.style.color = sisaFinal < 0 ? '#e74c3c' : '#6CA651';
-      
-      // LOGIKA AUTO-KONSUMSI: Sisa yang nggak lu alokasikan ke DOC/Fertil Jual
       autoKonsumsi.innerText = `${(Math.max(0, sisaFinal)).toLocaleString()} BUTIR`;
 
       if (filtered.length === 0) {
@@ -116,8 +112,8 @@ const Bibit = {
         eggQueue.innerHTML = filtered.map(e => `
           <div class="egg-card-item">
             <div style="text-align: left;">
-              <div style="font-size: 0.75rem; font-weight: 1200; color: #6CA651; text-transform: uppercase;">SESI ${e.sesi}</div>
-              <div style="font-size: 0.75rem; color: #14280a; font-weight: 900; text-transform: uppercase;">DERET KE-${e.deret || '-'}</div>
+              <div style="font-size: 0.75rem; font-weight: 1200; color: #6CA651;">SESI ${e.sesi}</div>
+              <div style="font-size: 0.75rem; color: #14280a; font-weight: 900;">DERET KE-${e.deret || '-'}</div>
             </div>
             <div style="text-align: right;">
               <span style="font-size: 1.3rem; font-weight: 1200; color: #14280a;">
@@ -148,24 +144,20 @@ const Bibit = {
 
     inputBerhasil.oninput = refreshUI;
     inputGagal.oninput = refreshUI;
-    document.getElementById('btnProsesBerantai').onclick = () => {
-        if (currentSaldoSisa <= 0) return alert("Antrian sudah habis diproses!");
-        document.getElementById('resultArea').style.display = 'flex';
-    };
+    document.getElementById('btnProsesBerantai').onclick = () => document.getElementById('resultArea').style.display = 'flex';
     
     document.getElementById('btnFinalSubmit').onclick = async () => {
         const alokasi = (parseInt(inputBerhasil.value) || 0) + (parseInt(inputGagal.value) || 0);
         if (alokasi > currentSaldoSisa) return alert("Melebihi sisa antrian!");
 
-        // Payload kirim ke Backend sakti lu
         const res = await presenter.submitBibitProcess({
             kategori_id: window.location.hash.split('-').slice(1).join('-'),
             berhasil: parseInt(inputBerhasil.value) || 0,
             gagal: parseInt(inputGagal.value) || 0,
-            sisa_ke_konsumsi: Math.max(0, currentSaldoSisa - alokasi) // Otomatisasi sisa
+            sisa_ke_konsumsi: Math.max(0, currentSaldoSisa - alokasi)
         });
         if (res.status === 'success') {
-            alert("Distribusi Berantai Sukses! Stok DOC, Fertil, & Konsumsi Terupdate. 🚀");
+            alert("Distribusi Berantai Sukses! 🚀");
             location.reload();
         }
     };

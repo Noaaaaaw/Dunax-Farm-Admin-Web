@@ -261,65 +261,66 @@ const init = async () => {
             }
         },
         {
-    // 15. POST Proses Pembibitan Berantai (LOGIKA DOC, FERTIL JUAL, & KONSUMSI)
-    method: 'POST',
-    path: '/api/pembibitan/process',
-    handler: async (request, h) => {
-        const { kategori_id, berhasil, gagal } = request.payload;
-        const totalDigunakan = berhasil + gagal; // Total yang diproses dari mesin
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
+            // 15. POST Proses Pembibitan Berantai (FIX MINUS LOGIC)
+            method: 'POST',
+            path: '/api/pembibitan/process',
+            handler: async (request, h) => {
+                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
+                const totalPanenDikelola = berhasil + gagal + sisa_ke_konsumsi; 
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
 
-            // A. POTONG STOK TELUR FERTIL UTAMA (BAHAN BAKU)
-            const potongRes = await client.query(`
-                UPDATE komoditas SET stok = stok - $1 
-                WHERE category_id = $2 AND nama ILIKE '%Fertil%'
-                RETURNING stok
-            `, [totalDigunakan, kategori_id]);
+                    // A. POTONG TOTAL PANEN DARI STOK FERTIL (100)
+                    await client.query(`
+                        UPDATE komoditas SET stok = stok - $1 
+                        WHERE category_id = $2 AND nama ILIKE '%Fertil%'
+                    `, [totalPanenDikelola, kategori_id]);
 
-            if (potongRes.rowCount === 0) throw new Error('Produk Fertil tidak ditemukan!');
+                    // B. MASUK KE STOK DOC (85)
+                    await client.query(`
+                        UPDATE komoditas SET stok = stok + $1 
+                        WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
+                    `, [berhasil, kategori_id]);
 
-            // B. MASUK KE STOK DOC (DITETAS)
-            await client.query(`
-                UPDATE komoditas SET stok = stok + $1 
-                WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
-            `, [berhasil, kategori_id]);
+                    // C. REFUND / BALIKIN KE STOK FERTIL JUAL (10)
+                    await client.query(`
+                        UPDATE komoditas SET stok = stok + $1 
+                        WHERE category_id = $2 AND nama ILIKE '%Fertil%'
+                    `, [gagal, kategori_id]);
 
-            // C. MASUK KE STOK FERTIL JUAL (TIDAK DITETAS)
-            // Lu bilang yang "Tidak Ditetas" ganti jadi Fertil buat dijual
-            await client.query(`
-                UPDATE komoditas SET stok = stok + $1 
-                WHERE category_id = $2 AND nama ILIKE '%Fertil%'
-            `, [gagal, kategori_id]);
+                    // D. MASUK KE STOK TELUR KONSUMSI (5)
+                    await client.query(`
+                        UPDATE komoditas SET stok = stok + $1 
+                        WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'
+                    `, [sisa_ke_konsumsi, kategori_id]);
 
-            // D. LOGIKA SISA KE KONSUMSI (OPSIONAL)
-            // Jika ada sisa telur dari laporan Ryan yang tidak diproses (skip),
-            // itu akan tetap berada di antrian sisa sampai Admin memutuskan.
+                    // E. CATAT LOG ADMIN BIAR ANTRIAN FRONTEND BERKURANG (100)
+                    await client.query(`
+                        INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
+                        VALUES ($1, 'SISTEM', 'ADMIN', $2)
+                    `, [kategori_id.toUpperCase(), JSON.stringify([{ name: "Realisasi Tetas", val: totalPanenDikelola }])]);
 
-            // E. CATAT LOG SISTEM BIAR ANTRIAN BERKURANG
-            await client.query(`
-                INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
-                VALUES ($1, 'SISTEM', 'ADMIN', $2)
-            `, [kategori_id.toUpperCase(), JSON.stringify([{ name: "Realisasi Tetas", val: totalDigunakan }])]);
-
-            await client.query('COMMIT');
-            return { status: 'success' };
-        } catch (err) {
-            await client.query('ROLLBACK');
-            return h.response({ status: 'error', message: err.message }).code(500);
-        } finally { client.release(); }
-    }
-}
+                    await client.query('COMMIT');
+                    return { status: 'success' };
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                } finally { client.release(); }
+            }
+        },
+        {
+            method: 'GET',
+            path: '/api/laporan',
+            handler: async (request, h) => {
+                const result = await pool.query('SELECT * FROM laporan_operasional ORDER BY tanggal_jam DESC');
+                return { status: 'success', data: result.rows };
+            }
+        }
     ]);
 
     await server.start();
-    console.log(`🚀 Dunax Farm Backend Aktif di: ${server.info.uri}`);
+    console.log(`🚀 API Aktif di: ${server.info.uri}`);
 };
-
-// Global Safety Net
-process.on('unhandledRejection', (err) => {
-    console.error('Unhandled Rejection:', err);
-});
 
 init();
