@@ -34,24 +34,20 @@ const init = async () => {
 
     // Main Routes (1-16)
     server.route([
-        {
-            // 1. GET Semua Kategori (LOGIKA SINKRON STATUS ONLINE/OFFLINE)
+       {
+            // 1. GET Semua Kategori (Status Online/Offline Sinkron)
             method: 'GET',
             path: '/commodities',
             handler: async (request, h) => {
                 try {
                     const categories = await pool.query('SELECT * FROM categories ORDER BY id ASC');
                     const products = await pool.query('SELECT * FROM komoditas');
-                    
                     const result = categories.rows.map(cat => {
                         const catProducts = products.rows.filter(p => p.category_id === cat.id);
-                        // Kategori Online jika minimal ada 1 produk yang aktif
                         const isOnline = catProducts.some(p => p.aktif === true);
-
                         return {
-                            id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '',
-                            foto: cat.foto || null,
-                            aktif: isOnline, // Menjamin titik di UI berwarna Hijau jika ada barang dijual
+                            id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '', foto: cat.foto || null,
+                            aktif: isOnline, // Menjamin indikator Hijau di Kelola Bibit
                             details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
                         };
                     });
@@ -194,33 +190,75 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan (LOGIKA NETTO - ANTI MINUS)
+            // 15. POST Proses Pembibitan (VALIDASI STOK & ANTI-MINUS)
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
                 const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
                 
-                // Stok Fertil hanya dipotong seukuran barang yang hilang/keluar (DOC + Konsumsi)
-                const stokHilang = (parseInt(berhasil) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
-                const totalAntrian = stokHilang + (parseInt(gagal) || 0);
+                // Barang yang bener-bener dibuang/keluar dari gudang Fertil cuma DOC dan KONSUMSI
+                const stokFertilDibutuhkan = (parseInt(berhasil) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
+                const totalAntrian = stokFertilDibutuhkan + (parseInt(gagal) || 0);
 
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
-                    // 1. Potong Stok Fertil (Potong Bersih/Netto)
-                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [stokHilang, kategori_id]);
-                    // 2. Tambah Stok DOC
+
+                    // A. CEK STOK DULU: Lu punya barangnya nggak buat dipotong?
+                    const check = await client.query(
+                        `SELECT stok, nama FROM komoditas WHERE category_id = $1 AND nama ILIKE '%Fertil%'`,
+                        [kategori_id]
+                    );
+
+                    const stokSekarang = check.rows[0]?.stok || 0;
+
+                    // B. KALAU STOK KURANG, JANGAN MAU DIPOTONG!
+                    if (stokSekarang < stokFertilDibutuhkan) {
+                        await client.query('ROLLBACK');
+                        return h.response({ 
+                            status: 'error', 
+                            message: `Gagal! Stok ${check.rows[0]?.nama} cuma ${stokSekarang}, nggak cukup buat potong ${stokFertilDibutuhkan}. Input Panen dulu!` 
+                        }).code(400);
+                    }
+
+                    // C. POTONG STOK FERTIL (NETTO)
+                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [stokFertilDibutuhkan, kategori_id]);
+                    // D. TAMBAH STOK HASIL (DOC & KONSUMSI)
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-                    // 3. Tambah Stok Telur Konsumsi
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
-                    // 4. Catat Histori
+                    // E. SIMPAN HISTORI
                     await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalAntrian, berhasil, gagal, sisa_ke_konsumsi]);
+
                     await client.query('COMMIT');
                     return { status: 'success' };
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    return h.response({ status: 'error', message: err.message }).code(500);
-                } finally { client.release(); }
+                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
+                finally { client.release(); }
+            }
+        },
+        {
+            method: 'GET',
+            path: '/api/pembibitan/history',
+            handler: async () => {
+                const res = await pool.query('SELECT * FROM hatchery_process ORDER BY tanggal_proses DESC');
+                return { status: 'success', data: res.rows };
+            }
+        },
+        {
+            method: 'GET',
+            path: '/api/laporan',
+            handler: async () => {
+                const result = await pool.query('SELECT * FROM laporan_operasional ORDER BY tanggal_jam DESC');
+                return { status: 'success', data: result.rows };
+            }
+        },
+        {
+            // Update Stok & Harga
+            method: 'POST',
+            path: '/api/commodities/update-product',
+            handler: async (request) => {
+                const { id, harga, stok, aktif } = request.payload;
+                await pool.query('UPDATE komoditas SET harga = $1, stok = $2, aktif = $3 WHERE id = $4', [harga, stok, aktif, id]);
+                return { status: 'success' };
             }
         },
         {

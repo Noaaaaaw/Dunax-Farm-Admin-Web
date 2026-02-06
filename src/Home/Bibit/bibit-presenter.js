@@ -9,11 +9,14 @@ class BibitPresenter {
 
   async init(selectedDate = new Date()) {
     try {
-      // 1. TARIK DATA DARI 3 ENDPOINT SEKALIGUS
+      const hash = window.location.hash.slice(1);
+      // Ambil categoryId dari URL, misal: 'ayam'
+      const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
+
       const [resCat, resLaporan, resHistory] = await Promise.all([
         fetch(`${this.baseUrl}/commodities`),
         fetch(`${this.baseUrl}/api/laporan`),
-        fetch(`${this.baseUrl}/api/pembibitan/history`) // ENDPOINT BARU UNTUK TABEL hatchery_process
+        fetch(`${this.baseUrl}/api/pembibitan/history`)
       ]);
 
       const resultCat = await resCat.json();
@@ -26,10 +29,13 @@ class BibitPresenter {
         const targetDate = new Date(selectedDate);
         targetDate.setHours(0, 0, 0, 0);
 
-        // 2. FILTER DATA PANEN RYAN (ANTRIAN MASUK)
+        // 1. FILTER DATA PANEN (ANTRIAN MASUK)
         const dataPanen = resultLaporan.data.filter(item => {
           const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
-          return d.getTime() === targetDate.getTime() && item.petugas !== 'ADMIN' &&
+          // Hanya ambil panen yang sesuai tanggal dan categoryId (biar nggak kecampur kategori lain)
+          return d.getTime() === targetDate.getTime() && 
+                 item.petugas !== 'ADMIN' &&
+                 item.hewan.toLowerCase().includes(categoryId.toLowerCase()) &&
                  item.pekerjaan_data.some(p => p.name.toLowerCase().includes('panen telur') && parseInt(p.val) > 0);
         }).map(item => {
           const panenTask = item.pekerjaan_data.find(p => p.name.toLowerCase().includes('panen telur'));
@@ -41,14 +47,14 @@ class BibitPresenter {
           };
         });
 
-        // 3. HITUNG TOTAL DARI TABEL BARU (ANTRIAN KELUAR)
-        // Inilah yang bikin angka sisa berkurang pas Admin klik konfirmasi
+        // 2. HITUNG TOTAL KELUAR (ANTRIAN YANG SUDAH DIPROSES)
         const totalSudahDiproses = resultHistory.data.filter(item => {
           const d = new Date(item.tanggal_proses); d.setHours(0,0,0,0);
-          return d.getTime() === targetDate.getTime();
+          // WAJIB filter berdasarkan kategori_id juga!
+          return d.getTime() === targetDate.getTime() && 
+                 item.kategori_id.toLowerCase() === categoryId.toLowerCase();
         }).reduce((acc, curr) => acc + (parseInt(curr.total_panen) || 0), 0);
 
-        // Kirim ke UI buat dikurangin
         this.onEggsReady(dataPanen, totalSudahDiproses);
       }
     } catch (err) { 
