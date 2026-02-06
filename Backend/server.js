@@ -165,7 +165,8 @@ const init = async () => {
             }
         },
         {
-            // 13. POST Laporan Operasional Ryan (Input Panen)
+            // 13. POST Laporan Operasional (Panen Ryan)
+            // STOK JANGAN BERTAMBAH DI SINI BIAR GAK MINUS PAS DIPROSES
             method: 'POST',
             path: '/api/laporan/save',
             handler: async (request) => {
@@ -173,17 +174,11 @@ const init = async () => {
                 const query = `INSERT INTO laporan_operasional (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
                 const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan), petugas];
                 const result = await pool.query(query, values);
-                
-                // Jika Ryan lapor "Panen Telur", tambahkan ke stok Telur Fertil otomatis
-                const panenTask = pekerjaan.find(p => p.name.toLowerCase().includes('panen telur'));
-                if (panenTask && parseInt(panenTask.val) > 0) {
-                    await pool.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [parseInt(panenTask.val), hewan.toLowerCase()]);
-                }
                 return { status: 'success', data: result.rows[0] };
             }    
         },
         {
-            // 14. GET Histori Laporan (Untuk Antrian)
+            // 14. GET Histori Laporan (Antrian)
             method: 'GET',
             path: '/api/laporan',
             handler: async () => {
@@ -192,29 +187,23 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan (VALIDASI STOK - ANTI MINUS)
+            // 15. POST Proses Pembibitan (ALUR DISTRIBUSI LANGSUNG - ANTI MINUS)
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
                 const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
-                const stokDibutuhkan = (parseInt(berhasil) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
-                const totalAntrian = stokDibutuhkan + (parseInt(gagal) || 0);
-
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
-                    const check = await client.query(`SELECT stok, nama FROM komoditas WHERE category_id = $1 AND nama ILIKE '%Fertil%'`, [kategori_id]);
-                    const stokSekarang = check.rows[0]?.stok || 0;
-
-                    if (stokSekarang < stokDibutuhkan) {
-                        await client.query('ROLLBACK');
-                        return h.response({ status: 'error', message: `Stok Kurang! Cuma ada ${stokSekarang}, butuh ${stokDibutuhkan}.` }).code(400);
-                    }
-
-                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [stokDibutuhkan, kategori_id]);
+                    // A. MASUK KE STOK DOC
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
+                    // B. MASUK KE STOK TELUR FERTIL (HASIL SORTIR JUAL)
+                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [gagal, kategori_id]);
+                    // C. MASUK KE STOK TELUR KONSUMSI
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
-                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalAntrian, berhasil, gagal, sisa_ke_konsumsi]);
+                    // D. SIMPAN HISTORI
+                    const totalPanen = (parseInt(berhasil) || 0) + (parseInt(gagal) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
+                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalPanen, berhasil, gagal, sisa_ke_konsumsi]);
                     await client.query('COMMIT');
                     return { status: 'success' };
                 } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
@@ -233,7 +222,7 @@ const init = async () => {
     ]);
 
     await server.start();
-    console.log(`🚀 API Dunax Farm FIX & MENTERENG!`);
+    console.log(`🚀 API Dunax Farm FIXED & MENTERENG!`);
 };
 
 process.on('unhandledRejection', (err) => { console.error(err); });
