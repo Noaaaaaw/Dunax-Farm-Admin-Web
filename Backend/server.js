@@ -199,29 +199,54 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan (LOGIKA NETTO - ANTI MINUS)
-            method: 'POST',
-            path: '/api/pembibitan/process',
-            handler: async (request, h) => {
-                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
-                const stokHilang = (parseInt(berhasil) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
-                const totalAntrian = stokHilang + (parseInt(gagal) || 0);
+    // 15. POST Proses Pembibitan (LOGIKA NETTO - ANTI MINUS)
+    method: 'POST',
+    path: '/api/pembibitan/process',
+    handler: async (request, h) => {
+        const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
+        
+        // HITUNG BERSIH: Yang benar-benar hilang dari gudang Fertil hanya DOC dan KONSUMSI
+        // Barang yang "Gagal Tetas/Sortir Jual" TIDAK dipotong karena tetap menjadi Telur Fertil siap jual.
+        const stokFertilYangHilang = (parseInt(berhasil) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
+        const totalAntrianDikelola = stokFertilYangHilang + (parseInt(gagal) || 0);
 
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [stokHilang, kategori_id]);
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
-                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalAntrian, berhasil, gagal, sisa_ke_konsumsi]);
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    return h.response({ status: 'error', message: err.message }).code(500);
-                } finally { client.release(); }
-            }
-        },
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. POTONG STOK FERTIL HANYA SEBESAR YANG KELUAR SISTEM (DOC + KONSUMSI)
+            await client.query(`
+                UPDATE komoditas SET stok = stok - $1 
+                WHERE category_id = $2 AND nama ILIKE '%Fertil%'
+            `, [stokFertilYangHilang, kategori_id]);
+
+            // 2. TAMBAH STOK DOC
+            await client.query(`
+                UPDATE komoditas SET stok = stok + $1 
+                WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
+            `, [berhasil, kategori_id]);
+
+            // 3. TAMBAH STOK TELUR KONSUMSI
+            await client.query(`
+                UPDATE komoditas SET stok = stok + $1 
+                WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'
+            `, [sisa_ke_konsumsi, kategori_id]);
+
+            // 4. CATAT KE TABEL PROSES (AUDIT TRAIL)
+            await client.query(`
+                INSERT INTO hatchery_process 
+                (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [kategori_id, totalAntrianDikelola, berhasil, gagal, sisa_ke_konsumsi]);
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally { client.release(); }
+    }
+},
         {
             // 16. GET Histori Pembibitan
             method: 'GET',
