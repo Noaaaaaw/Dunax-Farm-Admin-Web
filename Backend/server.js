@@ -216,55 +216,7 @@ const init = async () => {
                     return h.response({ status: 'error', message: err.message }).code(500);
                 } finally { client.release(); }
             }
-        },{
-    // 15. POST Proses Pembibitan (LOGIKA NETTO - ANTI MINUS)
-    method: 'POST',
-    path: '/api/pembibitan/process',
-    handler: async (request, h) => {
-        const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
-        
-        // HITUNG BERSIHNYA: Yang bener-bener keluar dari stok Fertil cuma DOC dan KONSUMSI
-        const stokFertilYangHilang = (parseInt(berhasil) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
-        const totalAntrianDikelola = stokFertilYangHilang + (parseInt(gagal) || 0);
-
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-
-            // 1. HANYA POTONG YANG BENER-BENER HILANG (NETTO)
-            // Stok awal 100 - (85 DOC + 5 Konsumsi) = Sisa 10 (Fertil Jual)
-            await client.query(`
-                UPDATE komoditas SET stok = stok - $1 
-                WHERE category_id = $2 AND nama ILIKE '%Fertil%'
-            `, [stokFertilYangHilang, kategori_id]);
-
-            // 2. MASUK KE STOK DOC
-            await client.query(`
-                UPDATE komoditas SET stok = stok + $1 
-                WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
-            `, [berhasil, kategori_id]);
-
-            // 3. MASUK KE STOK TELUR KONSUMSI
-            await client.query(`
-                UPDATE komoditas SET stok = stok + $1 
-                WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'
-            `, [sisa_ke_konsumsi, kategori_id]);
-
-            // 4. SIMPAN HISTORI KE TABEL PROSES
-            await client.query(`
-                INSERT INTO hatchery_process 
-                (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi)
-                VALUES ($1, $2, $3, $4, $5)
-            `, [kategori_id, totalAntrianDikelola, berhasil, gagal, sisa_ke_konsumsi]);
-
-            await client.query('COMMIT');
-            return { status: 'success' };
-        } catch (err) {
-            await client.query('ROLLBACK');
-            return h.response({ status: 'error', message: err.message }).code(500);
-        } finally { client.release(); }
-    }
-},
+        },
         {
             // 16. GET Histori Pembibitan (Audit Trail)
             method: 'GET',
