@@ -19,44 +19,35 @@ class BibitPresenter {
       if (resultLaporan.status === 'success') {
         const targetDate = new Date(selectedDate);
         targetDate.setHours(0, 0, 0, 0);
-        
-        const eggData = resultLaporan.data.filter(item => {
-          const reportDate = new Date(item.tanggal_jam);
-          reportDate.setHours(0, 0, 0, 0);
-          return reportDate.getTime() === targetDate.getTime() && 
-                 item.pekerjaan_data.some(p => p.name.toLowerCase().includes('panen telur') && p.val !== "" && parseInt(p.val) > 0);
-        }).map(item => {
-          const panenTask = item.pekerjaan_data.find(p => p.name.toLowerCase().includes('panen telur'));
-          return {
-            id_laporan: item.id,
-            hewan: item.hewan,
-            deret: item.deret_kandang,
-            jumlah: parseInt(panenTask.val),
-            sesi: item.sesi,
-            tanggal: item.tanggal_jam
-          };
+
+        // FILTER DATA PANEN RYAN (ANTRIAN AWAL)
+        const dataPanen = resultLaporan.data.filter(item => {
+          const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
+          return d.getTime() === targetDate.getTime() && item.petugas !== 'ADMIN' &&
+                 item.pekerjaan_data.some(p => p.name.toLowerCase().includes('panen telur') && parseInt(p.val) > 0);
         });
-        this.onEggsReady(eggData);
+
+        // HITUNG TOTAL YANG SUDAH DIPROSES ADMIN (PENGURANG SALDO)
+        const totalSudahDiproses = resultLaporan.data.filter(item => {
+          const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
+          return d.getTime() === targetDate.getTime() && item.petugas === 'ADMIN';
+        }).reduce((acc, curr) => {
+          const p = curr.pekerjaan_data.find(task => task.name === "Realisasi Tetas");
+          return acc + (p ? parseInt(p.val) : 0);
+        }, 0);
+
+        this.onEggsReady(dataPanen, totalSudahDiproses);
       }
-    } catch (err) { console.error("Gagal sinkron data:", err); }
+    } catch (err) { console.error(err); }
   }
 
   async submitBibitProcess(payload) {
-    try {
-      // PAYLOAD SEKARANG TERMASUK PENGURANG STOK UTAMA
-      const response = await fetch(`${this.baseUrl}/api/pembibitan/process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...payload,
-          total_potong_stok: payload.berhasil + payload.gagal, // Instruksi potong stok fertil
-          timestamp: new Date().toISOString(),
-          tipe: 'BERANTAI'
-        })
-      });
-      return await response.json();
-    } catch (err) { return { status: 'error' }; }
+    const response = await fetch(`${this.baseUrl}/api/pembibitan/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await response.json();
   }
 }
-
 export default BibitPresenter;

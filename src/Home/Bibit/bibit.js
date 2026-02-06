@@ -51,7 +51,7 @@ const Bibit = {
               </button>
 
               <div id="resultArea" style="display: none; flex-direction: column; gap: 25px; background: #fcfdfc; padding: 35px; border-radius: 30px; border: 2px solid #eef2ed; animation: slideDown 0.4s ease;">
-                 <h3 style="margin: 0; color: #1f3326; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Rincian Hasil Akhir</h3>
+                 <h3 style="margin: 0; color: #1f3326; font-weight: 900; text-align: center; text-transform: uppercase;">Rincian Hasil Akhir</h3>
                  
                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
                     <div style="background: #f0f7f0; padding: 25px; border-radius: 20px; border: 1px solid #d1e7d1; text-align: center;">
@@ -64,7 +64,7 @@ const Bibit = {
                     </div>
                  </div>
 
-                 <button id="btnFinalSubmit" style="width: 100%; padding: 22px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 1200; font-size: 1.1rem; cursor: pointer; transition: 0.2s;">
+                 <button id="btnFinalSubmit" style="width: 100%; padding: 22px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 1200; font-size: 1.1rem; cursor: pointer;">
                     KONFIRMASI & PINDAHKAN KE STOK JUAL 🐣
                  </button>
               </div>
@@ -73,29 +73,11 @@ const Bibit = {
       </section>
 
       <style>
-        .egg-grid-container {
-            display: grid;
-            grid-template-rows: repeat(5, 75px);
-            grid-auto-flow: column;
-            gap: 12px;
-            overflow-x: auto;
-            padding-bottom: 15px;
-        }
-        .egg-row-item-mini {
-            display: flex; justify-content: space-between; align-items: center; 
-            background: #ffffff; border: 2px dashed #6CA651; padding: 0 25px; 
-            border-radius: 15px; min-width: 280px; height: 75px;
-        }
-        .filter-sesi-btn {
-            background: #f0f4f0; color: #41644A; border: 1.5px solid #e0eadd; 
-            padding: 6px 15px; border-radius: 10px; font-size: 0.75rem; font-weight: 900; 
-            cursor: pointer;
-        }
+        .egg-grid-container { display: grid; grid-template-rows: repeat(5, 75px); grid-auto-flow: column; gap: 12px; overflow-x: auto; padding-bottom: 15px; }
+        .egg-row-item-mini { display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 2px dashed #6CA651; padding: 0 25px; border-radius: 15px; min-width: 280px; height: 75px; }
+        .filter-sesi-btn { background: #f0f4f0; color: #41644A; border: 1.5px solid #e0eadd; padding: 6px 15px; border-radius: 10px; font-size: 0.75rem; font-weight: 900; cursor: pointer; }
         .filter-sesi-btn.active { background: #41644A !important; color: white !important; }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
       </style>
     `;
   },
@@ -103,45 +85,37 @@ const Bibit = {
   async afterRender() {
     let currentViewDate = new Date();
     let currentFilterSesi = 'SEMUA';
-    let rawEggs = [];
-    let dailySaldoGlobal = 0; // Menyimpan total awal berdasarkan filter sesi
+    let rawEggsPanen = [];
+    let processedTotal = 0; // Data proses dari Admin Sistem
+    let currentSaldoSisa = 0;
 
-    const hash = window.location.hash.slice(1); 
-    const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : null;
-    const eggQueue = document.getElementById('eggQueue');
     const totalDisplay = document.getElementById('totalEggDay');
-    const btnBerantai = document.getElementById('btnProsesBerantai');
-    const resultArea = document.getElementById('resultArea');
     const inputBerhasil = document.getElementById('inputBerhasil');
     const inputGagal = document.getElementById('inputGagal');
+    const eggQueue = document.getElementById('eggQueue');
 
-    // LOGIKA UPDATE TOTAL DINAMIS (SALDO BERJALAN)
-    const refreshDynamicTotal = () => {
-        const alokasiBerhasil = parseInt(inputBerhasil.value) || 0;
-        const alokasiGagal = parseInt(inputGagal.value) || 0;
-        const sisaSaldo = dailySaldoGlobal - (alokasiBerhasil + alokasiGagal);
-
-        totalDisplay.innerText = `${sisaSaldo.toLocaleString()} BUTIR`;
-        
-        // Peringatan warna jika input melebihi saldo yang ada
-        totalDisplay.style.color = sisaSaldo < 0 ? '#e74c3c' : '#6CA651';
-    };
-
-    const renderList = () => {
-      let filtered = rawEggs.filter(e => e.hewan.toLowerCase().includes(categoryId.split('-')[0]));
+    const refreshUI = () => {
+      const hash = window.location.hash.slice(1);
+      const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : null;
+      
+      // Filter list berdasarkan hewan & sesi
+      let filtered = rawEggsPanen.filter(e => e.hewan.toLowerCase().includes(categoryId.split('-')[0]));
       if (currentFilterSesi !== 'SEMUA') filtered = filtered.filter(e => e.sesi === currentFilterSesi);
+
+      // KALKULASI SALDO BERSIH: TOTAL PANEN - TOTAL PROSES
+      const totalPanenHarian = filtered.reduce((sum, e) => sum + e.jumlah, 0);
+      currentSaldoSisa = totalPanenHarian - processedTotal; 
+      
+      const alokasiNow = (parseInt(inputBerhasil.value) || 0) + (parseInt(inputGagal.value) || 0);
+      const sisaFinal = currentSaldoSisa - alokasiNow;
+
+      totalDisplay.innerText = `${sisaFinal.toLocaleString()} BUTIR`;
+      totalDisplay.style.color = sisaFinal < 0 ? '#e74c3c' : '#6CA651';
 
       if (filtered.length === 0) {
         eggQueue.innerHTML = `<div style="padding: 40px; text-align: center; color:#aaa; font-weight: 700; grid-column: 1/-1;">Data panen kosong.</div>`;
-        dailySaldoGlobal = 0;
-        refreshDynamicTotal();
-        return;
-      }
-
-      let total = 0;
-      eggQueue.innerHTML = filtered.map(e => {
-        total += e.jumlah;
-        return `
+      } else {
+        eggQueue.innerHTML = filtered.map(e => `
           <div class="egg-row-item-mini">
             <div style="text-align: left;">
               <div style="font-size: 0.75rem; font-weight: 1200; color: #6CA651; text-transform: uppercase;">SESI ${e.sesi}</div>
@@ -150,59 +124,50 @@ const Bibit = {
             <div style="text-align: right;">
               <span style="font-size: 1.3rem; font-weight: 1200; color: #14280a;">${e.jumlah.toLocaleString()} <small style="font-size: 0.8rem; color: #666;">Butir</small></span>
             </div>
-          </div>`;
-      }).join('');
-      
-      // Update saldo berdasarkan hasil sortir
-      dailySaldoGlobal = total;
-      refreshDynamicTotal();
+          </div>`).join('');
+      }
     };
 
     const presenter = new BibitPresenter({
-      onDataReady: (categories) => {
-        const cat = categories.find(c => c.id === categoryId);
+      onDataReady: (cats) => {
+        const hash = window.location.hash.slice(1);
+        const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : null;
+        const cat = cats.find(c => c.id === categoryId);
         if (cat) document.getElementById('displayCategoryName').innerText = cat.nama;
       },
-      onEggsReady: (eggs) => { rawEggs = eggs; renderList(); }
+      onEggsReady: (eggs, processed) => { 
+        rawEggsPanen = eggs; 
+        processedTotal = processed; 
+        refreshUI(); 
+      }
     });
 
-    const refreshData = async () => {
-      document.getElementById('dateDisplayBibit').innerText = currentViewDate.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }).toUpperCase();
-      await presenter.init(currentViewDate);
-    };
+    inputBerhasil.oninput = refreshUI;
+    inputGagal.oninput = refreshUI;
 
-    // Event Input Real-time
-    inputBerhasil.oninput = refreshDynamicTotal;
-    inputGagal.oninput = refreshDynamicTotal;
-
-    btnBerantai.onclick = () => {
-        if (dailySaldoGlobal <= 0) return alert("Belum ada antrian telur untuk diproses!");
-        resultArea.style.display = 'flex';
-        btnBerantai.style.opacity = '0.5';
-        btnBerantai.innerText = "RINCIAN PENGGUNAAN TELUR";
-        btnBerantai.style.pointerEvents = 'none';
-        inputBerhasil.focus();
+    document.getElementById('btnProsesBerantai').onclick = () => {
+        if (currentSaldoSisa <= 0) return alert("Antrian sudah habis diproses!");
+        document.getElementById('resultArea').style.display = 'flex';
     };
 
     document.getElementById('btnFinalSubmit').onclick = async () => {
         const payload = {
-            kategori_id: categoryId,
+            kategori_id: window.location.hash.split('-').slice(1).join('-'),
             berhasil: parseInt(inputBerhasil.value) || 0,
             gagal: parseInt(inputGagal.value) || 0
         };
-
-        if (payload.berhasil + payload.gagal > dailySaldoGlobal) {
-            alert("Waduh! Total alokasi melebihi stok antrian yang tersedia.");
-            return;
-        }
+        if ((payload.berhasil + payload.gagal) > currentSaldoSisa) return alert("Melebihi sisa antrian telur!");
         
-        if (confirm("Konfirmasi rincian? Stok DOC & Telur Konsumsi akan segera diperbarui.")) {
-            const res = await presenter.submitBibitProcess(payload);
-            if (res.status === 'success') {
-                alert("Stok Berhasil Disinkronkan! 🚀");
-                location.reload();
-            }
+        const res = await presenter.submitBibitProcess(payload);
+        if (res.status === 'success') {
+            alert("Stok & Antrian Berhasil Diperbarui! 🚀");
+            location.reload(); // Tarik sisa saldo terbaru
         }
+    };
+
+    const refreshData = async () => {
+      document.getElementById('dateDisplayBibit').innerText = currentViewDate.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }).toUpperCase();
+      await presenter.init(currentViewDate);
     };
 
     document.getElementById('prevDateBibit').onclick = () => { currentViewDate.setDate(currentViewDate.getDate() - 1); refreshData(); };
@@ -213,7 +178,7 @@ const Bibit = {
         document.querySelectorAll('.filter-sesi-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         currentFilterSesi = e.target.dataset.sesi;
-        renderList(); // Otomatis update total telur sesuai sesi
+        refreshUI();
       };
     });
 
