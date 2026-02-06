@@ -266,14 +266,14 @@ const init = async () => {
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
                 const { kategori_id, berhasil, gagal } = request.payload;
-                const totalDigunakan = berhasil + gagal; // Total telur yang diambil dari inventaris
+                const totalDigunakan = berhasil + gagal; // Total telur yang ditarik dari gudang
                 const client = await pool.connect();
                 
                 try {
                     await client.query('BEGIN'); // Mulai transaksi biar aman
 
                     // A. POTONG STOK TELUR FERTIL (PENGURANGAN DATABASE)
-                    // Ini yang bikin stok di "Setting Produk" lu beneran berkurang.
+                    // Ini kuncinya! Stok di "Setting Produk" lu bakal beneran berkurang di sini.
                     const potongRes = await client.query(`
                         UPDATE komoditas 
                         SET stok = stok - $1 
@@ -285,15 +285,15 @@ const init = async () => {
                         throw new Error('Gagal! Produk Telur Fertil tidak ditemukan untuk kategori ini.');
                     }
 
-                    // B. TAMBAH STOK DOC (DITETAS)
+                    // B. TAMBAH STOK DOC (HASIL DITETAS)
                     await client.query(`
                         UPDATE komoditas 
                         SET stok = stok + $1 
                         WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
                     `, [berhasil, kategori_id]);
 
-                    // C. TAMBAH STOK TELUR KONSUMSI (TIDAK DITETAS)
-                    // Pastikan yang ditambah adalah telur konsumsi biasa, bukan fertil lagi
+                    // C. TAMBAH STOK TELUR KONSUMSI (HASIL TIDAK DITETAS)
+                    // PENTING: Pakai 'NOT ILIKE %Fertil%' biar nggak salah nambah ke stok fertil lagi
                     await client.query(`
                         UPDATE komoditas 
                         SET stok = stok + $1 
