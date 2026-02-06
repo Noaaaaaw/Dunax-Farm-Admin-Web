@@ -28,7 +28,7 @@ class BibitPresenter {
         const targetDate = new Date(selectedDate);
         targetDate.setHours(0, 0, 0, 0);
 
-        // 1. FILTER DATA PANEN (ANTRIAN MASUK)
+        // 1. FILTER ANTRIAN MASUK (DATA PANEN)
         const dataPanen = resultLaporan.data.filter(item => {
           const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
           return d.getTime() === targetDate.getTime() && 
@@ -44,7 +44,7 @@ class BibitPresenter {
           };
         });
 
-        // 2. HITUNG TOTAL KELUAR (ANTRIAN YANG SUDAH DIPROSES)
+        // 2. HITUNG ANTRIAN KELUAR (YANG SUDAH DIPROSES)
         const totalSudahDiproses = resultHistory.data.filter(item => {
           const d = new Date(item.tanggal_proses); d.setHours(0,0,0,0);
           return d.getTime() === targetDate.getTime() && 
@@ -59,22 +59,12 @@ class BibitPresenter {
   }
 
   async submitBibitProcess(payload) {
-    // AMBIL NAMA PEKERJA DARI LOCALSTORAGE (Hasil Login)
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
-    const namaPetugas = userData.nama || 'PEKERJA'; 
-
-    // Tambahkan nama petugas ke dalam data yang dikirim ke Backend
-    const finalPayload = {
-      ...payload,
-      petugas: namaPetugas
-    };
-
+    // Payload di sini cuma berisi: kategori_id, berhasil, gagal, sisa_ke_konsumsi
     const response = await fetch(`${this.baseUrl}/api/pembibitan/process`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(finalPayload)
+      body: JSON.stringify(payload)
     });
-    
     return await response.json();
   }
 }

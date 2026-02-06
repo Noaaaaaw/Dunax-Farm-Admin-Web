@@ -159,13 +159,13 @@ const init = async () => {
             }
         },
         {
-            // 13. POST Laporan Panen (PETUGAS DIHAPUS)
+            // 13. POST Laporan Panen (PETUGAS TETAP ADA)
             method: 'POST',
             path: '/api/laporan/save',
             handler: async (request) => {
-                const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan } = request.payload;
-                const query = `INSERT INTO laporan_operasional (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
-                const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan)];
+                const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan, petugas } = request.payload;
+                const query = `INSERT INTO laporan_operasional (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+                const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan), petugas];
                 const result = await pool.query(query, values);
                 return { status: 'success', data: result.rows[0] };
             }    
@@ -190,12 +190,12 @@ const init = async () => {
                     await client.query('BEGIN');
                     // A. MASUK KE STOK DOC
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-                    // B. MASUK KE STOK TELUR FERTIL JUAL
+                    // B. MASUK KE STOK TELUR FERTIL JUAL (Hasil Sortir)
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [gagal, kategori_id]);
                     // C. MASUK KE STOK TELUR KONSUMSI
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
                     
-                    // D. SIMPAN HISTORI TANPA KOLOM PETUGAS
+                    // D. SIMPAN HISTORI PROSES (TANPA KOLOM PETUGAS)
                     const totalPanen = (parseInt(berhasil) || 0) + (parseInt(gagal) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
                     await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalPanen, berhasil, gagal, sisa_ke_konsumsi]);
                     
@@ -217,7 +217,7 @@ const init = async () => {
     ]);
 
     await server.start();
-    console.log(`🚀 API Dunax Farm FIX TOTAL!`);
+    console.log(`🚀 API Dunax Farm FIX TOTAL! Laporan ada petugas, Proses murni stok!`);
 };
 
 process.on('unhandledRejection', (err) => { console.error(err); });
