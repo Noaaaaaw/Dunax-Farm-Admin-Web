@@ -13,7 +13,8 @@ const init = async () => {
             cors: { 
                 origin: ['*'], // Izinkan akses dari mana saja
                 headers: ['Accept', 'Authorization', 'Content-Type', 'If-None-Match'],
-                additionalHeaders: ['cache-control', 'x-requested-with']
+                additionalHeaders: ['cache-control', 'x-requested-with'],
+                credentials: true
             }, 
             payload: { maxBytes: 2097152 } 
         },
@@ -37,7 +38,7 @@ const init = async () => {
         console.error('Peringatan: Cek file ./routes/auth.js lo.');
     }
 
-    // Main Routes (1-14)
+    // Main Routes (1-15)
     server.route([
         {
             // 1. GET Semua Kategori (LOGIKA MAYORITAS PRODUK)
@@ -226,29 +227,27 @@ const init = async () => {
             }
         },
         {
-    
-    // 13. POST Simpan Laporan (URL Foto, Bukan Base64)
-    method: 'POST',
-    path: '/api/laporan/save',
-    handler: async (request, h) => {
-        const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan, petugas } = request.payload;
-        try {
-            const query = `
-                INSERT INTO laporan_operasional 
-                (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
-            
-            // Data JSONB tetap rapi, foto isinya URL pendek
-            const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan), petugas];
-            const result = await pool.query(query, values);
-            return { status: 'success', message: 'Laporan Masuk Cloud! ☁️', data: result.rows[0] };
-        } catch (err) {
-            return h.response({ status: 'error', message: 'Gagal simpan database' }).code(500);
+            // 13. POST Simpan Laporan Operasional (Ryan)
+            method: 'POST',
+            path: '/api/laporan/save',
+            handler: async (request, h) => {
+                const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan, petugas } = request.payload;
+                try {
+                    const query = `
+                        INSERT INTO laporan_operasional 
+                        (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) 
+                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+                    
+                    const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan), petugas];
+                    const result = await pool.query(query, values);
+                    return { status: 'success', message: 'Laporan Masuk Cloud! ☁️', data: result.rows[0] };
+                } catch (err) {
+                    return h.response({ status: 'error', message: 'Gagal simpan database' }).code(500);
                 }
             }    
         },
         {
-            // 14. GET Histori Laporan (Biar data gak hilang pas refresh)
+            // 14. GET Histori Laporan
             method: 'GET',
             path: '/api/laporan',
             handler: async (request, h) => {
@@ -261,56 +260,64 @@ const init = async () => {
             }
         },
         {
-    // 15. POST Proses Pembibitan Berantai (LOGIKA DOC, FERTIL JUAL, & KONSUMSI)
-    method: 'POST',
-    path: '/api/pembibitan/process',
-    handler: async (request, h) => {
-        const { kategori_id, berhasil, gagal } = request.payload;
-        const totalDigunakan = berhasil + gagal; // Total yang diproses dari mesin
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
+            // 15. POST Proses Pembibitan Berantai (FIX MINUS & 3-JALUR DISTRIBUSI)
+            method: 'POST',
+            path: '/api/pembibitan/process',
+            handler: async (request, h) => {
+                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
+                
+                // Total Panen yang dikelola (Misal: 100 butir)
+                const totalDikelola = (parseInt(berhasil) || 0) + (parseInt(gagal) || 0) + (parseInt(sisa_ke_konsumsi) || 0); 
+                const client = await pool.connect();
 
-            // A. POTONG STOK TELUR FERTIL UTAMA (BAHAN BAKU)
-            const potongRes = await client.query(`
-                UPDATE komoditas SET stok = stok - $1 
-                WHERE category_id = $2 AND nama ILIKE '%Fertil%'
-                RETURNING stok
-            `, [totalDigunakan, kategori_id]);
+                try {
+                    await client.query('BEGIN');
 
-            if (potongRes.rowCount === 0) throw new Error('Produk Fertil tidak ditemukan!');
+                    // A. POTONG STOK FERTIL UTAMA (BAHAN BAKU)
+                    const potongRes = await client.query(`
+                        UPDATE komoditas SET stok = stok - $1 
+                        WHERE category_id = $2 AND nama ILIKE '%Fertil%'
+                        RETURNING stok
+                    `, [totalDikelola, kategori_id]);
 
-            // B. MASUK KE STOK DOC (DITETAS)
-            await client.query(`
-                UPDATE komoditas SET stok = stok + $1 
-                WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
-            `, [berhasil, kategori_id]);
+                    if (potongRes.rowCount === 0) throw new Error('Produk Fertil tidak ditemukan!');
 
-            // C. MASUK KE STOK FERTIL JUAL (TIDAK DITETAS)
-            // Lu bilang yang "Tidak Ditetas" ganti jadi Fertil buat dijual
-            await client.query(`
-                UPDATE komoditas SET stok = stok + $1 
-                WHERE category_id = $2 AND nama ILIKE '%Fertil%'
-            `, [gagal, kategori_id]);
+                    // B. MASUK KE STOK DOC (HASIL TETAS)
+                    await client.query(`
+                        UPDATE komoditas SET stok = stok + $1 
+                        WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
+                    `, [berhasil, kategori_id]);
 
-            // D. LOGIKA SISA KE KONSUMSI (OPSIONAL)
-            // Jika ada sisa telur dari laporan Ryan yang tidak diproses (skip),
-            // itu akan tetap berada di antrian sisa sampai Admin memutuskan.
+                    // C. BALIK KE STOK FERTIL JUAL (HASIL SORTIR JUAL)
+                    // Ini biar stok Fertil lu nggak minus gila-gilaan (Refund logic)
+                    await client.query(`
+                        UPDATE komoditas SET stok = stok + $1 
+                        WHERE category_id = $2 AND nama ILIKE '%Fertil%'
+                    `, [gagal, kategori_id]);
 
-            // E. CATAT LOG SISTEM BIAR ANTRIAN BERKURANG
-            await client.query(`
-                INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
-                VALUES ($1, 'SISTEM', 'ADMIN', $2)
-            `, [kategori_id.toUpperCase(), JSON.stringify([{ name: "Realisasi Tetas", val: totalDigunakan }])]);
+                    // D. MASUK KE STOK TELUR KONSUMSI (SISA OTOMATIS)
+                    await client.query(`
+                        UPDATE komoditas SET stok = stok + $1 
+                        WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'
+                    `, [sisa_ke_konsumsi, kategori_id]);
 
-            await client.query('COMMIT');
-            return { status: 'success' };
-        } catch (err) {
-            await client.query('ROLLBACK');
-            return h.response({ status: 'error', message: err.message }).code(500);
-        } finally { client.release(); }
-    }
-}
+                    // E. CATAT LOG SISTEM BIAR ANTRIAN FRONTEND BERKURANG
+                    await client.query(`
+                        INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
+                        VALUES ($1, 'SISTEM', 'ADMIN', $2)
+                    `, [kategori_id.toUpperCase(), JSON.stringify([{ name: "Realisasi Tetas", val: totalDikelola }])]);
+
+                    await client.query('COMMIT');
+                    return { status: 'success' };
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    console.error('Proses Gagal:', err.message);
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                } finally {
+                    client.release();
+                }
+            }
+        }
     ]);
 
     await server.start();

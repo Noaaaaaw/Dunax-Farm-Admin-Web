@@ -31,9 +31,9 @@ const Bibit = {
           </div>
           
           <div style="margin-top: 25px; padding-top: 20px; border-top: 3px solid #f4f7f4; display: flex; justify-content: center; align-items: center;">
-            <div style="background: #f9fbf9; padding: 15px 40px; border-radius: 20px; border: 1px solid #eef2ed; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+            <div style="background: #f9fbf9; padding: 15px 40px; border-radius: 20px; border: 1px solid #eef2ed; text-align: center;">
               <span style="font-weight: 1200; color: #1f3326; font-size: 1.1rem; text-transform: uppercase;">
-                TOTAL SISA: <span id="totalEggDay" style="color: #6CA651; font-size: 2.2rem; margin-left: 10px; display: inline-block; vertical-align: middle;">0 BUTIR</span>
+                TOTAL SISA: <span id="totalEggDay" style="color: #6CA651; font-size: 2.2rem; margin-left: 10px;">0 BUTIR</span>
               </span>
             </div>
           </div>
@@ -52,16 +52,16 @@ const Bibit = {
                        <input type="number" id="inputBerhasil" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #6CA651; font-weight: 900; font-size: 1.5rem; text-align: center; color: #14280a;">
                     </div>
                     <div style="background: #fff5f5; padding: 25px; border-radius: 20px; text-align: center;">
-                       <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #c53030; margin-bottom: 12px;">TIDAK DITETAS (FERTIL JUAL)</label>
+                       <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #c53030; margin-bottom: 12px;">FERTIL JUAL (SORTIR JUAL)</label>
                        <input type="number" id="inputGagal" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #e74c3c; font-weight: 900; font-size: 1.5rem; text-align: center; color: #742a2a;">
                     </div>
                  </div>
 
                  <div style="background: #f1f5f9; padding: 15px; border-radius: 15px; text-align: center; border: 1px dashed #cbd5e1;">
-                    <span style="font-size: 0.85rem; font-weight: 700; color: #475569;">OTOMATIS MASUK TELUR KONSUMSI: <span id="autoKonsumsi" style="color: #1e293b; font-weight: 900;">0 BUTIR</span></span>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #475569;">SISA MASUK TELUR KONSUMSI: <span id="autoKonsumsi" style="color: #1e293b; font-weight: 900;">0 BUTIR</span></span>
                  </div>
 
-                 <button id="btnFinalSubmit" style="width: 100%; padding: 22px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 1200; font-size: 1.1rem; cursor: pointer; transition: 0.2s;">KONFIRMASI DISTRIBUSI 🚀</button>
+                 <button id="btnFinalSubmit" style="width: 100%; padding: 22px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 1200; font-size: 1.1rem; cursor: pointer; transition: 0.2s;">KONFIRMASI DISTRIBUSI 🐣</button>
               </div>
            </div>
         </div>
@@ -86,8 +86,8 @@ const Bibit = {
     const totalDisplay = document.getElementById('totalEggDay');
     const inputBerhasil = document.getElementById('inputBerhasil');
     const inputGagal = document.getElementById('inputGagal');
-    const autoKonsumsi = document.getElementById('autoKonsumsi');
     const eggQueue = document.getElementById('eggQueue');
+    const autoKonsumsi = document.getElementById('autoKonsumsi');
 
     const refreshUI = () => {
       const hash = window.location.hash.slice(1);
@@ -96,14 +96,19 @@ const Bibit = {
       let filtered = rawEggsPanen.filter(e => e.hewan.toLowerCase().includes(categoryId.split('-')[0]));
       if (currentFilterSesi !== 'SEMUA') filtered = filtered.filter(e => e.sesi === currentFilterSesi);
 
-      const totalPanenHarian = filtered.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
-      currentSaldoSisa = totalPanenHarian - processedTotalGlobal; 
+      const totalPanenFilter = filtered.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
+      currentSaldoSisa = totalPanenFilter - processedTotalGlobal; 
       
       const valBerhasil = (parseInt(inputBerhasil.value) || 0);
       const valGagal = (parseInt(inputGagal.value) || 0);
+      
+      // LOGIKA SISA: PANEN (100) - DOC (85) - FERTIL JUAL (10) = KONSUMSI (5)
       const sisaFinal = currentSaldoSisa - (valBerhasil + valGagal);
 
       totalDisplay.innerText = `${(Math.max(0, sisaFinal)).toLocaleString()} BUTIR`;
+      totalDisplay.style.color = sisaFinal < 0 ? '#e74c3c' : '#6CA651';
+      
+      // Update angka indikator konsumsi di bawah input
       autoKonsumsi.innerText = `${(Math.max(0, sisaFinal)).toLocaleString()} BUTIR`;
 
       if (filtered.length === 0) {
@@ -144,20 +149,30 @@ const Bibit = {
 
     inputBerhasil.oninput = refreshUI;
     inputGagal.oninput = refreshUI;
-    document.getElementById('btnProsesBerantai').onclick = () => document.getElementById('resultArea').style.display = 'flex';
+    document.getElementById('btnProsesBerantai').onclick = () => {
+        if (currentSaldoSisa <= 0) return alert("Antrian sudah habis!");
+        document.getElementById('resultArea').style.display = 'flex';
+    };
     
     document.getElementById('btnFinalSubmit').onclick = async () => {
-        const alokasi = (parseInt(inputBerhasil.value) || 0) + (parseInt(inputGagal.value) || 0);
-        if (alokasi > currentSaldoSisa) return alert("Melebihi sisa antrian!");
+        const valBerhasil = (parseInt(inputBerhasil.value) || 0);
+        const valGagal = (parseInt(inputGagal.value) || 0);
+        const alokasiTotal = valBerhasil + valGagal;
+
+        if (alokasiTotal > currentSaldoSisa) return alert("Melebihi sisa antrian telur!");
+
+        // HITUNG SISA OTOMATIS KE KONSUMSI
+        const sisaKonsumsi = Math.max(0, currentSaldoSisa - alokasiTotal);
 
         const res = await presenter.submitBibitProcess({
             kategori_id: window.location.hash.split('-').slice(1).join('-'),
-            berhasil: parseInt(inputBerhasil.value) || 0,
-            gagal: parseInt(inputGagal.value) || 0,
-            sisa_ke_konsumsi: Math.max(0, currentSaldoSisa - alokasi)
+            berhasil: valBerhasil,      // Jadi DOC
+            gagal: valGagal,            // Jadi Fertil Jual
+            sisa_ke_konsumsi: sisaKonsumsi // Sisa otomatis ke konsumsi
         });
+
         if (res.status === 'success') {
-            alert("Distribusi Berantai Sukses! 🚀");
+            alert("Distribusi Berantai Sukses! Stok & Antrian Diperbarui. 🚀");
             location.reload();
         }
     };
