@@ -337,6 +337,20 @@ const init = async () => {
             return h.response({ status: 'error', message: err.message }).code(500); 
         } finally { 
             client.release(); 
+                }
+            }
+        },
+        {
+    // 20. GET Histori Maturity (Untuk Bahan Baku Kelola Ayam)
+    method: 'GET',
+    path: '/api/pullet/history',
+    handler: async () => {
+        try {
+            // Narik semua data histori proses pullet
+            const res = await pool.query('SELECT * FROM maturity_process ORDER BY tanggal_proses DESC');
+            return { status: 'success', data: res.rows };
+        } catch (err) {
+            return { status: 'error', message: err.message };
         }
     }
 }

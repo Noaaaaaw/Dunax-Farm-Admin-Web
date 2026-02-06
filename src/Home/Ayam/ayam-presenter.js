@@ -12,25 +12,30 @@ class AyamPresenter {
       const hash = window.location.hash.slice(1);
       const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
 
-      // Narik data kategori & detail produk
-      const response = await fetch(`${this.baseUrl}/commodities/${categoryId}`);
-      const result = await response.json();
+      // 1. Ambil Info Kategori
+      const resCat = await fetch(`${this.baseUrl}/commodities/${categoryId}`);
+      const resultCat = await resCat.json();
 
-      if (result.status === 'success') {
-        this.onDataReady(result.data);
-        
-        // Cari produk Pejantan & Petelur dengan logic kebal huruf besar/kecil
-        const pejantan = result.data.details.find(p => 
-          p.nama.toUpperCase().includes('PEJANTAN')
-        ) || { stok: 0 };
-        
-        const petelur = result.data.details.find(p => 
-          p.nama.toUpperCase().includes('PETELUR')
-        ) || { stok: 0 };
-        
+      // 2. AMBIL DATA HISTORI PULLET (AUDIT TRAIL)
+      // Kita butuh data dari maturity_process buat nampilin hasil seleksi terakhir
+      const resHistory = await fetch(`${this.baseUrl}/api/pullet/history`); // Pastikan route ini ada di server lu
+      const resultHistory = await resHistory.json();
+
+      if (resultCat.status === 'success') {
+        this.onDataReady(resultCat.data);
+
+        // Cari data terbaru untuk kategori ini di tabel maturity_process
+        const latestProcess = resultHistory.data
+          .filter(h => h.kategori_id === categoryId)
+          .sort((a, b) => new Date(b.tanggal_proses) - new Date(a.tanggal_proses))[0];
+
+        // Tampilkan angka 20 sesuai di database lu
+        const stokJantan = latestProcess ? latestProcess.hasil_pejantan : 0;
+        const stokBetina = latestProcess ? latestProcess.hasil_petelur : 0;
+
         this.onStockReady({ 
-          pejantan: pejantan.stok, 
-          petelur: petelur.stok 
+          pejantan: stokJantan, 
+          petelur: stokBetina 
         });
       }
     } catch (err) {
