@@ -353,6 +353,20 @@ const init = async () => {
             return { status: 'error', message: err.message };
         }
     }
+},
+{
+    // 21. GET Histori Produksi/Penjualan (Penting buat Update Sisa Stok!)
+    method: 'GET',
+    path: '/api/production/history',
+    handler: async () => {
+        try {
+            // Narik data penjualan biar presenter tau sisa stok terakhir adalah 15
+            const res = await pool.query('SELECT * FROM production_process ORDER BY tanggal_proses DESC');
+            return { status: 'success', data: res.rows };
+        } catch (err) {
+            return { status: 'error', message: err.message };
+        }
+    }
 }
     ]);
 
