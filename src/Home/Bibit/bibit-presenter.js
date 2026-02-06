@@ -20,14 +20,24 @@ class BibitPresenter {
         const targetDate = new Date(selectedDate);
         targetDate.setHours(0, 0, 0, 0);
 
-        // FILTER DATA PANEN RYAN (ANTRIAN AWAL)
+        // 1. FILTER DATA PANEN RYAN
         const dataPanen = resultLaporan.data.filter(item => {
           const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
           return d.getTime() === targetDate.getTime() && item.petugas !== 'ADMIN' &&
                  item.pekerjaan_data.some(p => p.name.toLowerCase().includes('panen telur') && parseInt(p.val) > 0);
+        }).map(item => {
+          const panenTask = item.pekerjaan_data.find(p => p.name.toLowerCase().includes('panen telur'));
+          return {
+            id_laporan: item.id,
+            hewan: item.hewan,
+            deret: item.deret_kandang, // INI KUNCI NOMOR DERET
+            jumlah: parseInt(panenTask.val),
+            sesi: item.sesi,
+            tanggal: item.tanggal_jam
+          };
         });
 
-        // HITUNG TOTAL YANG SUDAH DIPROSES ADMIN (PENGURANG SALDO)
+        // 2. HITUNG TOTAL YANG SUDAH DIPROSES ADMIN
         const totalSudahDiproses = resultLaporan.data.filter(item => {
           const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
           return d.getTime() === targetDate.getTime() && item.petugas === 'ADMIN';

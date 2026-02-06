@@ -261,40 +261,56 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan Berantai (OTOMATIS POTONG & CATAT)
-            method: 'POST',
-            path: '/api/pembibitan/process',
-            handler: async (request, h) => {
-                const { kategori_id, berhasil, gagal } = request.payload;
-                const totalUsed = berhasil + gagal;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
+    // 15. POST Proses Pembibitan Berantai (LOGIKA DOC, FERTIL JUAL, & KONSUMSI)
+    method: 'POST',
+    path: '/api/pembibitan/process',
+    handler: async (request, h) => {
+        const { kategori_id, berhasil, gagal } = request.payload;
+        const totalDigunakan = berhasil + gagal; // Total yang diproses dari mesin
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
 
-                    // A. POTONG STOK TELUR FERTIL UTAMA
-                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [totalUsed, kategori_id]);
+            // A. POTONG STOK TELUR FERTIL UTAMA (BAHAN BAKU)
+            const potongRes = await client.query(`
+                UPDATE komoditas SET stok = stok - $1 
+                WHERE category_id = $2 AND nama ILIKE '%Fertil%'
+                RETURNING stok
+            `, [totalDigunakan, kategori_id]);
 
-                    // B. TAMBAH HASIL (DOC & KONSUMSI)
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [gagal, kategori_id]);
+            if (potongRes.rowCount === 0) throw new Error('Produk Fertil tidak ditemukan!');
 
-                    // C. CATAT SEBAGAI PROSES 'SISTEM' BIAR ANTRIAN DEPAN BERKURANG
-                    // Ini kunci biar antrian di frontend gak balik lagi ke awal
-                    await client.query(`
-                        INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
-                        VALUES ($1, 'SISTEM', 'ADMIN', $2)
-                    `, [kategori_id.toUpperCase(), JSON.stringify([
-                        { name: "Realisasi Tetas", val: totalUsed, unit: "Butir" }
-                    ])]);
+            // B. MASUK KE STOK DOC (DITETAS)
+            await client.query(`
+                UPDATE komoditas SET stok = stok + $1 
+                WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
+            `, [berhasil, kategori_id]);
 
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    return h.response({ status: 'error', message: err.message }).code(500);
-                } finally { client.release(); }
-            }
-        }
+            // C. MASUK KE STOK FERTIL JUAL (TIDAK DITETAS)
+            // Lu bilang yang "Tidak Ditetas" ganti jadi Fertil buat dijual
+            await client.query(`
+                UPDATE komoditas SET stok = stok + $1 
+                WHERE category_id = $2 AND nama ILIKE '%Fertil%'
+            `, [gagal, kategori_id]);
+
+            // D. LOGIKA SISA KE KONSUMSI (OPSIONAL)
+            // Jika ada sisa telur dari laporan Ryan yang tidak diproses (skip),
+            // itu akan tetap berada di antrian sisa sampai Admin memutuskan.
+
+            // E. CATAT LOG SISTEM BIAR ANTRIAN BERKURANG
+            await client.query(`
+                INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
+                VALUES ($1, 'SISTEM', 'ADMIN', $2)
+            `, [kategori_id.toUpperCase(), JSON.stringify([{ name: "Realisasi Tetas", val: totalDigunakan }])]);
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally { client.release(); }
+    }
+}
     ]);
 
     await server.start();
