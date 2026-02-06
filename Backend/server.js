@@ -22,16 +22,16 @@ const init = async () => {
     server.route({
         method: 'GET',
         path: '/',
-        handler: () => ({ status: 'success', message: 'Dunax Farm API is Cloud Powered! ☁️' }),
+        handler: () => ({ status: 'success', message: 'Dunax Farm API - Jalur Stok Murni! 🚀' }),
     });
 
     // Route Auth
-    try { server.route(authRoutes); } catch (err) { console.error('Cek file ./routes/auth.js lo.'); }
+    try { server.route(authRoutes); } catch (err) { console.error('Peringatan: Cek file auth.js'); }
 
     // Main Routes (1-16)
     server.route([
         {
-            // 1. GET Semua Kategori (Status Online Sinkron)
+            // 1. GET Semua Kategori
             method: 'GET',
             path: '/commodities',
             handler: async (request, h) => {
@@ -43,7 +43,7 @@ const init = async () => {
                         return {
                             id: cat.id, nama: cat.nama, keterangan: cat.keterangan || '', foto: cat.foto || null,
                             aktif: catProducts.some(p => p.aktif === true),
-                            details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga) }))
+                            details: catProducts.map(p => ({ ...p, harga: parseInt(p.harga), isEditing: false }))
                         };
                     });
                     return { status: 'success', data: result };
@@ -159,19 +159,19 @@ const init = async () => {
             }
         },
         {
-            // 13. POST Laporan Panen (Hanya Catat Laporan, JANGAN Tambah Stok)
+            // 13. POST Laporan Panen (PETUGAS DIHAPUS)
             method: 'POST',
             path: '/api/laporan/save',
             handler: async (request) => {
-                const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan, petugas } = request.payload;
-                const query = `INSERT INTO laporan_operasional (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
-                const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan), petugas];
+                const { hewan, deret, sesi, kesehatan, kelayakan, pekerjaan } = request.payload;
+                const query = `INSERT INTO laporan_operasional (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+                const values = [hewan, parseInt(deret), sesi, JSON.stringify(kesehatan), JSON.stringify(kelayakan), JSON.stringify(pekerjaan)];
                 const result = await pool.query(query, values);
                 return { status: 'success', data: result.rows[0] };
             }    
         },
         {
-            // 14. GET Histori Laporan (Antrian Panen)
+            // 14. GET Histori Laporan (Antrian)
             method: 'GET',
             path: '/api/laporan',
             handler: async () => {
@@ -180,23 +180,25 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan (ALUR DISTRIBUSI LANGSUNG - ANTI MINUS)
+            // 15. POST Proses Pembibitan (PETUGAS DIHAPUS - ALUR DISTRIBUSI LANGSUNG)
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
-                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, petugas } = request.payload;
+                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
-                    // A. TAMBAH STOK DOC
+                    // A. MASUK KE STOK DOC
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-                    // B. TAMBAH STOK TELUR FERTIL JUAL
+                    // B. MASUK KE STOK TELUR FERTIL JUAL
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [gagal, kategori_id]);
-                    // C. TAMBAH STOK TELUR KONSUMSI
+                    // C. MASUK KE STOK TELUR KONSUMSI
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
-                    // D. SIMPAN HISTORI (SIMPAN PETUGAS DARI LOGIN)
+                    
+                    // D. SIMPAN HISTORI TANPA KOLOM PETUGAS
                     const totalPanen = (parseInt(berhasil) || 0) + (parseInt(gagal) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
-                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi, petugas) VALUES ($1, $2, $3, $4, $5, $6)`, [kategori_id, totalPanen, berhasil, gagal, sisa_ke_konsumsi, petugas || 'USER']);
+                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalPanen, berhasil, gagal, sisa_ke_konsumsi]);
+                    
                     await client.query('COMMIT');
                     return { status: 'success' };
                 } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
@@ -215,7 +217,7 @@ const init = async () => {
     ]);
 
     await server.start();
-    console.log(`🚀 API Dunax Farm FIX 1-16!`);
+    console.log(`🚀 API Dunax Farm FIX TOTAL!`);
 };
 
 process.on('unhandledRejection', (err) => { console.error(err); });

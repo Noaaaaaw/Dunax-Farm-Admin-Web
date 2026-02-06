@@ -10,7 +10,6 @@ class BibitPresenter {
   async init(selectedDate = new Date()) {
     try {
       const hash = window.location.hash.slice(1);
-      // Ambil categoryId dari URL, misal: 'ayam'
       const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
 
       const [resCat, resLaporan, resHistory] = await Promise.all([
@@ -32,9 +31,7 @@ class BibitPresenter {
         // 1. FILTER DATA PANEN (ANTRIAN MASUK)
         const dataPanen = resultLaporan.data.filter(item => {
           const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
-          // Hanya ambil panen yang sesuai tanggal dan categoryId (biar nggak kecampur kategori lain)
           return d.getTime() === targetDate.getTime() && 
-                 item.petugas !== 'ADMIN' &&
                  item.hewan.toLowerCase().includes(categoryId.toLowerCase()) &&
                  item.pekerjaan_data.some(p => p.name.toLowerCase().includes('panen telur') && parseInt(p.val) > 0);
         }).map(item => {
@@ -50,7 +47,6 @@ class BibitPresenter {
         // 2. HITUNG TOTAL KELUAR (ANTRIAN YANG SUDAH DIPROSES)
         const totalSudahDiproses = resultHistory.data.filter(item => {
           const d = new Date(item.tanggal_proses); d.setHours(0,0,0,0);
-          // WAJIB filter berdasarkan kategori_id juga!
           return d.getTime() === targetDate.getTime() && 
                  item.kategori_id.toLowerCase() === categoryId.toLowerCase();
         }).reduce((acc, curr) => acc + (parseInt(curr.total_panen) || 0), 0);
@@ -63,11 +59,22 @@ class BibitPresenter {
   }
 
   async submitBibitProcess(payload) {
+    // AMBIL NAMA PEKERJA DARI LOCALSTORAGE (Hasil Login)
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    const namaPetugas = userData.nama || 'PEKERJA'; 
+
+    // Tambahkan nama petugas ke dalam data yang dikirim ke Backend
+    const finalPayload = {
+      ...payload,
+      petugas: namaPetugas
+    };
+
     const response = await fetch(`${this.baseUrl}/api/pembibitan/process`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(finalPayload)
     });
+    
     return await response.json();
   }
 }
