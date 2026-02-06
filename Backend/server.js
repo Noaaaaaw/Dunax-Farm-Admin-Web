@@ -227,7 +227,7 @@ const init = async () => {
             }
         },
         {
-            // 13. POST Simpan Laporan Operasional (Ryan)
+            // 13. POST Simpan Laporan Operasional (Kerjaan Ryan)
             method: 'POST',
             path: '/api/laporan/save',
             handler: async (request, h) => {
@@ -247,7 +247,7 @@ const init = async () => {
             }    
         },
         {
-            // 14. GET Histori Laporan
+            // 14. GET Histori Laporan (Biar data gak hilang pas refresh)
             method: 'GET',
             path: '/api/laporan',
             handler: async (request, h) => {
@@ -260,13 +260,13 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan Berantai (FIX MINUS & 3-JALUR DISTRIBUSI)
+            // 15. POST Proses Pembibitan (LOGIKA TABEL BARU & ANTI-MINUS)
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
                 const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
                 
-                // Total Panen yang dikelola (Misal: 100 butir)
+                // Total yang dikelola dari antrian (Misal: 100)
                 const totalDikelola = (parseInt(berhasil) || 0) + (parseInt(gagal) || 0) + (parseInt(sisa_ke_konsumsi) || 0); 
                 const client = await pool.connect();
 
@@ -274,38 +274,35 @@ const init = async () => {
                     await client.query('BEGIN');
 
                     // A. POTONG STOK FERTIL UTAMA (BAHAN BAKU)
-                    const potongRes = await client.query(`
+                    await client.query(`
                         UPDATE komoditas SET stok = stok - $1 
                         WHERE category_id = $2 AND nama ILIKE '%Fertil%'
-                        RETURNING stok
                     `, [totalDikelola, kategori_id]);
 
-                    if (potongRes.rowCount === 0) throw new Error('Produk Fertil tidak ditemukan!');
-
-                    // B. MASUK KE STOK DOC (HASIL TETAS)
+                    // B. MASUK KE STOK DOC (DITETAS)
                     await client.query(`
                         UPDATE komoditas SET stok = stok + $1 
                         WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
                     `, [berhasil, kategori_id]);
 
-                    // C. BALIK KE STOK FERTIL JUAL (HASIL SORTIR JUAL)
-                    // Ini biar stok Fertil lu nggak minus gila-gilaan (Refund logic)
+                    // C. BALIK KE STOK FERTIL JUAL (REFUND SORTIR JUAL)
                     await client.query(`
                         UPDATE komoditas SET stok = stok + $1 
                         WHERE category_id = $2 AND nama ILIKE '%Fertil%'
                     `, [gagal, kategori_id]);
 
-                    // D. MASUK KE STOK TELUR KONSUMSI (SISA OTOMATIS)
+                    // D. MASUK KE STOK TELUR KONSUMSI
                     await client.query(`
                         UPDATE komoditas SET stok = stok + $1 
                         WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'
                     `, [sisa_ke_konsumsi, kategori_id]);
 
-                    // E. CATAT LOG SISTEM BIAR ANTRIAN FRONTEND BERKURANG
+                    // E. SIMPAN KE TABEL KHUSUS (Bukan laporan_operasional lagi)
                     await client.query(`
-                        INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
-                        VALUES ($1, 'SISTEM', 'ADMIN', $2)
-                    `, [kategori_id.toUpperCase(), JSON.stringify([{ name: "Realisasi Tetas", val: totalDikelola }])]);
+                        INSERT INTO hatchery_process 
+                        (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi)
+                        VALUES ($1, $2, $3, $4, $5)
+                    `, [kategori_id, totalDikelola, berhasil, gagal, sisa_ke_konsumsi]);
 
                     await client.query('COMMIT');
                     return { status: 'success' };
@@ -315,6 +312,19 @@ const init = async () => {
                     return h.response({ status: 'error', message: err.message }).code(500);
                 } finally {
                     client.release();
+                }
+            }
+        },
+        {
+            // 16. GET Histori Proses Khusus Pembibitan (Audit Trail)
+            method: 'GET',
+            path: '/api/pembibitan/history',
+            handler: async (request, h) => {
+                try {
+                    const res = await pool.query('SELECT * FROM hatchery_process ORDER BY tanggal_proses DESC');
+                    return { status: 'success', data: res.rows };
+                } catch (err) {
+                    return h.response({ status: 'error' }).code(500);
                 }
             }
         }
