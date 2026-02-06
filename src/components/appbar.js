@@ -56,6 +56,7 @@ const AppBar = {
 
           <nav class="desktop-nav-row">
             <a href="#/" class="${isActive('#/')}">DASHBOARD</a>
+            <a href="#/pembibitan" class="${isActive('#/pembibitan')}">PEMBIBITAN</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
             <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
             <a href="#/pengaturan" class="${isActive('#/pengaturan')}">PENGATURAN</a>
@@ -79,6 +80,7 @@ const AppBar = {
             <a href="#/" class="${isActive('#/')}">📊 Dashboard</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">📦 Komoditas</a>
             <a href="#/laporan" class="${isActive('#/laporan')}">📜 Laporan</a>
+            <a href="#/pembibitan" class="${isActive('#/pembibitan')}">🐣 Pembibitan</a>
             <a href="#/pengaturan" class="${isActive('#/pengaturan')}">⚙️ Pengaturan</a>
           </nav>
         </div>
@@ -88,7 +90,7 @@ const AppBar = {
   },
 
   async afterRender() {
-    // ... Seluruh logic JS afterRender tetap sama ...
+    // ... Logic JS tetap sama ...
     const profileToggle = document.getElementById('profileToggle');
     const profileDropdown = document.getElementById('profileDropdown');
     const logoutBtn = document.getElementById('logoutBtn');

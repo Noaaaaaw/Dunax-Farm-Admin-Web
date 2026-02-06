@@ -259,6 +259,52 @@ const init = async () => {
                     return h.response({ status: 'error' }).code(500);
                 }
             }
+        },
+        {
+    // 15. POST Proses Pembibitan Berantai
+    method: 'POST',
+    path: '/api/pembibitan/process',
+    handler: async (request, h) => {
+        const { kategori_id, berhasil, gagal } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN'); // Mulai transaksi biar aman
+
+            // A. UPDATE STOK DOC (DITETAS)
+            // Kita cari produk yang category_id-nya sama dan namanya mengandung 'DOC' atau 'DOD'
+            await client.query(`
+                UPDATE komoditas 
+                SET stok = stok + $1 
+                WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')
+            `, [berhasil, kategori_id]);
+
+            // B. UPDATE STOK TELUR KONSUMSI (TIDAK DITETAS)
+            // Kita cari produk yang category_id-nya sama dan namanya mengandung 'Telur'
+            await client.query(`
+                UPDATE komoditas 
+                SET stok = stok + $1 
+                WHERE category_id = $2 AND nama ILIKE '%Telur%'
+            `, [gagal, kategori_id]);
+
+            // C. CATAT LOG KE LAPORAN (Opsional, biar ada historinya)
+            await client.query(`
+                INSERT INTO laporan_operasional (hewan, sesi, petugas, pekerjaan_data)
+                VALUES ($1, 'SISTEM', 'ADMIN', $2)
+            `, [kategori_id.toUpperCase(), JSON.stringify([
+                { name: "Penetasan Berhasil", val: berhasil, unit: "Ekor" },
+                { name: "Gagal Tetas (Konsumsi)", val: gagal, unit: "Butir" }
+            ])]);
+
+            await client.query('COMMIT');
+            return { status: 'success', message: 'Stok Berantai Berhasil Disinkronkan! 🚀' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error('Error Proses Berantai:', err);
+            return h.response({ status: 'error', message: 'Gagal update stok' }).code(500);
+        } finally {
+            client.release();
+                }
+            }
         }
     ]);
 

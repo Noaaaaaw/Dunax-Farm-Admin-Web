@@ -9,8 +9,6 @@ class SettingProdukPresenter {
 
   async init() {
     const displayTitle = this.categoryId.replace(/-/g, ' ').toUpperCase();
-
-    // Reset styling container agar bersih
     this.container.style.cssText = 'background: transparent; padding: 0; boxShadow: none; border: none;';
 
     this.container.innerHTML = `
@@ -40,26 +38,15 @@ class SettingProdukPresenter {
       }
     } catch (err) {
       console.error("Gagal load produk:", err);
-      document.getElementById('productGrid').innerHTML = `
-        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #e74c3c; font-weight: 800;">
-          ⚠️ Gagal konek ke Server!
-        </div>`;
+      document.getElementById('productGrid').innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #e74c3c; font-weight: 800;">⚠️ Gagal konek ke Server!</div>`;
     }
-  }
-
-  _renderEmptyState() {
-    document.getElementById('productGrid').innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 80px; background: white; border-radius: 30px; border: 2px dashed #eef2ed;">
-        <p style="color: #666; font-weight: bold; font-size: 1.2rem;">Belum ada produk di kategori ini, bro! 📦</p>
-        <button onclick="location.hash='#/jual-komoditas'" style="margin-top: 20px; padding: 15px 30px; background: #6CA651; color: white; border: none; border-radius: 15px; cursor: pointer; font-weight: 800;">Tambah Produk Sekarang</button>
-      </div>`;
   }
 
   _renderProducts(products) {
     const grid = document.getElementById('productGrid');
     
-    grid.innerHTML = products.map((p, index) => `
-      <div class="setting-card" id="card-${index}" style="background: white; padding: 40px 30px; border-radius: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e0eadd; position: relative; display: flex; flex-direction: column;">
+    grid.innerHTML = products.map((p) => `
+      <div class="setting-card" id="card-${p.id}" style="background: white; padding: 40px 30px; border-radius: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e0eadd; position: relative; display: flex; flex-direction: column;">
         
         <button class="delete-prod-btn" data-id="${p.id}" data-nama="${p.nama}" 
                 style="position: absolute; top: 20px; right: 20px; background: #fee2e2; border: none; width: 35px; height: 35px; border-radius: 50%; color: #dc2626; font-weight: 900; cursor: pointer;">
@@ -71,11 +58,11 @@ class SettingProdukPresenter {
         <div style="display: flex; gap: 15px; margin-bottom: 25px;">
           <div style="flex: 1;">
             <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-transform: uppercase;">Harga (Rp)</label>
-            <input type="number" class="prod-harga" value="${p.harga}" disabled style="width: 100%; padding: 14px; border: 2px solid #f4f6f4; background: #f9fbf9; border-radius: 12px; font-weight: 800; text-align: center;">
+            <input type="number" class="prod-harga" value="${p.harga}" disabled style="width: 100%; padding: 14px; border: 2px solid #f4f6f4; background: #f9fbf9; border-radius: 12px; font-weight: 800; text-align: center; transition: 0.3s;">
           </div>
           <div style="flex: 1;">
-            <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-transform: uppercase;">Stok</label>
-            <input type="number" class="prod-stok" value="${p.stok}" disabled style="width: 100%; padding: 14px; border: 2px solid #f4f6f4; background: #f9fbf9; border-radius: 12px; font-weight: 800; text-align: center;">
+            <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-transform: uppercase;">Stok (Sistem)</label>
+            <input type="number" class="prod-stok" value="${p.stok}" disabled style="width: 100%; padding: 14px; border: 2px solid #f4f6f4; background: #f1f3f1; border-radius: 12px; font-weight: 800; text-align: center; color: #888; cursor: not-allowed;">
           </div>
         </div>
 
@@ -84,8 +71,8 @@ class SettingProdukPresenter {
             <input type="checkbox" class="prod-aktif" ${p.aktif ? 'checked' : ''} disabled style="width: 18px; height: 18px; accent-color: #6CA651;">
         </div>
 
-        <button class="edit-btn" data-id="${p.id}" data-index="${index}" 
-                style="width: 100%; padding: 16px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer;">Edit Data</button>
+        <button class="edit-btn" data-id="${p.id}" 
+                style="width: 100%; padding: 16px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer; transition: 0.3s;">Edit Data</button>
       </div>
     `).join('');
 
@@ -93,29 +80,28 @@ class SettingProdukPresenter {
     this._bindEvents();
   }
 
-  _addBackButton(grid) {
-    const backBtn = document.createElement('div');
-    backBtn.style.cssText = 'text-align: center; margin-top: 50px; grid-column: 1/-1;';
-    backBtn.innerHTML = `
-      <button onclick="location.hash='#/jual-komoditas'" style="padding: 15px 35px; background: #1f3326; color: white; border: none; border-radius: 15px; font-weight: 800; cursor: pointer;">
-        &larr; Kembali ke Manajemen
-      </button>`;
-    grid.after(backBtn);
-  }
-
   _bindEvents() {
     this.container.querySelectorAll('.edit-btn').forEach(btn => {
       btn.onclick = (e) => {
-        const index = e.target.dataset.index;
-        const card = this.container.querySelector(`#card-${index}`);
-        const inputs = card.querySelectorAll('input');
+        const id = e.target.dataset.id;
+        const card = this.container.querySelector(`#card-${id}`);
+        const inputHarga = card.querySelector('.prod-harga');
+        const inputAktif = card.querySelector('.prod-aktif');
+        const inputStok = card.querySelector('.prod-stok'); //
         
         if (e.target.innerText !== 'SIMPAN') {
-          inputs.forEach(i => { i.disabled = false; i.style.background = '#fff'; i.style.borderColor = '#6CA651'; });
+          // Buka akses input kecuali STOK
+          inputHarga.disabled = false;
+          inputAktif.disabled = false;
+          inputStok.disabled = true; // Tetap kunci stok
+          
+          inputHarga.style.background = '#fff';
+          inputHarga.style.borderColor = '#6CA651';
+          
           e.target.innerText = 'SIMPAN'; 
           e.target.style.background = '#f39c12';
         } else {
-          this._handleSave(card, e.target.dataset.id);
+          this._handleSave(card, id);
         }
       };
     });
@@ -123,7 +109,7 @@ class SettingProdukPresenter {
     this.container.querySelectorAll('.delete-prod-btn').forEach(btn => {
       btn.onclick = async (e) => {
         const { id, nama } = e.currentTarget.dataset;
-        if (confirm(`Hapus "${nama}" permanen dari database?`)) await this._deleteProduct(id);
+        if (confirm(`Hapus "${nama}" permanen?`)) await this._deleteProduct(id);
       };
     });
   }
@@ -132,7 +118,7 @@ class SettingProdukPresenter {
     const payload = {
       id: id,
       harga: Number(card.querySelector('.prod-harga').value),
-      stok: Number(card.querySelector('.prod-stok').value),
+      stok: Number(card.querySelector('.prod-stok').value), // Mengirim nilai stok lama
       aktif: card.querySelector('.prod-aktif').checked
     };
 
@@ -142,9 +128,8 @@ class SettingProdukPresenter {
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify(payload) 
       });
-      const result = await res.json();
-      if (result.status === 'success') {
-        alert('Data Berhasil Terupdate!');
+      if ((await res.json()).status === 'success') {
+        alert('Data Terupdate! ✨');
         this.init(); 
       }
     } catch (err) { alert('Gagal simpan!'); }
@@ -152,10 +137,19 @@ class SettingProdukPresenter {
 
   async _deleteProduct(productId) {
     try {
-      const response = await fetch(`${this.baseUrl}/api/commodities/delete-product/${productId}`, { method: 'DELETE' });
-      const result = await response.json();
-      if (result.status === 'success') { alert("Terhapus! 🗑️"); await this.init(); }
+      const res = await fetch(`${this.baseUrl}/api/commodities/delete-product/${productId}`, { method: 'DELETE' });
+      if ((await res.json()).status === 'success') { alert("Terhapus! 🗑️"); await this.init(); }
     } catch (err) { alert('Gagal hapus.'); }
+  }
+
+  _renderEmptyState() {
+    document.getElementById('productGrid').innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 80px; background: white; border-radius: 30px; border: 2px dashed #eef2ed;"><p style="color: #666; font-weight: bold; font-size: 1.2rem;">Kosong, bro! 📦</p></div>`;
+  }
+
+  _addBackButton(grid) {
+    const backBtn = document.createElement('div');
+    backBtn.style.cssText = 'text-align: center; margin-top: 50px; grid-column: 1/-1;';
+    grid.after(backBtn);
   }
 }
 
