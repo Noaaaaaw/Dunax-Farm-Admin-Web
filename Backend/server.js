@@ -369,7 +369,7 @@ const init = async () => {
     }
 },
 {
-    // 22. POST Simpan Asset Baru & Auto Update Stok Komoditas (FIXED!)
+    // 22. POST Simpan Asset Baru & Auto Update Stok (FIX TOTAL!)
     method: 'POST',
     path: '/api/asset-baru/save',
     handler: async (request, h) => {
@@ -378,37 +378,44 @@ const init = async () => {
         try {
             await client.query('BEGIN');
 
-            // 1. Simpan riwayat (Tetap pake ID asli buat audit)
+            // 1. Simpan riwayat (ID tetep asset-ayam)
             await client.query(
                 `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah) VALUES ($1, $2, $3)`,
                 [kategori_id, produk, jumlah]
             );
 
-            // 2. Normalisasi ID: 'asset-ayam' jadi 'ayam'
+            // 2. Bersihin ID: 'asset-ayam' jadi 'ayam'
             const cleanCategoryId = kategori_id.replace('asset-', '');
 
-            // 3. Pemetaan Nama Produk mentereng
+            // 3. MAPPING NAMA PRODUK (Sesuaikan dengan isi tabel komoditas lu!)
             let targetProduct = '';
-            if (produk === 'DOC') targetProduct = 'DOC';
+            if (produk === 'DOC') targetProduct = 'DOC'; // Harus kapital sesuai image_360752.png
             else if (produk === 'PULLET') targetProduct = 'Pullet (8 Minggu)';
             else if (produk === 'AYAM PEJANTAN') targetProduct = 'Pejantan';
             else if (produk === 'AYAM BETINA') targetProduct = 'Petelur'; 
 
-            // 4. Update Stok dengan ID yang sudah dibersihkan
+            // 4. Update Stok (Pake = biar presisi, ILIKE buat jaga-jaga spasi)
             const updateRes = await client.query(
-                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE $3`,
-                [jumlah, cleanCategoryId, `%${targetProduct}%`]
+                `UPDATE komoditas 
+                 SET stok = stok + $1 
+                 WHERE category_id = $2 
+                 AND nama ILIKE $3`,
+                [parseInt(jumlah), cleanCategoryId, `%${targetProduct}%`]
             );
 
-            // Cek kalau ada baris yang beneran ke-update
+            // LOG UNTUK DEBUG (Cek di terminal CMD server lu)
+            console.log(`Update Stok: ${targetProduct} | Kategori: ${cleanCategoryId} | Baris Terubah: ${updateRes.rowCount}`);
+
             if (updateRes.rowCount === 0) {
-                console.log(`Peringatan: Produk %${targetProduct}% di kategori ${cleanCategoryId} tidak ditemukan!`);
+                // Kalo 0 berarti query update gagal nemu baris yang cocok
+                throw new Error(`Produk ${targetProduct} tidak ditemukan di database komoditas kategori ${cleanCategoryId}!`);
             }
 
             await client.query('COMMIT');
             return { status: 'success' };
         } catch (err) {
             await client.query('ROLLBACK');
+            console.error("Gagal Update Stok:", err.message);
             return h.response({ status: 'error', message: err.message }).code(500);
         } finally { client.release(); }
     }
