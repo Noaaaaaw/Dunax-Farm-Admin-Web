@@ -21,9 +21,7 @@ class BibitPresenter {
       const resultCat = await resCat.json();
       const resultLaporan = await resLaporan.json();
       const resultHistory = await resHistory.json();
-
       if (resultCat.status === 'success') this.onDataReady(resultCat.data);
-
       if (resultLaporan.status === 'success' && resultHistory.status === 'success') {
         const targetDate = new Date(selectedDate);
         targetDate.setHours(0, 0, 0, 0);
@@ -31,7 +29,7 @@ class BibitPresenter {
         // 1. FILTER ANTRIAN MASUK (DATA PANEN)
         const dataPanen = resultLaporan.data.filter(item => {
           const d = new Date(item.tanggal_jam); d.setHours(0,0,0,0);
-          return d.getTime() === targetDate.getTime() && 
+          return d.getTime() === targetDate.getTime() &&
                  item.hewan.toLowerCase().includes(categoryId.toLowerCase()) &&
                  item.pekerjaan_data.some(p => p.name.toLowerCase().includes('panen telur') && parseInt(p.val) > 0);
         }).map(item => {
@@ -47,18 +45,18 @@ class BibitPresenter {
         // 2. HITUNG ANTRIAN KELUAR (YANG SUDAH DIPROSES)
         const totalSudahDiproses = resultHistory.data.filter(item => {
           const d = new Date(item.tanggal_proses); d.setHours(0,0,0,0);
-          return d.getTime() === targetDate.getTime() && 
+          return d.getTime() === targetDate.getTime() &&
                  item.kategori_id.toLowerCase() === categoryId.toLowerCase();
         }).reduce((acc, curr) => acc + (parseInt(curr.total_panen) || 0), 0);
-
         this.onEggsReady(dataPanen, totalSudahDiproses);
       }
-    } catch (err) { 
-      console.error("Presenter Error:", err); 
+    } catch (err) {
+      console.error("Presenter Error:", err);
     }
   }
 
   async submitBibitProcess(payload) {
+
     // Payload di sini cuma berisi: kategori_id, berhasil, gagal, sisa_ke_konsumsi
     const response = await fetch(`${this.baseUrl}/api/pembibitan/process`, {
       method: 'POST',

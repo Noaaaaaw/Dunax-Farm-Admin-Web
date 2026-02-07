@@ -10,6 +10,7 @@ import Pullet from '../Home/Pullet/pullet.js';
 import Ayam from '../Home/Ayam/ayam.js';
 import Login from '../auth/Login/login.js';
 import AuthService from '../auth/auth-services.js';
+import BibitBaru from '../Home/Bibit Baru/Bibit-baru.js';
 
 const routes = {
   '#/': HomePage,
@@ -23,6 +24,7 @@ const routes = {
   '#/pullet': Pullet, 
   '#/ayam': Ayam,
   '#/login': Login,
+  '#/new-asset': BibitBaru,
 };
 
 export const resolveRoute = async () => {
@@ -46,7 +48,9 @@ export const resolveRoute = async () => {
   if (!page && hash.startsWith('#/ayam-')) {
     page = Ayam; 
   }
-
+  if (!page && hash.startsWith('#/new-asset-')) {
+    page = BibitBaru; 
+  }
   if (!page) {
     location.hash = '#/'; 
     return null;

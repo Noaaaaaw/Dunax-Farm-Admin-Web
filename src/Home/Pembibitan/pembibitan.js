@@ -28,11 +28,11 @@ const Pembibitan = {
 
         .pembibitan-card-solid {
             border-radius: 28px;
-            padding: 30px;
+            padding: 25px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 220px; /* Gue tinggiin dikit biar muat banyak tombol */
+            min-height: 260px; /* Gue tinggiin biar lega urutan 3 baris tombol */
             transition: 0.3s ease;
             border: 1px solid rgba(0,0,0,0.05);
             position: relative;
@@ -48,13 +48,13 @@ const Pembibitan = {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .card-top-row h3 {
             margin: 0;
             color: white; 
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             font-weight: 900;
             text-transform: uppercase;
             text-shadow: 0 2px 4px rgba(0,0,0,0.2);
@@ -67,33 +67,41 @@ const Pembibitan = {
             border: 3px solid white;
         }
 
+        /* Container Tombol dibuat 2 kolom mentereng */
         .button-group-pembibitan {
             display: flex;
+            flex-direction: column;
             gap: 10px;
-            flex-wrap: wrap;
+        }
+
+        .button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
 
         .btn-kelola-pembibitan {
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border: 1.5px solid rgba(255, 255, 255, 0.4);
-            padding: 12px 15px;
+            padding: 12px 8px;
             border-radius: 14px;
             font-weight: 800;
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             text-transform: uppercase;
             cursor: pointer;
             transition: all 0.2s ease-in-out;
-            flex: 1;
             text-align: center;
-            min-width: 130px; /* Disesuaikan biar rapi */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.5px;
         }
         
         .btn-kelola-pembibitan:hover {
             background: white !important;
             color: #1f3326 !important;
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: scale(1.03);
         }
 
         @media (max-width: 768px) {
@@ -113,7 +121,7 @@ const Pembibitan = {
 
   _renderGrid(container, categories) {
     if (categories.length === 0) {
-        container.innerHTML = `<div style="text-align:center; grid-column: 1/-1; padding: 50px; color: #ccc;">Data Kosong.</div>`;
+        container.innerHTML = `<div style="text-align:center; grid-column: 1/-1; padding: 50px; color: #888;">Data Kosong.</div>`;
         return;
     }
 
@@ -124,36 +132,53 @@ const Pembibitan = {
       const categoryId = cat.id.toLowerCase();
       const categoryName = cat.nama.toUpperCase();
       
+      // ✅ KHUSUS AYAM: Filter buat tombol Asset & DOC
       const isAyam = categoryName.includes('AYAM');
       const isKuntara4 = categoryName.includes('KUNTARA 4');
 
       return `
         <div class="pembibitan-card-solid" style="background-color: ${bgColor};">
-          
           <div class="card-top-row">
             <h3>${cat.nama}</h3>
             <div class="status-dot-white" style="background: ${cat.aktif ? '#2ecc71' : '#e74c3c'}"></div>
           </div>
 
           <div class="button-group-pembibitan">
-            <button class="btn-kelola-pembibitan" onclick="location.hash = '#/bibit-${categoryId}'">
-                KELOLA BIBIT
-            </button>
+            <div class="button-row">
+                ${isAyam ? `
+                <button class="btn-kelola-pembibitan" onclick="location.hash = '#/new-asset-${categoryId}'">
+                    ASSET BARU
+                </button>` : '<span></span>'}
+                
+                <button class="btn-kelola-pembibitan" onclick="location.hash = '#/bibit-${categoryId}'">
+                    KELOLA BIBIT
+                </button>
+            </div>
             
-            ${isAyam ? `
-            <button class="btn-kelola-pembibitan" onclick="location.hash = '#/doc-${categoryId}'">
-                KELOLA DOC
-            </button>` : ''}
+            <div class="button-row">
+                ${isAyam ? `
+                <button class="btn-kelola-pembibitan" onclick="location.hash = '#/doc-${categoryId}'">
+                    KELOLA DOC
+                </button>` : '<span></span>'}
 
-            ${isKuntara4 ? `
-            <button class="btn-kelola-pembibitan" onclick="location.hash = '#/pullet-${categoryId}'">
-                KELOLA PULLET
-            </button>
-            <button class="btn-kelola-pembibitan" onclick="location.hash = '#/ayam-${categoryId}'">
-                KELOLA AYAM
-            </button>` : ''}
+                ${isKuntara4 ? `
+                <button class="btn-kelola-pembibitan" onclick="location.hash = '#/pullet-${categoryId}'">
+                    KELOLA PULLET
+                </button>` : '<span></span>'}
+            </div>
+
+            <div class="button-row">
+                ${isKuntara4 ? `
+                <button class="btn-kelola-pembibitan" onclick="location.hash = '#/ayam-${categoryId}'">
+                    KELOLA AYAM
+                </button>` : '<span></span>'}
+
+                ${isAyam ? `
+                <button class="btn-kelola-pembibitan" onclick="location.hash = '#/asset-management-${categoryId}'">
+                    KELOLA ASSET
+                </button>` : '<span></span>'}
+            </div>
           </div>
-
         </div>
       `;
     }).join('');

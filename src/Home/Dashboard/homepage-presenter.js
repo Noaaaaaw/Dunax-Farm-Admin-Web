@@ -219,7 +219,7 @@ class HomePresenter {
 
     tableBody.innerHTML = filteredData.map(item => {
       const kesehatan = item.kesehatan_data || { status: 'SEHAT', detail: [] };
-      const kelayakan = item.kelayakan_data || { status: 'LAYAK', note: '', photo: '' };
+      const kelayakan = item.kelayakan_data || { status: 'LAYAK', problems: [] };
       const pekerjaan = item.pekerjaan_data || [];
       const time = new Date(item.tanggal_jam).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
       
@@ -234,7 +234,17 @@ class HomePresenter {
           <td style="padding: 15px;">Deret ${item.deret_kandang}</td>
           <td style="padding: 15px;">${item.sesi}</td>
           <td style="padding: 15px;"><button class="btn-pop-health" data-status="${kesehatan.status}" data-detail='${JSON.stringify(kesehatan.detail)}' style="border:none; padding:6px 15px; border-radius:10px; font-weight:1200; cursor:pointer; background:${hColor.bg}; color:${hColor.txt};">${kesehatan.status}</button></td>
-          <td style="padding: 15px;"><button class="btn-pop-layak" data-status="${kelayakan.status}" data-note="${kelayakan.note}" data-photo="${kelayakan.photo}" style="border:none; padding:6px 15px; border-radius:10px; font-weight:1200; cursor:pointer; background:${lColor.bg}; color:${lColor.txt};">${kelayakan.status}</button></td>
+         <td style="padding: 15px;">
+  <button class="btn-pop-layak"
+    data-status="${kelayakan.status}"
+    data-problems='${JSON.stringify(kelayakan.problems || [])}'
+    style="border:none; padding:6px 15px; border-radius:10px;
+           font-weight:1200; cursor:pointer;
+           background:${lColor.bg}; color:${lColor.txt};">
+    ${kelayakan.status}
+  </button>
+</td>
+
           <td style="padding: 15px; font-weight: 900;">${item.petugas}</td>
           <td style="padding: 15px;">
             <button class="btn-pop-task" data-tasks='${JSON.stringify(pekerjaan)}' 
@@ -290,14 +300,53 @@ class HomePresenter {
     });
 
     this.container.querySelectorAll('.btn-pop-layak').forEach(btn => {
-      btn.onclick = () => {
-        const { status, note, photo } = btn.dataset;
-        if (status === 'LAYAK') return alert("Kandang Aman! ✅");
-        document.getElementById('modalNote').innerHTML = `
-            <h3 style="color:#c53030; text-align:center; font-weight:1200;">⚠️ TIDAK LAYAK</h3><div style="background:#fff5f5; padding:20px; border-radius:15px; border:1px solid #feb2b2; margin:15px 0; text-align:left;"><b>Masalah:</b> ${note}</div>${photo ? `<img src="${photo}" style="width:100%; border-radius:20px; border:1px solid #ddd;">` : ''}`;
-        document.getElementById('statusModal').style.display = 'flex';
-      };
-    });
+  btn.onclick = () => {
+    const status = btn.dataset.status;
+    const problems = JSON.parse(btn.dataset.problems || '[]');
+
+    if (status === 'LAYAK') {
+      document.getElementById('modalNote').innerHTML = `
+        <h3 style="color:#2d4a36; text-align:center;">✅ KANDANG AMAN</h3>
+        <p style="text-align:center; margin-top:15px;">Tidak ditemukan masalah pada kandang.</p>
+      `;
+      document.getElementById('statusModal').style.display = 'flex';
+      return;
+    }
+
+    // TIDAK LAYAK
+    document.getElementById('modalNote').innerHTML = `
+      <h3 style="color:#c53030; text-align:center; font-weight:1200;">⚠️ TIDAK LAYAK</h3>
+
+      ${
+        problems.length === 0
+          ? `<p style="text-align:center; margin-top:15px; color:#c53030; font-weight:700;">
+               Kandang dinyatakan TIDAK LAYAK, namun detail masalah belum dicatat.
+             </p>`
+          : problems.map(p => `
+              <div style="
+                margin-top:15px;
+                padding:15px;
+                border-radius:12px;
+                border:1.5px solid #feb2b2;
+                background:#fff5f5;
+              ">
+                <strong>KANDANG ${p.kandang}</strong>
+                <p style="margin:8px 0;">${p.note || '-'}</p>
+                ${
+                  p.photo
+                    ? `<img src="${p.photo}"
+                        style="width:100%; max-height:250px; object-fit:cover;
+                               border-radius:10px; margin-top:8px;">`
+                    : ''
+                }
+              </div>
+            `).join('')
+      }
+    `;
+
+    document.getElementById('statusModal').style.display = 'flex';
+  };
+});
 
     // --- REVISI POPUP DETAIL PEKERJAAN (3 KOLOM: TUGAS, HASIL, STATUS) ---
     this.container.querySelectorAll('.btn-pop-task').forEach(btn => {

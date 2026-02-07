@@ -59,7 +59,7 @@ const AppBar = {
             <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
             <a href="#/pembibitan" class="${isActive('#/pembibitan')}">PEMBIBITAN</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
-            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">PENGATURAN</a>
+            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">LOGBOOK</a>
           </nav>
         </div>
         
@@ -77,11 +77,11 @@ const AppBar = {
             </div>
           </div>
           <nav class="mobile-nav-links">
-            <a href="#/" class="${isActive('#/')}">📊 Dashboard</a>
-            <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">📦 Komoditas</a>
-            <a href="#/laporan" class="${isActive('#/laporan')}">📜 Laporan</a>
-            <a href="#/pembibitan" class="${isActive('#/pembibitan')}">🐣 Pembibitan</a>
-            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">⚙️ Pengaturan</a>
+            <a href="#/" class="${isActive('#/')}">DASHBOARD</a>
+            <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
+            <a href="#/pembibitan" class="${isActive('#/pembibitan')}">PEMBIBITAN</a>
+            <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
+            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">LOGBOOK</a>
           </nav>
         </div>
         <div id="sidebarOverlay" class="sidebar-overlay"></div>

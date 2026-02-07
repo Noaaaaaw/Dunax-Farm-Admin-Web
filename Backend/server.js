@@ -367,6 +367,51 @@ const init = async () => {
             return { status: 'error', message: err.message };
         }
     }
+},
+{
+    // 22. POST Simpan Asset Baru & Auto Update Stok Komoditas
+    method: 'POST',
+    path: '/api/asset-baru/save',
+    handler: async (request, h) => {
+        const { kategori_id, produk, jumlah } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // A. Simpan riwayat ke tabel pembelian_asset_baru
+            await client.query(
+                `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah) VALUES ($1, $2, $3)`,
+                [kategori_id, produk, jumlah]
+            );
+
+            // B. Logic Cerdas Update Stok ke tabel komoditas
+            let targetProduct = '';
+            if (produk === 'DOC') targetProduct = 'DOC';
+            else if (produk === 'PULLET') targetProduct = 'Pullet (8 Minggu)';
+            else if (produk === 'AYAM PEJANTAN') targetProduct = 'Pejantan';
+            else if (produk === 'AYAM BETINA') targetProduct = 'Petelur'; // Diasumsikan Petelur adalah Betina
+
+            await client.query(
+                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE $3`,
+                [jumlah, kategori_id, `%${targetProduct}%`]
+            );
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally { client.release(); }
+    }
+},
+{
+    // 23. GET Riwayat Asset Baru
+    method: 'GET',
+    path: '/api/asset-baru/history',
+    handler: async () => {
+        const res = await pool.query('SELECT * FROM pembelian_asset_baru ORDER BY created_at DESC');
+        return { status: 'success', data: res.rows };
+    }
 }
     ]);
 

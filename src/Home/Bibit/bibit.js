@@ -29,7 +29,7 @@ const Bibit = {
           <div id="eggQueue" style="display: flex; flex-wrap: wrap; gap: 15px; max-height: 450px; overflow-y: auto; padding: 10px; scrollbar-width: thin;">
              <p style="color: #ccc; text-align: center; width: 100%; padding: 40px;">Mencari data panen...</p>
           </div>
-          
+
           <div style="margin-top: 25px; padding-top: 20px; border-top: 3px solid #f4f7f4; display: flex; justify-content: center; align-items: center;">
             <div style="background: #f9fbf9; padding: 15px 40px; border-radius: 20px; border: 1px solid #eef2ed; text-align: center;">
               <span style="font-weight: 1200; color: #1f3326; font-size: 1.1rem; text-transform: uppercase;">
@@ -42,10 +42,8 @@ const Bibit = {
         <div class="main-content-card" style="background: white; padding: 45px; border-radius: 35px; border: 1px solid #e0eadd; box-shadow: 0 15px 35px rgba(0,0,0,0.05);">
            <div id="processArea" style="display: flex; flex-direction: column; gap: 35px;">
               <button id="btnProsesBerantai" style="width: 100%; padding: 25px; background: #6CA651; color: white; border: none; border-radius: 22px; font-weight: 1200; font-size: 1.3rem; cursor: pointer; box-shadow: 0 8px 0 #4a7337; transition: 0.3s; letter-spacing: 1px;">UPDATE STOK</button>
-
               <div id="resultArea" style="display: none; flex-direction: column; gap: 25px; background: #fcfdfc; padding: 35px; border-radius: 30px; border: 2px solid #eef2ed; animation: slideDown 0.4s ease;">
                  <h3 style="margin: 0; color: #1f3326; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Distribusi Stok Berantai</h3>
-                 
                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
                     <div style="background: #f0f7f0; padding: 25px; border-radius: 20px; text-align: center;">
                        <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #2d4a36; margin-bottom: 12px;">DITETAS (STOK DOC)</label>
@@ -56,11 +54,9 @@ const Bibit = {
                        <input type="number" id="inputGagal" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #e74c3c; font-weight: 900; font-size: 1.5rem; text-align: center; color: #742a2a;">
                     </div>
                  </div>
-
                  <div style="background: #f1f5f9; padding: 15px; border-radius: 15px; text-align: center; border: 1px dashed #cbd5e1;">
                     <span style="font-size: 0.85rem; font-weight: 700; color: #475569;">SISA MASUK TELUR KONSUMSI: <span id="autoKonsumsi" style="color: #1e293b; font-weight: 900;">0 BUTIR</span></span>
                  </div>
-
                  <button id="btnFinalSubmit" style="width: 100%; padding: 22px; background: #1f3326; color: white; border: none; border-radius: 20px; font-weight: 1200; font-size: 1.1rem; cursor: pointer; transition: 0.2s;">KONFIRMASI</button>
               </div>
            </div>
@@ -82,7 +78,6 @@ const Bibit = {
     let rawEggsPanen = [];
     let processedTotalGlobal = 0;
     let currentSaldoSisa = 0;
-
     const totalDisplay = document.getElementById('totalEggDay');
     const inputBerhasil = document.getElementById('inputBerhasil');
     const inputGagal = document.getElementById('inputGagal');
@@ -92,22 +87,19 @@ const Bibit = {
     const refreshUI = () => {
       const hash = window.location.hash.slice(1);
       const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
-      
+
       let filtered = rawEggsPanen.filter(e => e.hewan.toLowerCase().includes(categoryId.split('-')[0]));
       if (currentFilterSesi !== 'SEMUA') filtered = filtered.filter(e => e.sesi === currentFilterSesi);
-
       const totalPanenFilter = filtered.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
-      currentSaldoSisa = totalPanenFilter - processedTotalGlobal; 
-      
+      currentSaldoSisa = totalPanenFilter - processedTotalGlobal;
       const valBerhasil = (parseInt(inputBerhasil.value) || 0);
       const valGagal = (parseInt(inputGagal.value) || 0);
-      
+
       // LOGIKA SISA: PANEN (100) - DOC (85) - FERTIL JUAL (10) = KONSUMSI (5)
       const sisaFinal = currentSaldoSisa - (valBerhasil + valGagal);
-
       totalDisplay.innerText = `${(Math.max(0, sisaFinal)).toLocaleString()} BUTIR`;
       totalDisplay.style.color = sisaFinal < 0 ? '#e74c3c' : '#6CA651';
-      
+
       // Update angka indikator konsumsi di bawah input
       autoKonsumsi.innerText = `${(Math.max(0, sisaFinal)).toLocaleString()} BUTIR`;
 
@@ -135,10 +127,10 @@ const Bibit = {
         const cat = cats.find(c => c.id === hash.split('-').slice(1).join('-'));
         if (cat) document.getElementById('displayCategoryName').innerText = cat.nama;
       },
-      onEggsReady: (eggs, processed) => { 
-        rawEggsPanen = eggs; 
-        processedTotalGlobal = processed; 
-        refreshUI(); 
+      onEggsReady: (eggs, processed) => {
+        rawEggsPanen = eggs;
+        processedTotalGlobal = processed;
+        refreshUI();
       }
     });
 
@@ -153,7 +145,7 @@ const Bibit = {
         if (currentSaldoSisa <= 0) return alert("Antrian sudah habis!");
         document.getElementById('resultArea').style.display = 'flex';
     };
-    
+
     document.getElementById('btnFinalSubmit').onclick = async () => {
         const valBerhasil = (parseInt(inputBerhasil.value) || 0);
         const valGagal = (parseInt(inputGagal.value) || 0);
@@ -163,7 +155,6 @@ const Bibit = {
 
         // HITUNG SISA OTOMATIS KE KONSUMSI
         const sisaKonsumsi = Math.max(0, currentSaldoSisa - alokasiTotal);
-
         const res = await presenter.submitBibitProcess({
             kategori_id: window.location.hash.split('-').slice(1).join('-'),
             berhasil: valBerhasil,      // Jadi DOC
@@ -187,7 +178,6 @@ const Bibit = {
         refreshUI();
       };
     });
-
     await loadData();
   }
 };
