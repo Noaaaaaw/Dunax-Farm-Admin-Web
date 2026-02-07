@@ -21,32 +21,32 @@ class BibitBaruPresenter {
         const hash = window.location.hash.slice(1);
         const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
         
-        // Jaga-jaga kalau hash kosong
         if (!categoryId) {
             return { status: 'error', message: 'Kategori tidak valid' };
         }
 
         try {
+            // Data yang dikirim berisi { produk: 'AYAM PEJANTAN', jumlah: 5 }
             const res = await fetch(`${this.baseUrl}/api/asset-baru/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     ...data, 
-                    kategori_id: categoryId // Ini bakal ngirim 'asset-ayam' atau 'ayam'
+                    kategori_id: categoryId 
                 })
             });
 
-            // Pastiin kita dapet respon dari server
             const result = await res.json();
             
+            // Logika deteksi error 500 biar dashboard lu gak nge-hang
             if (res.status === 500) {
-                console.error("Server Meledak (500):", result.message);
+                console.error("Backend Error (500):", result.message);
                 return { status: 'error', message: result.message };
             }
 
             return result;
         } catch (err) { 
-            console.error("Gagal koneksi ke server:", err);
+            console.error("Gagal koneksi ke server farm:", err);
             return { status: 'error', message: 'Koneksi server gagal' }; 
         }
     }

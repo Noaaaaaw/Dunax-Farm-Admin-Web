@@ -180,31 +180,39 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan (PETUGAS DIHAPUS - ALUR DISTRIBUSI LANGSUNG)
-            method: 'POST',
-            path: '/api/pembibitan/process',
-            handler: async (request, h) => {
-                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    // A. MASUK KE STOK DOC
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
-                    // B. MASUK KE STOK TELUR FERTIL JUAL (Hasil Sortir)
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [gagal, kategori_id]);
-                    // C. MASUK KE STOK TELUR KONSUMSI
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur%' AND nama NOT ILIKE '%Fertil%'`, [sisa_ke_konsumsi, kategori_id]);
-                    
-                    // D. SIMPAN HISTORI PROSES (TANPA KOLOM PETUGAS)
-                    const totalPanen = (parseInt(berhasil) || 0) + (parseInt(gagal) || 0) + (parseInt(sisa_ke_konsumsi) || 0);
-                    await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalPanen, berhasil, gagal, sisa_ke_konsumsi]);
-                    
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
-                finally { client.release(); }
-            }
-        },
+    // 15. POST Proses Pembibitan & Penyaringan Sisa
+    method: 'POST',
+    path: '/api/pembibitan/process',
+    handler: async (request, h) => {
+        const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, sisa_ke_ayam_kampung } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            // A. Update Stok DOC
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
+            
+            // B. Update Stok Fertil Jual
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [gagal, kategori_id]);
+            
+            // C. Update Stok Telur Konsumsi (Sudah dipotong kg)
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [sisa_ke_konsumsi, kategori_id]);
+            
+            // D. Update Stok Telur Ayam Kampung (Sisa Penyaringan)
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [sisa_ke_ayam_kampung, kategori_id]);
+
+            // E. Simpan Histori
+            const total = berhasil + gagal + sisa_ke_konsumsi + sisa_ke_ayam_kampung;
+            await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, total, berhasil, gagal, (sisa_ke_konsumsi + sisa_ke_ayam_kampung)]);
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally { client.release(); }
+    }
+},
         {
             // 16. GET Histori Pembibitan (Audit Trail)
             method: 'GET',

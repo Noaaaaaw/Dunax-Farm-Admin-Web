@@ -222,9 +222,9 @@ class LaporanPresenter {
         <td style="padding: 15px; font-weight: 700; text-align: left;">${t.text}</td>
         <td style="padding: 10px; text-align: center;">
           <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-            ${t.type === 'number' ? `<input type="number" class="task-input" data-unit="${t.unit}" placeholder="${t.unit}" style="width: 80px; padding: 10px; text-align: center; font-weight: 800; border-radius: 10px; border: 1px solid #ddd;">` : ''}
+            ${t.type === 'number' ? `<input type="number"class="task-input"data-unit="${t.unit}"placeholder="${t.unit}"min="0"step="0.5"inputmode="decimal"style="width: 80px; padding: 10px; text-align: center; font-weight: 800; border-radius: 10px; border: 1px solid #ddd;">` : ''}
             ${t.type === 'panen' ? `<button type="button" class="btn-open-panen" style="padding:10px 15px; border-radius:10px; background:#6CA651; color:white; border:2px dashed rgba(255,255,255,0.4); cursor:pointer; font-size:0.75rem; font-weight:900; min-width:160px;">+ INPUT PANEN</button>` : ''}
-            ${t.type === 'health' ? `<select class="health-status-select" style="padding: 10px; border-radius: 10px; font-weight: 700; border: 1px solid #ddd; width: 110px;"><option value="SEHAT">SEHAT</option><option value="SAKIT">SAKIT</option></select> <button type="button" class="add-health-btn" style="display:none; padding:6px 12px; border-radius:10px; background:#41644A; color:white; border:none; cursor:pointer; font-size:0.75rem; font-weight:900;">+ DATA SAKIT</button>` : ''}
+            ${t.type === 'health' ? `<select class="health-status-select" style="padding: 10px; border-radius: 10px; font-weight: 700; border: 1px solid #ddd; width: 110px;"><option value="SEHAT">SEHAT</option><option value="SAKIT">SAKIT</option></select> <button type="button" class="add-health-btn" style="display:none; padding:6px 12px; border-radius:10px; background:#41644A; color:white; border:none; cursor:pointer; font-size:0.75rem; font-weight:900;">Tambah Data</button>` : ''}
           </div>
         </td>
         <td style="padding: 15px; text-align: center;"><input type="checkbox" class="task-check" style="width: 24px; height: 24px; accent-color: #41644A;"></td>
