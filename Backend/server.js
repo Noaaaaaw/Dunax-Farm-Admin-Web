@@ -369,7 +369,7 @@ const init = async () => {
     }
 },
 {
-    // 22. POST Simpan Asset Baru & Auto Update Stok Komoditas
+    // 22. POST Simpan Asset Baru & Auto Update Stok Komoditas (FIXED!)
     method: 'POST',
     path: '/api/asset-baru/save',
     handler: async (request, h) => {
@@ -378,23 +378,32 @@ const init = async () => {
         try {
             await client.query('BEGIN');
 
-            // A. Simpan riwayat ke tabel pembelian_asset_baru
+            // 1. Simpan riwayat (Tetap pake ID asli buat audit)
             await client.query(
                 `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah) VALUES ($1, $2, $3)`,
                 [kategori_id, produk, jumlah]
             );
 
-            // B. Logic Cerdas Update Stok ke tabel komoditas
+            // 2. Normalisasi ID: 'asset-ayam' jadi 'ayam'
+            const cleanCategoryId = kategori_id.replace('asset-', '');
+
+            // 3. Pemetaan Nama Produk mentereng
             let targetProduct = '';
             if (produk === 'DOC') targetProduct = 'DOC';
             else if (produk === 'PULLET') targetProduct = 'Pullet (8 Minggu)';
             else if (produk === 'AYAM PEJANTAN') targetProduct = 'Pejantan';
-            else if (produk === 'AYAM BETINA') targetProduct = 'Petelur'; // Diasumsikan Petelur adalah Betina
+            else if (produk === 'AYAM BETINA') targetProduct = 'Petelur'; 
 
-            await client.query(
+            // 4. Update Stok dengan ID yang sudah dibersihkan
+            const updateRes = await client.query(
                 `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE $3`,
-                [jumlah, kategori_id, `%${targetProduct}%`]
+                [jumlah, cleanCategoryId, `%${targetProduct}%`]
             );
+
+            // Cek kalau ada baris yang beneran ke-update
+            if (updateRes.rowCount === 0) {
+                console.log(`Peringatan: Produk %${targetProduct}% di kategori ${cleanCategoryId} tidak ditemukan!`);
+            }
 
             await client.query('COMMIT');
             return { status: 'success' };

@@ -17,8 +17,8 @@ const BibitBaru = {
                         <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 10px; font-size: 0.85rem;">PILIH PRODUK ASSET</label>
                         <select id="produkAsset" required style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eef2ed; background: #f9fbf9; font-weight: 800;">
                             <option value="">-- PILIH PRODUK --</option>
-                            <option value="DOC">DOC (ANAK AYAM)</option>
-                            <option value="PULLET">PULLET (AYAM REMAJA)</option>
+                            <option value="DOC">DOC</option>
+                            <option value="PULLET">PULLET</option>
                             <option value="AYAM PEJANTAN">AYAM PEJANTAN</option>
                             <option value="AYAM BETINA">AYAM BETINA</option>
                         </select>
