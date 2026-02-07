@@ -369,7 +369,7 @@ const init = async () => {
     }
 },
 {
-    // 22. POST Simpan Asset Baru & Auto Update Stok (FIX TOTAL!)
+    // 22. POST Simpan Asset Baru & Sinkron Saldo (VERSI TAHAN BANTING!)
     method: 'POST',
     path: '/api/asset-baru/save',
     handler: async (request, h) => {
@@ -378,44 +378,65 @@ const init = async () => {
         try {
             await client.query('BEGIN');
 
-            // 1. Simpan riwayat (ID tetep asset-ayam)
+            // 1. Simpan riwayat pengadaan
             await client.query(
                 `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah) VALUES ($1, $2, $3)`,
                 [kategori_id, produk, jumlah]
             );
 
-            // 2. Bersihin ID: 'asset-ayam' jadi 'ayam'
             const cleanCategoryId = kategori_id.replace('asset-', '');
 
-            // 3. MAPPING NAMA PRODUK (Sesuaikan dengan isi tabel komoditas lu!)
+            // 2. MAPPING PRODUK & SALDO
             let targetProduct = '';
-            if (produk === 'DOC') targetProduct = 'DOC'; // Harus kapital sesuai image_360752.png
-            else if (produk === 'PULLET') targetProduct = 'Pullet (8 Minggu)';
-            else if (produk === 'AYAM PEJANTAN') targetProduct = 'Pejantan';
-            else if (produk === 'AYAM BETINA') targetProduct = 'Petelur'; 
+            let isMaturityAsset = false;
+            let colName = '';
 
-            // 4. Update Stok (Pake = biar presisi, ILIKE buat jaga-jaga spasi)
-            const updateRes = await client.query(
-                `UPDATE komoditas 
-                 SET stok = stok + $1 
-                 WHERE category_id = $2 
-                 AND nama ILIKE $3`,
+            if (produk === 'DOC') targetProduct = 'DOC';
+            else if (produk === 'PULLET') targetProduct = 'Pullet (8 Minggu)';
+            else if (produk === 'AYAM PEJANTAN') { 
+                targetProduct = 'Pejantan'; 
+                isMaturityAsset = true; 
+                colName = 'sisa_pejantan_simpan';
+            }
+            else if (produk === 'AYAM BETINA') { 
+                targetProduct = 'Petelur'; 
+                isMaturityAsset = true; 
+                colName = 'sisa_petelur_simpan';
+            }
+
+            // 3. UPDATE TABEL UTAMA (KOMODITAS)
+            const stockUpdate = await client.query(
+                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE $3`,
                 [parseInt(jumlah), cleanCategoryId, `%${targetProduct}%`]
             );
 
-            // LOG UNTUK DEBUG (Cek di terminal CMD server lu)
-            console.log(`Update Stok: ${targetProduct} | Kategori: ${cleanCategoryId} | Baris Terubah: ${updateRes.rowCount}`);
+            if (stockUpdate.rowCount === 0) {
+                throw new Error(`Produk ${targetProduct} tidak ditemukan di tabel komoditas!`);
+            }
 
-            if (updateRes.rowCount === 0) {
-                // Kalo 0 berarti query update gagal nemu baris yang cocok
-                throw new Error(`Produk ${targetProduct} tidak ditemukan di database komoditas kategori ${cleanCategoryId}!`);
+            // 4. UPDATE/INSERT TABEL PRODUCTION (SINKRONISASI SALDO)
+            if (isMaturityAsset) {
+                // Pake logic UPSERT: Coba Update, kalau rowCount 0 berarti data belum ada, maka INSERT
+                const maturityUpdate = await client.query(
+                    `UPDATE production_process SET ${colName} = ${colName} + $1 WHERE kategori_id = $2`,
+                    [parseInt(jumlah), cleanCategoryId]
+                );
+
+                if (maturityUpdate.rowCount === 0) {
+                    // Kalau baris belum ada di production_process, buat baris baru otomatis
+                    await client.query(
+                        `INSERT INTO production_process (kategori_id, sisa_pejantan_simpan, sisa_petelur_simpan, pejantan_dijual, petelur_dijual) 
+                         VALUES ($1, $2, $3, 0, 0)`,
+                        [cleanCategoryId, (produk === 'AYAM PEJANTAN' ? jumlah : 0), (produk === 'AYAM BETINA' ? jumlah : 0)]
+                    );
+                }
             }
 
             await client.query('COMMIT');
             return { status: 'success' };
         } catch (err) {
             await client.query('ROLLBACK');
-            console.error("Gagal Update Stok:", err.message);
+            console.error("CRITICAL ERROR:", err.message);
             return h.response({ status: 'error', message: err.message }).code(500);
         } finally { client.release(); }
     }
