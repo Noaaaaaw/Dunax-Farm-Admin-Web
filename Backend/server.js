@@ -376,71 +376,83 @@ const init = async () => {
         }
     }
 },
-{// 22. POST Simpan Asset Baru & Sinkron Saldo (FIX TOTAL!)
-            method: 'POST',
-            path: '/api/asset-baru/save',
-            handler: async (request, h) => {
-                const { kategori_id, produk, jumlah } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
+{
+    // 22. POST Simpan Asset Baru & Sinkron Saldo (FIXED NOT NULL CONSTRAINT)
+    method: 'POST',
+    path: '/api/asset-baru/save',
+    handler: async (request, h) => {
+        const { kategori_id, produk, jumlah } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
 
-                    // 1. Simpan riwayat pengadaan
-                    await client.query(
-                        `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah) VALUES ($1, $2, $3)`,
-                        [kategori_id, produk, parseInt(jumlah)]
-                    );
+            // 1. Simpan riwayat pengadaan
+            await client.query(
+                `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah) VALUES ($1, $2, $3)`,
+                [kategori_id, produk, parseInt(jumlah)]
+            );
 
-                    const cleanCategoryId = kategori_id.replace('asset-', '');
+            const cleanCategoryId = kategori_id.replace('asset-', '');
 
-                    // 2. MAPPING PRODUK & SALDO
-                    let targetProduct = '';
-                    let colName = '';
+            // 2. MAPPING PRODUK
+            let targetProduct = '';
+            let colName = '';
 
-                    if (produk === 'DOC') targetProduct = 'DOC';
-                    else if (produk === 'PULLET') targetProduct = 'Pullet (8 Minggu)';
-                    else if (produk === 'AYAM PEJANTAN') { 
-                        targetProduct = 'Pejantan'; 
-                        colName = 'sisa_pejantan_simpan';
-                    }
-                    else if (produk === 'AYAM BETINA') { 
-                        targetProduct = 'Petelur'; 
-                        colName = 'sisa_petelur_simpan';
-                    }
-
-                    // 3. UPDATE TABEL UTAMA (KOMODITAS) - Gunakan ILIKE biar lebih fleksibel
-                    const stockUpdate = await client.query(
-                        `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE $3`,
-                        [parseInt(jumlah), cleanCategoryId, `%${targetProduct}%`]
-                    );
-
-                    // 4. KHUSUS PEJANTAN/BETINA: SINKRON KE TABEL PRODUCTION
-                    if (colName) {
-                        // Logic UPSERT: Coba update dulu
-                        const maturityUpdate = await client.query(
-                            `UPDATE production_process SET ${colName} = ${colName} + $1 WHERE kategori_id = $2`,
-                            [parseInt(jumlah), cleanCategoryId]
-                        );
-
-                        // Kalau data kategori tersebut belum ada di production_process, INSERT baru!
-                        if (maturityUpdate.rowCount === 0) {
-                            await client.query(
-                                `INSERT INTO production_process (kategori_id, sisa_pejantan_simpan, sisa_petelur_simpan, pejantan_dijual, petelur_dijual) 
-                                 VALUES ($1, $2, $3, 0, 0)`,
-                                [cleanCategoryId, (produk === 'AYAM PEJANTAN' ? parseInt(jumlah) : 0), (produk === 'AYAM BETINA' ? parseInt(jumlah) : 0)]
-                            );
-                        }
-                    }
-
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    console.error("LOG ERROR SERVER:", err.message);
-                    return h.response({ status: 'error', message: err.message }).code(500);
-                } finally { client.release(); }
+            if (produk === 'DOC') targetProduct = 'DOC';
+            else if (produk === 'PULLET') targetProduct = 'Pullet (8 Minggu)';
+            else if (produk === 'AYAM PEJANTAN') { 
+                targetProduct = 'Pejantan'; 
+                colName = 'sisa_pejantan_simpan';
             }
-        },
+            else if (produk === 'AYAM BETINA') { 
+                targetProduct = 'Petelur'; 
+                colName = 'sisa_petelur_simpan';
+            }
+
+            // 3. UPDATE TABEL UTAMA (KOMODITAS)
+            await client.query(
+                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE $3`,
+                [parseInt(jumlah), cleanCategoryId, `%${targetProduct}%`]
+            );
+
+            // 4. FIX ERROR 500: UPDATE/INSERT TABEL PRODUCTION
+            if (colName) {
+                const maturityUpdate = await client.query(
+                    `UPDATE production_process SET ${colName} = ${colName} + $1 WHERE kategori_id = $2`,
+                    [parseInt(jumlah), cleanCategoryId]
+                );
+
+                if (maturityUpdate.rowCount === 0) {
+                    // ✅ TAMBAHKAN KOLOM WAJIB (stok_awal_pejantan & stok_awal_petelur) DENGAN NILAI 0
+                    // Biar nggak kena 'violates not-null constraint' lagi
+                    await client.query(
+                        `INSERT INTO production_process (
+                            kategori_id, 
+                            sisa_pejantan_simpan, 
+                            sisa_petelur_simpan, 
+                            pejantan_dijual, 
+                            petelur_dijual,
+                            stok_awal_pejantan, 
+                            stok_awal_petelur
+                        ) VALUES ($1, $2, $3, 0, 0, 0, 0)`,
+                        [
+                            cleanCategoryId, 
+                            (produk === 'AYAM PEJANTAN' ? parseInt(jumlah) : 0), 
+                            (produk === 'AYAM BETINA' ? parseInt(jumlah) : 0)
+                        ]
+                    );
+                }
+            }
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error("SERVER ERROR:", err.message);
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally { client.release(); }
+    }
+},
         {
             // 23. GET Riwayat Asset Baru
             method: 'GET',
