@@ -151,7 +151,7 @@ const Pembibitan = {
                 </button>` : '<span></span>'}
                 
                 <button class="btn-kelola-pembibitan" onclick="location.hash = '#/bibit-${categoryId}'">
-                    KELOLA BIBIT
+                    KELOLA PANEN
                 </button>
             </div>
             
