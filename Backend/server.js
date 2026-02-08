@@ -180,7 +180,7 @@ const init = async () => {
             }
         },
         {
-    // 15. POST Proses Pembibitan & Penyaringan Sisa
+    // 15. POST Proses Pembibitan & Logika 17 Butir
     method: 'POST',
     path: '/api/pembibitan/process',
     handler: async (request, h) => {
@@ -189,21 +189,21 @@ const init = async () => {
         try {
             await client.query('BEGIN');
             
-            // A. Update Stok DOC
+            // A. Masuk ke Stok DOC (Hasil Tetas)
             await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [berhasil, kategori_id]);
             
-            // B. Update Stok Fertil Jual
+            // B. Masuk ke Stok Telur Fertil Jual (Sortir Gagal Tetas)
             await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [gagal, kategori_id]);
             
-            // C. Update Stok Telur Konsumsi (Sudah dipotong kg)
+            // C. Masuk ke Stok Telur Konsumsi (Sisa setelah dikurang 17)
             await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [sisa_ke_konsumsi, kategori_id]);
             
-            // D. Update Stok Telur Ayam Kampung (Sisa Penyaringan)
+            // D. Masuk ke Stok Telur Ayam Kampung (Jatah 17 butir pertama)
             await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [sisa_ke_ayam_kampung, kategori_id]);
 
             // E. Simpan Histori
-            const total = berhasil + gagal + sisa_ke_konsumsi + sisa_ke_ayam_kampung;
-            await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, total, berhasil, gagal, (sisa_ke_konsumsi + sisa_ke_ayam_kampung)]);
+            const totalMasukHistory = berhasil + gagal + sisa_ke_konsumsi + sisa_ke_ayam_kampung;
+            await client.query(`INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) VALUES ($1, $2, $3, $4, $5)`, [kategori_id, totalMasukHistory, berhasil, gagal, (sisa_ke_konsumsi + sisa_ke_ayam_kampung)]);
 
             await client.query('COMMIT');
             return { status: 'success' };

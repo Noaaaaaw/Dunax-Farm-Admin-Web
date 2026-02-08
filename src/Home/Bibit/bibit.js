@@ -103,33 +103,33 @@ const Bibit = {
       const valBerhasil = (parseInt(inputBerhasil.value) || 0);
       const valGagal = (parseInt(inputGagal.value) || 0);
       
-      // ✅ LOGIKA PENYARINGAN SAKTI
-      const sisaKotor = currentSaldoSisa - (valBerhasil + valGagal);
-      let fixKonsumsi = 0;
+      // ✅ LOGIKA PENYARINGAN 17 BUTIR
+      const sisaAwal = currentSaldoSisa - (valBerhasil + valGagal);
       let fixAyamKampung = 0;
+      let fixKonsumsi = 0;
 
-      if (sisaKotor > 0) {
-          if (sisaKotor <= 17) {
-              fixKonsumsi = sisaKotor; // 17 butir = 1 kg
-          } else {
-              const sisaSetelah1Kg = sisaKotor - 17;
-              // Porsi Konsumsi harus lebih banyak (75% vs 25%)
-              fixKonsumsi = 17 + Math.ceil(sisaSetelah1Kg * 0.75); 
-              fixAyamKampung = Math.floor(sisaSetelah1Kg * 0.25);
+      if (sisaAwal > 0) {
+          // Ambil 17 butir pertama buat Ayam Kampung
+          fixAyamKampung = sisaAwal >= 17 ? 17 : Math.floor(sisaAwal); 
+          
+          // Sisanya dikurangi 17 lagi buat Konsumsi
+          const sisaKedua = sisaAwal - fixAyamKampung;
+          if (sisaKedua > 0) {
+              fixKonsumsi = sisaKedua >= 17 ? 17 : Math.floor(sisaKedua);
           }
       }
 
-      totalDisplay.innerText = `${(Math.max(0, sisaKotor)).toLocaleString()} BUTIR`;
-      totalDisplay.style.color = sisaKotor < 0 ? '#e74c3c' : '#6CA651';
+      totalDisplay.innerText = `${(Math.max(0, sisaAwal)).toLocaleString()} BUTIR`;
+      totalDisplay.style.color = sisaAwal < 0 ? '#e74c3c' : '#6CA651';
       
       autoKonsumsi.innerHTML = `
         <div style="display:flex; justify-content: space-between; align-items:center;">
-            <span style="font-size:0.8rem; font-weight:700; color:#475569;">TELUR KONSUMSI (-1kg):</span>
-            <span style="font-weight:900; color:#1e293b;">${fixKonsumsi} BUTIR</span>
+            <span style="font-size:0.8rem; font-weight:700; color:#475569;">TELUR AYAM KAMPUNG (FIX 17):</span>
+            <span style="font-weight:900; color:#6CA651;">${fixAyamKampung} BUTIR</span>
         </div>
         <div style="display:flex; justify-content: space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:8px;">
-            <span style="font-size:0.8rem; font-weight:700; color:#475569;">TELUR AYAM KAMPUNG:</span>
-            <span style="font-weight:900; color:#6CA651;">${fixAyamKampung} BUTIR</span>
+            <span style="font-size:0.8rem; font-weight:700; color:#475569;">TELUR KONSUMSI (SISA - 17):</span>
+            <span style="font-weight:900; color:#1e293b;">${fixKonsumsi} BUTIR</span>
         </div>
       `;
 
@@ -183,16 +183,16 @@ const Bibit = {
 
         if (alokasiTotal > currentSaldoSisa) return alert("Melebihi sisa antrian telur!");
 
-        // HITUNG ULANG DATA FIX
-        const sisaKotor = currentSaldoSisa - alokasiTotal;
-        let fixKonsumsi = 0;
+        // RE-CALCULATE FOR SUBMISSION
+        const sisaAwal = currentSaldoSisa - alokasiTotal;
         let fixAyamKampung = 0;
-        if (sisaKotor > 0) {
-            if (sisaKotor <= 17) fixKonsumsi = sisaKotor;
-            else {
-                const sisaLanjutan = sisaKotor - 17;
-                fixKonsumsi = 17 + Math.ceil(sisaLanjutan * 0.75); 
-                fixAyamKampung = Math.floor(sisaLanjutan * 0.25);
+        let fixKonsumsi = 0;
+
+        if (sisaAwal > 0) {
+            fixAyamKampung = sisaAwal >= 17 ? 17 : Math.floor(sisaAwal);
+            const sisaKedua = sisaAwal - fixAyamKampung;
+            if (sisaKedua > 0) {
+                fixKonsumsi = sisaKedua >= 17 ? 17 : Math.floor(sisaKedua);
             }
         }
 
@@ -205,7 +205,7 @@ const Bibit = {
         });
 
         if (res.status === 'success') {
-            alert("Distribusi Berantai & Penyaringan Sukses! 🚀");
+            alert("Distribusi 17 Butir Sukses! 🚀");
             location.reload();
         }
     };

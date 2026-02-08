@@ -59,7 +59,7 @@ const AppBar = {
             <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
             <a href="#/pembibitan" class="${isActive('#/pembibitan')}">PEMBIBITAN</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
-            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">LOGBOOK</a>
+            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">PUSTAKA</a>
           </nav>
         </div>
         
@@ -81,7 +81,7 @@ const AppBar = {
             <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
             <a href="#/pembibitan" class="${isActive('#/pembibitan')}">PEMBIBITAN</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
-            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">LOGBOOK</a>
+            <a href="#/pengaturan" class="${isActive('#/pengaturan')}">PUSTAKA</a>
           </nav>
         </div>
         <div id="sidebarOverlay" class="sidebar-overlay"></div>
