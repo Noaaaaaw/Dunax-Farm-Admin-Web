@@ -47,11 +47,11 @@ const Bibit = {
                   
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
                     <div style="background: #f0f7f0; padding: 25px; border-radius: 20px; text-align: center;">
-                        <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #2d4a36; margin-bottom: 12px;">DITETAS (STOK DOC)</label>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #2d4a36; margin-bottom: 12px;">DITETAS</label>
                         <input type="number" id="inputBerhasil" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #6CA651; font-weight: 900; font-size: 1.5rem; text-align: center; color: #14280a;">
                     </div>
                     <div style="background: #fff5f5; padding: 25px; border-radius: 20px; text-align: center;">
-                        <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #c53030; margin-bottom: 12px;">FERTIL JUAL (SORTIR)</label>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 900; color: #c53030; margin-bottom: 12px;">FERTIL JUAL</label>
                         <input type="number" id="inputGagal" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #e74c3c; font-weight: 900; font-size: 1.5rem; text-align: center; color: #742a2a;">
                     </div>
                   </div>
