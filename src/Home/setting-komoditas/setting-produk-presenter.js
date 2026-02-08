@@ -44,12 +44,24 @@ class SettingProdukPresenter {
     const grid = document.getElementById("productGrid");
 
     grid.innerHTML = products.map((p) => {
-        // ✅ LOGIKA PENENTUAN SATUAN (KG untuk Telur Konsumsi, Butir untuk sisanya)
-        const isKonsumsi = p.nama.toLowerCase().includes("konsumsi");
-        const satuanLabel = isKonsumsi ? "KG" : "BUTIR";
-        
-        // Pastikan stok tampil dengan desimal jika KG
-        const displayStok = isKonsumsi ? parseFloat(p.stok).toFixed(1) : parseInt(p.stok);
+        // ✅ LOGIKA PENENTUAN SATUAN & PEMBULATAN
+        let satuanLabel = "BUTIR";
+        let displayStok = 0;
+        const namaProduk = p.nama.toLowerCase();
+
+        if (namaProduk.includes("pedaging") || namaProduk.includes("doc") || namaProduk.includes("pullet") || namaProduk.includes("pejantan") || namaProduk.includes("petelur")) {
+            // SATUAN EKOR (Harus Bulat)
+            satuanLabel = "EKOR";
+            displayStok = Math.floor(p.stok); 
+        } else if (namaProduk.includes("konsumsi")) {
+            // SATUAN KG (Boleh Desimal)
+            satuanLabel = "KG";
+            displayStok = parseFloat(p.stok).toFixed(2); // Menampilkan 2 angka desimal misal 6.50
+        } else {
+            // SISANYA TELUR LAIN (BUTIR - Harus Bulat)
+            satuanLabel = "BUTIR";
+            displayStok = Math.floor(p.stok);
+        }
 
         return `
       <div class="setting-card" id="card-${p.id}" style="background: white; padding: 35px 25px; border-radius: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e0eadd; width: 280px; display: flex; flex-direction: column; justify-content: space-between;">
@@ -113,7 +125,6 @@ class SettingProdukPresenter {
     const payload = {
       id: id,
       harga: Number(card.querySelector(".prod-harga").value),
-      // Gunakan Number() agar desimal pada stok tetap terjaga saat dikirim balik
       stok: Number(card.querySelector(".prod-stok-locked").value),
       aktif: card.querySelector(".prod-aktif").checked,
     };
@@ -124,7 +135,8 @@ class SettingProdukPresenter {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
       });
-      if ((await res.json()).status === "success") {
+      const result = await res.json();
+      if (result.status === "success") {
         alert("Data Berhasil Diperbarui! ✨");
         this.init();
       }

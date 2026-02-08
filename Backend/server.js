@@ -180,36 +180,39 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan & Logic Berantai (FIXED TOTAL)
+            // 15. POST Proses Pembibitan & Logic Berantai (FIXED TOTAL 500 ERROR)
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
+                // Menangkap data dari Frontend (Termasuk sisa_ke_ayam_kampung)
                 const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, sisa_ke_ayam_kampung } = request.payload;
+                
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
                     
-                    // PENTING: Pakai Number() agar 6.5 tidak jadi 6
-                    const nBerhasil = Number(berhasil) || 0;
-                    const nGagal = Number(gagal) || 0;
-                    const nKonsumsiKg = Number(sisa_ke_konsumsi) || 0; 
-                    const nKampung = Number(sisa_ke_ayam_kampung) || 0;
+                    // Konversi ke Number untuk mendukung desimal KG (parseFloat) dan Ekor/Butir (parseInt)
+                    const nBerhasil = parseInt(berhasil) || 0;
+                    const nGagal = parseInt(gagal) || 0;
+                    const nKonsumsiKg = parseFloat(sisa_ke_konsumsi) || 0; 
+                    const nKampung = parseInt(sisa_ke_ayam_kampung) || 0;
                     
-                    // 1. Update DOC/DOD (Butir)
+                    // A. Update Stok DOC/DOD (Butir/Ekor)
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [nBerhasil, kategori_id]);
                     
-                    // 2. Update Fertil Jual (Butir)
+                    // B. Update Stok Fertil Jual (Butir)
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagal, kategori_id]);
                     
-                    // 3. Update Telur Konsumsi (KILOGRAM - Dukung Desimal)
+                    // C. Update Stok Telur Konsumsi (KILOGRAM - Dukung Desimal)
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsiKg, kategori_id]);
                     
-                    // 4. Update Telur Ayam Kampung (Butir)
+                    // D. Update Stok Telur Ayam Kampung (Butir)
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [nKampung, kategori_id]);
 
-                    // Hitung total butir untuk history (Konversi KG ke Butir asumsi 17)
+                    // E. Hitung total butir untuk history (Konversi balik KG ke Butir asumsi 17 butir/kg)
                     const totalButirProcessed = nBerhasil + nGagal + Math.round(nKonsumsiKg * 17) + nKampung;
-                    
+
+                    // F. Catat History ke tabel hatchery_process
                     await client.query(
                         `INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) 
                          VALUES ($1, $2, $3, $4, $5)`, 
@@ -220,9 +223,11 @@ const init = async () => {
                     return { status: 'success' };
                 } catch (err) {
                     await client.query('ROLLBACK');
-                    console.error("SERVER ERROR 500 PEMBIBITAN:", err.message);
+                    console.error("CRITICAL ERROR 500:", err.message);
                     return h.response({ status: 'error', message: err.message }).code(500);
-                } finally { client.release(); }
+                } finally { 
+                    client.release(); 
+                }
             }
         },
         {
