@@ -12,26 +12,24 @@ class DocPresenter {
       const hash = window.location.hash.slice(1);
       const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
 
-      // Narik detail kategori buat dapet stok produk di dalamnya
       const response = await fetch(`${this.baseUrl}/commodities/${categoryId}`);
       const result = await response.json();
 
       if (result.status === 'success') {
         this.onDataReady(result.data);
         
-        // Cari item DOC/DOD di dalam kategori ini
-        const docItem = result.data.details.find(p => 
-          p.nama.toUpperCase().includes('DOC') || p.nama.toUpperCase().includes('DOD')
+        // MENCARI ITEM MESIN TETAS SEBAGAI SUMBER PROSES
+        const sourceItem = result.data.details.find(p => 
+          p.nama.toUpperCase().includes('MESIN TETAS')
         );
-        this.onDocReady(docItem || { stok: 0 });
+        
+        // Kirim data ke UI
+        this.onDocReady(sourceItem || { stok: 0 });
       }
-    } catch (err) {
-      console.error("Doc Presenter Error:", err);
-    }
+    } catch (err) { console.error("Doc Presenter Error:", err); }
   }
 
   async submitDocProcess(payload) {
-    // Ngirim payload: kategori_id, jumlah_hidup, jumlah_mati
     const response = await fetch(`${this.baseUrl}/api/doc/process`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

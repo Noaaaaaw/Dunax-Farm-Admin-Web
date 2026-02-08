@@ -180,56 +180,43 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan & Logic Berantai (FIXED TOTAL 500 ERROR)
-            method: 'POST',
-            path: '/api/pembibitan/process',
-            handler: async (request, h) => {
-                // Menangkap data dari Frontend (Termasuk sisa_ke_ayam_kampung)
-                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, sisa_ke_ayam_kampung } = request.payload;
-                
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    
-                    // Konversi ke Number untuk mendukung desimal KG (parseFloat) dan Ekor/Butir (parseInt)
-                    const nBerhasil = parseInt(berhasil) || 0;
-                    const nGagal = parseInt(gagal) || 0;
-                    const nKonsumsiKg = parseFloat(sisa_ke_konsumsi) || 0; 
-                    const nKampung = parseInt(sisa_ke_ayam_kampung) || 0;
-                    
-                    // A. Update Stok DOC/DOD (Butir/Ekor)
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [nBerhasil, kategori_id]);
-                    
-                    // B. Update Stok Fertil Jual (Butir)
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagal, kategori_id]);
-                    
-                    // C. Update Stok Telur Konsumsi (KILOGRAM - Dukung Desimal)
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsiKg, kategori_id]);
-                    
-                    // D. Update Stok Telur Ayam Kampung (Butir)
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [nKampung, kategori_id]);
+    // 15. POST Proses Pembibitan (DITAMPUNG KE MESIN TETAS)
+    method: 'POST',
+    path: '/api/pembibitan/process',
+    handler: async (request, h) => {
+        const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, sisa_ke_ayam_kampung } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            const nMasukMesin = parseInt(berhasil) || 0; 
+            const nGagalJual = parseInt(gagal) || 0;
+            const nKonsumsiKg = parseFloat(sisa_ke_konsumsi) || 0; 
+            const nKampung = parseInt(sisa_ke_ayam_kampung) || 0;
+            
+            // A. Update Stok MESIN TETAS (Bukan DOC!)
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Mesin Tetas%'`, [nMasukMesin, kategori_id]);
+            
+            // B. Update stok lainnya tetap sama
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagalJual, kategori_id]);
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsiKg, kategori_id]);
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [nKampung, kategori_id]);
 
-                    // E. Hitung total butir untuk history (Konversi balik KG ke Butir asumsi 17 butir/kg)
-                    const totalButirProcessed = nBerhasil + nGagal + Math.round(nKonsumsiKg * 17) + nKampung;
+            const totalButirProcessed = nMasukMesin + nGagalJual + Math.round(nKonsumsiKg * 17) + nKampung;
+            await client.query(
+                `INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) 
+                 VALUES ($1, $2, $3, $4, $5)`, 
+                [kategori_id, totalButirProcessed, nMasukMesin, nGagalJual, (nKonsumsiKg + nKampung)]
+            );
 
-                    // F. Catat History ke tabel hatchery_process
-                    await client.query(
-                        `INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) 
-                         VALUES ($1, $2, $3, $4, $5)`, 
-                        [kategori_id, totalButirProcessed, nBerhasil, nGagal, (nKonsumsiKg + nKampung)]
-                    );
-
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    console.error("CRITICAL ERROR 500:", err.message);
-                    return h.response({ status: 'error', message: err.message }).code(500);
-                } finally { 
-                    client.release(); 
-                }
-            }
-        },
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally { client.release(); }
+    }
+},
         {
             // 16. GET Histori Pembibitan (Audit Trail)
             method: 'GET',
@@ -240,38 +227,43 @@ const init = async () => {
             }
         },
         {
-    // 17. POST Proses DOC ke Pullet (LOGIKA DISTRIBUSI SEBAGIAN)
+    // 17. POST Proses Mesin Tetas ke DOC (SETELAH 3 MINGGU)
     method: 'POST',
     path: '/api/doc/process',
     handler: async (request, h) => {
         const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
-        
-        // Total yang benar-benar keluar dari gudang DOC (Mati + Jadi Pullet)
-        const totalKeluarDariDOC = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
+        const totalKeluarDariMesin = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
 
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
 
-            // A. Potong Stok DOC SEBESAR YANG DIPROSES SAJA
-            // Jadi kalau ada 100, lu input 10 hidup & 10 mati, stok sisa 80.
+            // --- PERBAIKAN: Ambil stok awal DULU sebelum dikurangi ---
+            const stockRes = await client.query(
+                `SELECT stok FROM komoditas WHERE category_id = $1 AND nama ILIKE '%Mesin Tetas%'`, 
+                [kategori_id]
+            );
+            const stokAwalMesin = stockRes.rows[0]?.stok || 0;
+
+            // A. Kurangi isi dari MESIN TETAS
             await client.query(
-                `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
-                [totalKeluarDariDOC, kategori_id]
+                `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND nama ILIKE '%Mesin Tetas%'`, 
+                [totalKeluarDariMesin, kategori_id]
             );
             
-            // B. Tambah ke stok Pullet (8 Minggu)
+            // B. Tambah ke stok DOC asli (Hanya yang menetas hidup)
             if (parseInt(jumlah_hidup) > 0) {
                 await client.query(
-                    `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama = 'Pullet (8 Minggu)'`, 
+                    `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
                     [jumlah_hidup, kategori_id]
                 );
             }
             
-            // C. Simpan Histori ke tabel pullet_process
+            // C. Simpan Histori (Gunakan stokAwalMesin yang murni)
             await client.query(
-                `INSERT INTO pullet_process (kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) VALUES ($1, (SELECT stok + $2 FROM komoditas WHERE category_id = $1 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')), $3, $4)`, 
-                [kategori_id, totalKeluarDariDOC, jumlah_hidup, jumlah_mati]
+                `INSERT INTO pullet_process (kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) 
+                 VALUES ($1, $2, $3, $4)`, 
+                [kategori_id, stokAwalMesin, jumlah_hidup, jumlah_mati]
             );
             
             await client.query('COMMIT');
@@ -279,11 +271,9 @@ const init = async () => {
         } catch (err) { 
             await client.query('ROLLBACK'); 
             return h.response({ status: 'error', message: err.message }).code(500); 
-        } finally { 
-            client.release(); 
-               }
-            }
-        },
+        } finally { client.release(); }
+    }
+},
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',

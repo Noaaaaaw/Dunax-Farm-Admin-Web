@@ -5,6 +5,7 @@ import LaporanMain from '../Home/Operasional/laporan-main.js';
 import LaporanKandang from '../Home/Laporan/laporan.js';
 import Pembibitan from '../Home/Pembibitan/pembibitan.js';
 import Bibit from '../Home/Bibit/bibit.js'; 
+import Tetas from '../Home/Mesin-Tetas/Tetas.js';
 import Doc from '../Home/DOC/doc.js';
 import Pullet from '../Home/Pullet/pullet.js'; 
 import Ayam from '../Home/Ayam/ayam.js';
@@ -20,6 +21,7 @@ const routes = {
   '#/laporan-harian-kandang': LaporanKandang,
   '#/pembibitan': Pembibitan,
   '#/bibit': Bibit,
+  '#/tetas': Tetas,
   '#/doc': Doc,
   '#/pullet': Pullet, 
   '#/ayam': Ayam,
@@ -39,6 +41,9 @@ export const resolveRoute = async () => {
   if (!page && hash.startsWith('#/bibit-')) {
     page = Bibit; 
   }
+  if (!page && hash.startsWith('#/tetas-')) {
+    page = Tetas; 
+  }
   if (!page && hash.startsWith('#/doc-')) {
     page = Doc; 
   }
@@ -51,6 +56,7 @@ export const resolveRoute = async () => {
   if (!page && hash.startsWith('#/new-asset-')) {
     page = BibitBaru; 
   }
+  
   if (!page) {
     location.hash = '#/'; 
     return null;

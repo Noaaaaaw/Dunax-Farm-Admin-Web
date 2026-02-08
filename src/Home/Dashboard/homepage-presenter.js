@@ -276,7 +276,7 @@ class HomePresenter {
             <table style="width:100%; border-collapse:collapse; background:white; font-size:0.8rem;">
               <thead style="background:#6CA651; color:white;">
                 <tr>
-                  <th style="padding:10px; border:1px solid #feb2b2;">KDG</th>
+                  <th style="padding:10px; border:1px solid #feb2b2;">NOMOR KANDANG</th>
                   <th style="padding:10px; border:1px solid #feb2b2;">AYAM</th>
                   <th style="padding:10px; border:1px solid #feb2b2;">GEJALA</th>
                   <th style="padding:10px; border:1px solid #feb2b2;">OBAT</th>
