@@ -245,7 +245,7 @@ const init = async () => {
             }
         },
        {
-    // 17. POST Move / Panen Berantai (FIX TOTAL UNTUK UMUR DOC)
+    // 17. POST Move / Panen Berantai (FIX TOTAL ANTI ERROR 500)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
@@ -254,42 +254,63 @@ const init = async () => {
         try {
             await client.query('BEGIN');
 
+            // PAKSA DATA JADI ANGKA (SOLUSI BIAR GAK ERROR 500 LAGI)
+            const nHidup = parseInt(jumlah_hidup) || 0;
+            const nMati = parseInt(jumlah_mati) || 0;
+
             if (to_status === 'SELESAI') {
-                // LOGIKA PANEN DOC: Jangan dihapus, tapi ubah status jadi DOC_HIDUP agar umurnya abadi
+                // TAHAP 1: UPDATE STATUS DI MESIN_TETAS JADI DOC_HIDUP
+                // Supaya "Akte Kelahiran" dan umurnya tetap tersimpan murni
                 await client.query(
                     `UPDATE mesin_tetas 
                      SET status = 'DOC_HIDUP', 
                          jumlah = $1, 
                          siap_panen_tgl = CURRENT_TIMESTAMP 
                      WHERE kategori_id = $2 AND status = 'SIAP_PANEN'`, 
-                    [parseInt(jumlah_hidup), kategori_id]
+                    [nHidup, kategori_id]
                 );
                 
-                // Tambah ke stok barang jadi di komoditas (untuk jualan)
-                await client.query(
-                    `UPDATE komoditas SET stok = stok + $1 
-                     WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
-                    [parseInt(jumlah_hidup), kategori_id]
-                );
+                // TAHAP 2: OTOMATIS TAMBAH KE STOK DOC DI TABEL KOMODITAS
+                // Query ini bakal otomatis cari produk 'DOC' atau 'DOD' di kategori yang sama
+                if (nHidup > 0) {
+                    await client.query(
+                        `UPDATE komoditas 
+                         SET stok = stok + $1 
+                         WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
+                        [nHidup, kategori_id]
+                    );
+                }
 
-                // History Panen
+                // TAHAP 3: CATAT DI HISTORY PULLET_PROCESS UNTUK AUDIT
                 await client.query(
                     `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
-                     VALUES ($1, $2, $3)`, [kategori_id, jumlah_hidup, jumlah_mati]
+                     VALUES ($1, $2, $3)`, [kategori_id, nHidup, nMati]
                 );
+
             } else {
-                // GESER ANTRIAN (Lock Batch)
-                let tglCol = to_status === 'MESIN_2' ? 'mesin_2_tgl' : (to_status === 'MESIN_3' ? 'mesin_3_tgl' : 'siap_panen_tgl');
+                // LOGIKA GESER MESIN MINGGUAN (LOCK BATCH)
+                let tglCol = '';
+                if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
+                else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
+                else if (to_status === 'SIAP_PANEN') tglCol = 'siap_panen_tgl';
+
                 await client.query(
-                    `UPDATE mesin_tetas SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
+                    `UPDATE mesin_tetas 
+                     SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
                      WHERE kategori_id = $2 AND status = $3`,
                     [to_status, kategori_id, from_status]
                 );
             }
+            
             await client.query('COMMIT');
             return { status: 'success' };
-        } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
-        finally { client.release(); }
+        } catch (err) { 
+            await client.query('ROLLBACK'); 
+            console.error("LOG ERROR RAILWAY RYAN:", err.message); // Intip log di dashboard Railway!
+            return h.response({ status: 'error', message: err.message }).code(500); 
+        } finally { 
+            client.release(); 
+        }
     }
 },
         {
