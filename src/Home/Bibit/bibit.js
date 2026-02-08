@@ -31,7 +31,7 @@ const Bibit = {
           <div style="margin-top: 25px; padding-top: 20px; border-top: 3px solid #f4f7f4; display: flex; justify-content: center; align-items: center;">
             <div style="background: #f9fbf9; padding: 15px 40px; border-radius: 20px; border: 1px solid #eef2ed; text-align: center;">
               <span style="font-weight: 1200; color: #1f3326; font-size: 1.1rem; text-transform: uppercase;">
-                TOTAL SISA ANTRIAN <span id="sesiLabel" style="color:#666; font-size:0.9rem;">(SEMUA)</span>: 
+                SISA ANTRIAN <span id="sesiLabel" style="color:#666; font-size:0.9rem;">(SEMUA)</span>: 
                 <span id="totalEggDay" style="color: #6CA651; font-size: 1.2rem; margin-left: 10px;">0 BUTIR</span>
               </span>
             </div>
@@ -64,7 +64,7 @@ const Bibit = {
               </div>
             </div>
         </div>
-        <div id="filterWarning" style="display:none; text-align:center; color:#999; font-weight:900;">SILAHKAN PILIH FILTER "SEMUA" UNTUK UPDATE STOK</div>
+        <div id="filterWarning" style="display:none; text-align:center; color:#999; font-weight:900; padding: 20px;">SILAHKAN PILIH FILTER "SEMUA" UNTUK MELAKUKAN UPDATE STOK</div>
       </section>
 
       <style>
@@ -100,46 +100,48 @@ const Bibit = {
       
       let baseData = rawEggsPanen.filter(e => e.hewan.toLowerCase().includes(categoryId.split('-')[0].toLowerCase()));
       
-      // 1. Filter Sesi untuk Kartu & Hitungan TOTAL di bawahnya
-      let filteredData = baseData;
-      if (currentFilterSesi !== 'SEMUA') {
-          filteredData = baseData.filter(e => e.sesi === currentFilterSesi);
-      }
+      // 1. Filter Data untuk List Kartu
+      let filteredList = currentFilterSesi === 'SEMUA' ? baseData : baseData.filter(e => e.sesi === currentFilterSesi);
 
-      // 2. Tampilkan Total Berdasarkan Filter (Pagi/Sore/Semua)
-      const totalSesiIni = filteredData.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
+      // 2. HITUNG SALDO BERDASARKAN FILTER
+      // PENTING: processedTotalGlobal dikurangi HANYA jika filter SEMUA. 
+      // Jika filter PAGI/SORE, kita tampilkan stok murni panen sesi tersebut agar user tahu totalnya.
+      const totalPanenSesiIni = filteredList.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
+      let saldoTampil = totalPanenSesiIni;
       
-      // LOGIKA: Sisa antrian yang dihitung distribusi HANYA JIKA FILTER SEMUA
-      let currentSaldoSisa = totalSesiIni - (currentFilterSesi === 'SEMUA' ? processedTotalGlobal : 0);
-
-      // 3. Sembunyikan Panel Update Stok Jika Tidak Memilih "SEMUA"
       if (currentFilterSesi === 'SEMUA') {
+          saldoTampil = Math.max(0, totalPanenSesiIni - processedTotalGlobal);
           updateStokContainer.style.display = 'block';
           filterWarning.style.display = 'none';
-          sesiLabel.innerText = "(SEMUA)";
+          sesiLabel.innerText = "(HARI INI)";
       } else {
           updateStokContainer.style.display = 'none';
           filterWarning.style.display = 'block';
           sesiLabel.innerText = `(${currentFilterSesi})`;
       }
 
+      // 3. Logika Distribusi (Hanya jalan jika di filter SEMUA)
       const valBerhasil = (parseInt(inputBerhasil.value) || 0);
       const valGagal = (parseInt(inputGagal.value) || 0);
+      const sisaMurni = saldoTampil - (valBerhasil + valGagal);
       
-      // 4. Logika Distribusi
-      const sisaMurni = currentSaldoSisa - (valBerhasil + valGagal);
       let fixKampung = 0;
       let fixKonsumsiKg = 0;
       let fixKonsumsiButirEquivalent = 0;
 
-      if (sisaMurni > 0) {
+      if (sisaMurni > 0 && currentFilterSesi === 'SEMUA') {
+          // Lapis 1: 17 butir pertama ke Kampung
           const jatahAwal = sisaMurni >= 17 ? 17 : Math.floor(sisaMurni);
           fixKampung = jatahAwal;
+
           const sisaTahap1 = sisaMurni - jatahAwal;
           if (sisaTahap1 > 0) {
+              // Lapis 2: Sisa dibagi 17 untuk KG
               let kgMentah = sisaTahap1 / 17;
-              fixKonsumsiKg = Math.floor(kgMentah * 2) / 2;
+              fixKonsumsiKg = Math.floor(kgMentah * 2) / 2; // Pembulatan desimal 0.5 ke bawah
               fixKonsumsiButirEquivalent = Math.round(fixKonsumsiKg * 17);
+
+              // Lapis 3: Sisa luberan (butiran) ke Kampung
               const sisaLuberan = sisaTahap1 - fixKonsumsiButirEquivalent;
               fixKampung += Math.floor(sisaLuberan);
           }
@@ -152,7 +154,7 @@ const Bibit = {
       
       autoKonsumsi.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700; color:#1e293b; font-size:0.8rem;">TELUR KONSUMSI (KG):</span>
+            <span style="font-weight:700; color:#1e293b; font-size:0.8rem;">TELUR KONSUMSI:</span>
             <span style="font-weight:900; color:#1e293b;">${fixKonsumsiKg.toFixed(1)} KG</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #eee; padding-top:8px;">
@@ -162,10 +164,9 @@ const Bibit = {
       `;
 
       // Render List Kartu
-      if (filteredData.length === 0) {
-        eggQueue.innerHTML = `<div style="padding: 40px; text-align: center; width: 100%; color:#aaa; font-weight: 700;">Data panen ${currentFilterSesi} kosong.</div>`;
-      } else {
-        eggQueue.innerHTML = filteredData.map(e => `
+      eggQueue.innerHTML = filteredList.length === 0 
+        ? `<div style="padding: 40px; text-align: center; width: 100%; color:#aaa; font-weight: 700;">Data panen ${currentFilterSesi} kosong.</div>`
+        : filteredList.map(e => `
           <div class="egg-card-item">
             <div style="text-align: left;">
               <div style="font-size: 0.75rem; font-weight: 1200; color: #6CA651;">SESI ${e.sesi}</div>
@@ -177,7 +178,6 @@ const Bibit = {
               </span>
             </div>
           </div>`).join('');
-      }
     };
 
     const presenter = new BibitPresenter({
@@ -201,16 +201,19 @@ const Bibit = {
     };
     
     document.getElementById('btnFinalSubmit').onclick = async () => {
+        const valBerhasil = parseInt(inputBerhasil.value) || 0;
+        const valGagal = parseInt(inputGagal.value) || 0;
+
         const res = await presenter.submitBibitProcess({
             kategori_id: window.location.hash.split('-').slice(1).join('-'),
-            berhasil: parseInt(inputBerhasil.value) || 0, 
-            gagal: parseInt(inputGagal.value) || 0,
-            sisa_ke_konsumsi: globalFixKonsumsiKg,
+            berhasil: valBerhasil, 
+            gagal: valGagal,
+            sisa_ke_konsumsi: globalFixKonsumsiKg, // Kirim Float (6.5)
             sisa_ke_ayam_kampung: globalFixKampung
         });
 
         if (res.status === 'success') { 
-            alert("Update Berhasil! Stok Telah Diperbarui. 🚀"); 
+            alert("Update Berhasil! Stok Gabungan Telah Diperbarui. 🚀"); 
             location.reload(); 
         }
     };

@@ -44,6 +44,13 @@ class SettingProdukPresenter {
     const grid = document.getElementById("productGrid");
 
     grid.innerHTML = products.map((p) => {
+        // ✅ LOGIKA PENENTUAN SATUAN (KG untuk Telur Konsumsi, Butir untuk sisanya)
+        const isKonsumsi = p.nama.toLowerCase().includes("konsumsi");
+        const satuanLabel = isKonsumsi ? "KG" : "BUTIR";
+        
+        // Pastikan stok tampil dengan desimal jika KG
+        const displayStok = isKonsumsi ? parseFloat(p.stok).toFixed(1) : parseInt(p.stok);
+
         return `
       <div class="setting-card" id="card-${p.id}" style="background: white; padding: 35px 25px; border-radius: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e0eadd; width: 280px; display: flex; flex-direction: column; justify-content: space-between;">
         <h3 style="font-size: 1.4rem; margin-bottom: 25px; color: #1f3326; font-weight: 900; text-align: center; min-height: 70px; display: flex; align-items: center; justify-content: center;">
@@ -53,12 +60,12 @@ class SettingProdukPresenter {
         <div>
             <div style="display: flex; gap: 15px; margin-bottom: 25px;">
               <div style="flex: 1;">
-                <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-align: center;">HARGA</label>
+                <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-align: center;">HARGA / ${satuanLabel}</label>
                 <input type="number" class="prod-harga" value="${p.harga}" disabled style="width: 100%; padding: 12px; border: 2px solid #f4f6f4; background: #f9fbf9; border-radius: 12px; font-weight: 800; text-align: center;">
               </div>
               <div style="flex: 1;">
-                <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-align: center;">STOK</label>
-                <input type="number" class="prod-stok-locked" value="${p.stok}" disabled style="width: 100%; padding: 12px; border: 2px solid #eee; background: #f1f3f1; border-radius: 12px; font-weight: 800; text-align: center; color: #999; cursor: not-allowed;">
+                <label style="display: block; font-size: 0.65rem; font-weight: 900; color: #4a5a4d; margin-bottom: 8px; text-align: center;">STOK (${satuanLabel})</label>
+                <input type="text" class="prod-stok-locked" value="${displayStok}" disabled style="width: 100%; padding: 12px; border: 2px solid #eee; background: #f1f3f1; border-radius: 12px; font-weight: 800; text-align: center; color: #999; cursor: not-allowed;">
               </div>
             </div>
 
@@ -84,16 +91,13 @@ class SettingProdukPresenter {
         const id = e.target.dataset.id;
         const card = this.container.querySelector(`#card-${id}`);
         
-        // HANYA AMBIL INPUT HARGA DAN CHECKBOX (STOK DIABAIKAN)
         const inputHarga = card.querySelector(".prod-harga");
         const inputAktif = card.querySelector(".prod-aktif");
 
         if (e.target.innerText !== "SIMPAN") {
-          // Buka kunci Harga & Status Jual
           inputHarga.disabled = false;
           inputHarga.style.background = "#fff";
           inputHarga.style.borderColor = "#6CA651";
-          
           inputAktif.disabled = false;
 
           e.target.innerText = "SIMPAN";
@@ -109,7 +113,7 @@ class SettingProdukPresenter {
     const payload = {
       id: id,
       harga: Number(card.querySelector(".prod-harga").value),
-      // STOK TETAP DIKIRIM SESUAI DATA LAMA (AGAR TIDAK BERUBAH DI DATABASE)
+      // Gunakan Number() agar desimal pada stok tetap terjaga saat dikirim balik
       stok: Number(card.querySelector(".prod-stok-locked").value),
       aktif: card.querySelector(".prod-aktif").checked,
     };
@@ -129,4 +133,5 @@ class SettingProdukPresenter {
     }
   }
 }
+
 export default SettingProdukPresenter;

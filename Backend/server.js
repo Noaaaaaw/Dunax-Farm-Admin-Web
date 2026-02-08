@@ -179,23 +179,23 @@ const init = async () => {
                 return { status: 'success', data: result.rows };
             }
         },
-        {
-    // 15. POST Proses Pembibitan & Logic Berantai (FIXED)
+        // Cari Route 15 di server.js dan ganti bagian handler-nya menjadi:
+{
+    // 15. POST Proses Pembibitan & Logic Berantai (SUPPORT DESIMAL KG)
     method: 'POST',
     path: '/api/pembibitan/process',
     handler: async (request, h) => {
-        // Pastikan destructuring mengambil nama yang tepat dari payload
         const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, sisa_ke_ayam_kampung } = request.payload;
         
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
             
-            // Konversi ke integer untuk keamanan kalkulasi
-            const nBerhasil = parseInt(berhasil) || 0;
-            const nGagal = parseInt(gagal) || 0;
-            const nKonsumsi = parseInt(sisa_ke_konsumsi) || 0;
-            const nKampung = parseInt(sisa_ke_ayam_kampung) || 0;
+            // GUNAKAN Number agar 6.5 tidak dipotong menjadi 6
+            const nBerhasil = Number(berhasil) || 0;
+            const nGagal = Number(gagal) || 0;
+            const nKonsumsiKg = Number(sisa_ke_konsumsi) || 0; 
+            const nKampung = Number(sisa_ke_ayam_kampung) || 0;
             
             // 1. Update Stok DOC/DOD
             await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [nBerhasil, kategori_id]);
@@ -203,31 +203,27 @@ const init = async () => {
             // 2. Update Stok Fertil Jual
             await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagal, kategori_id]);
             
-            // 3. Update Stok Konsumsi
-            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsi, kategori_id]);
+            // 3. Update Stok Konsumsi (Sekarang masuk dalam satuan KG)
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsiKg, kategori_id]);
             
             // 4. Update Stok Kampung
             await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [nKampung, kategori_id]);
 
-            // 5. Catat History ke hatchery_process
-            const total = nBerhasil + nGagal + nKonsumsi + nKampung;
-            const hasilKonsumsiGabungan = nKonsumsi + nKampung;
-
+            // Catat History - Untuk total_panen butir, asumsikan 1kg = 17 butir untuk konversi histori
+            const totalButir = nBerhasil + nGagal + Math.round(nKonsumsiKg * 17) + nKampung;
+            
             await client.query(
                 `INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) 
                  VALUES ($1, $2, $3, $4, $5)`, 
-                [kategori_id, total, nBerhasil, nGagal, hasilKonsumsiGabungan]
+                [kategori_id, totalButir, nBerhasil, nGagal, nKonsumsiKg]
             );
 
             await client.query('COMMIT');
             return { status: 'success' };
         } catch (err) {
             await client.query('ROLLBACK');
-            console.error("ERROR PEMBIBITAN:", err.message); // Cek log di terminal railway/server
             return h.response({ status: 'error', message: err.message }).code(500);
-        } finally { 
-            client.release(); 
-        }
+        } finally { client.release(); }
     }
 },
         {
