@@ -245,7 +245,7 @@ const init = async () => {
             }
         },
        {
-    // 17. POST Move / Panen Berantai (1 -> 2 -> 3 -> SIAP PANEN -> SELESAI)
+    // 17. POST Move / Panen Berantai (Gerbang Murni Dunax Farm)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
@@ -255,46 +255,42 @@ const init = async () => {
             await client.query('BEGIN');
 
             if (to_status === 'SELESAI') {
-                // TAHAP FINAL: Box 4 (SIAP_PANEN) masuk ke stok barang jadi
+                // Ryan klik "Input Hasil DOC" di Kotak Panen
+                // 1. Ubah status antrian jadi DOC_HIDUP (Akte Kelahiran Batch)
                 await client.query(
-                    `UPDATE mesin_tetas SET status = 'SELESAI' 
-                     WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, 
-                    [kategori_id]
+                    `UPDATE mesin_tetas 
+                     SET status = 'DOC_HIDUP', 
+                         jumlah = $1, 
+                         siap_panen_tgl = CURRENT_TIMESTAMP 
+                     WHERE kategori_id = $2 AND status = 'SIAP_PANEN'`, 
+                    [parseInt(jumlah_hidup), kategori_id]
                 );
                 
-                // Tambah stok DOC asli di tabel komoditas
+                // 2. Tambah stok jualan di tabel komoditas
                 await client.query(
                     `UPDATE komoditas SET stok = stok + $1 
                      WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
-                    [jumlah_hidup, kategori_id]
+                    [parseInt(jumlah_hidup), kategori_id]
                 );
 
-                // Catat di history pullet_process
+                // 3. Simpan history audit
                 await client.query(
                     `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
                      VALUES ($1, $2, $3)`, [kategori_id, jumlah_hidup, jumlah_mati]
                 );
-
             } else {
-                // TAHAP MENGALIR: Geser status antrian
-                let tglCol = '';
-                if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
-                else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
-                else if (to_status === 'SIAP_PANEN') tglCol = 'siap_panen_tgl';
-
+                // Ryan klik "Konfirmasi Minggu X"
+                let tglCol = to_status === 'MESIN_2' ? 'mesin_2_tgl' : (to_status === 'MESIN_3' ? 'mesin_3_tgl' : 'siap_panen_tgl');
                 await client.query(
                     `UPDATE mesin_tetas SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
                      WHERE kategori_id = $2 AND status = $3`,
                     [to_status, kategori_id, from_status]
                 );
             }
-            
             await client.query('COMMIT');
             return { status: 'success' };
-        } catch (err) { 
-            await client.query('ROLLBACK'); 
-            return h.response({ status: 'error', message: err.message }).code(500); 
-        } finally { client.release(); }
+        } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
+        finally { client.release(); }
     }
 },
         {
