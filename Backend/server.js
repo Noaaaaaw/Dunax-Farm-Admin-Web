@@ -220,15 +220,16 @@ const init = async () => {
             }
         },
         {
+    // API UNTUK NARIK SEMUA DATA ANTRIAN (UNTUK TABEL UMUR & KARTU)
     method: 'GET',
     path: '/api/mesin-tetas/status/{kategori_id}',
     handler: async (request) => {
         const kategori_id = request.params.kategori_id.toLowerCase(); 
         const res = await pool.query(
-            `SELECT status, SUM(jumlah) as total 
+            `SELECT id, jumlah, status, mesi_1_tgl 
              FROM mesin_tetas 
              WHERE kategori_id = $1 AND status != 'SELESAI' 
-             GROUP BY status`, 
+             ORDER BY mesi_1_tgl ASC`, // Urutkan dari yang paling lama
             [kategori_id]
         );
         return { status: 'success', data: res.rows };
