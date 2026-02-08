@@ -245,7 +245,7 @@ const init = async () => {
             }
         },
        {
-    // 17. POST Move / Panen Berantai (FIX TOTAL ANTI ERROR 500)
+    // 17. POST Move / Panen Berantai (SOLUSI FIX ERROR 500 RYAN)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
@@ -254,13 +254,12 @@ const init = async () => {
         try {
             await client.query('BEGIN');
 
-            // PAKSA DATA JADI ANGKA (SOLUSI BIAR GAK ERROR 500 LAGI)
+            // SOLUSI KRITIKAL: Paksa jadi integer agar Database tidak Error 500
             const nHidup = parseInt(jumlah_hidup) || 0;
             const nMati = parseInt(jumlah_mati) || 0;
 
             if (to_status === 'SELESAI') {
-                // TAHAP 1: UPDATE STATUS DI MESIN_TETAS JADI DOC_HIDUP
-                // Supaya "Akte Kelahiran" dan umurnya tetap tersimpan murni
+                // 1. Update status di mesin_tetas jadi DOC_HIDUP (Biar umur tersimpan abadi)
                 await client.query(
                     `UPDATE mesin_tetas 
                      SET status = 'DOC_HIDUP', 
@@ -270,8 +269,8 @@ const init = async () => {
                     [nHidup, kategori_id]
                 );
                 
-                // TAHAP 2: OTOMATIS TAMBAH KE STOK DOC DI TABEL KOMODITAS
-                // Query ini bakal otomatis cari produk 'DOC' atau 'DOD' di kategori yang sama
+                // 2. OTOMATIS MASUK KE STOCK DOC (Tabel Komoditas)
+                // Query ini mencari produk dengan nama 'DOC' atau 'DOD' di kategori yang sama
                 if (nHidup > 0) {
                     await client.query(
                         `UPDATE komoditas 
@@ -281,14 +280,14 @@ const init = async () => {
                     );
                 }
 
-                // TAHAP 3: CATAT DI HISTORY PULLET_PROCESS UNTUK AUDIT
+                // 3. Simpan riwayat panen (Audit Trail)
                 await client.query(
                     `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
                      VALUES ($1, $2, $3)`, [kategori_id, nHidup, nMati]
                 );
 
             } else {
-                // LOGIKA GESER MESIN MINGGUAN (LOCK BATCH)
+                // Logika pindah mesin normal antar minggu (Lock Batch)
                 let tglCol = '';
                 if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
                 else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
@@ -301,16 +300,14 @@ const init = async () => {
                     [to_status, kategori_id, from_status]
                 );
             }
-            
+
             await client.query('COMMIT');
             return { status: 'success' };
         } catch (err) { 
             await client.query('ROLLBACK'); 
-            console.error("LOG ERROR RAILWAY RYAN:", err.message); // Intip log di dashboard Railway!
+            console.error("CRITICAL ERROR RAILWAY RYAN:", err.message); // Intip ini di Logs Railway kamu!
             return h.response({ status: 'error', message: err.message }).code(500); 
-        } finally { 
-            client.release(); 
-        }
+        } finally { client.release(); }
     }
 },
         {
