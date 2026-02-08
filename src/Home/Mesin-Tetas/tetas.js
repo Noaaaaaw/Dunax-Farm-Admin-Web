@@ -8,13 +8,13 @@ const Tetas = {
             <h1 style="font-family:'Luckiest Guy'; color:#6CA651; font-size:2.5rem; margin:0; letter-spacing:2px;">MANAGEMENT MESIN TETAS</h1>
             <h2 id="catName" style="font-weight:900; color:#1f3326; margin-top:10px; text-transform:uppercase;"></h2>
             <div style="margin-top:10px; background:#fff4f4; color:#e74c3c; padding:8px 15px; border-radius:10px; display:inline-block; font-size:0.75rem; font-weight:900; border:1px dashed #e74c3c;">
-                MODE SIMULASI: TOMBOL PETIR (⚡) AKAN LANGSUNG MEMINDAHKAN TELUR KE KOTAK PANEN
+                MODE SIMULASI: TOMBOL PETIR (⚡) LANGSUNG MEMINDAHKAN TELUR KE KOTAK PANEN
             </div>
         </div>
 
         <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px;">
             <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
-                <button class="btn-fast-forward" data-from="MESIN_1" title="Lompat ke Kotak Panen" style="position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; font-size:1.2rem;">⚡</button>
+                <button class="btn-fast-forward" data-from="MESIN_1" title="Cepat ke Kotak Panen" style="position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; font-size:1.2rem;">⚡</button>
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN 1</h3>
                     <div id="val-MESIN_1" style="font-size:2.8rem; font-weight:1200; color:#6CA651; margin: 10px 0;">0</div>
@@ -24,7 +24,7 @@ const Tetas = {
             </div>
 
             <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
-                <button class="btn-fast-forward" data-from="MESIN_2" title="Lompat ke Kotak Panen" style="position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; font-size:1.2rem;">⚡</button>
+                <button class="btn-fast-forward" data-from="MESIN_2" title="Cepat ke Kotak Panen" style="position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; font-size:1.2rem;">⚡</button>
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN 2</h3>
                     <div id="val-MESIN_2" style="font-size:2.8rem; font-weight:1200; color:#d68910; margin: 10px 0;">0</div>
@@ -34,7 +34,7 @@ const Tetas = {
             </div>
 
             <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
-                <button class="btn-fast-forward" data-from="MESIN_3" title="Lompat ke Kotak Panen" style="position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; font-size:1.2rem;">⚡</button>
+                <button class="btn-fast-forward" data-from="MESIN_3" title="Cepat ke Kotak Panen" style="position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; font-size:1.2rem;">⚡</button>
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN 3</h3>
                     <div id="val-MESIN_3" style="font-size:2.8rem; font-weight:1200; color:#e74c3c; margin: 10px 0;">0</div>
@@ -58,15 +58,16 @@ const Tetas = {
             <table style="width:100%; border-collapse:collapse; text-align:left;">
                 <thead>
                     <tr style="background:#f8fafc; border-bottom:2px solid #eee;">
-                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">TANGGAL MASUK (MESIN 1)</th>
-                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">POSISI</th>
+                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">TANGGAL MASUK</th>
+                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">MESIN</th>
+                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">STATUS</th>
                         <th style="padding:15px; color:#64748b; font-size:0.85rem;">JUMLAH</th>
                         <th style="padding:15px; color:#64748b; font-size:0.85rem;">UMUR SEKARANG</th>
                         <th style="padding:15px; color:#64748b; font-size:0.85rem;">ESTIMASI PANEN</th>
                     </tr>
                 </thead>
                 <tbody id="umurTableBody">
-                    <tr><td colspan="5" style="text-align:center; padding:20px; color:#ccc;">Memuat data...</td></tr>
+                    <tr><td colspan="6" style="text-align:center; padding:20px; color:#ccc;">Memuat data...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -81,10 +82,12 @@ const Tetas = {
         ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
             document.getElementById(`val-${id}`).innerText = "0";
         });
+        
         const totals = {};
         data.forEach(item => {
             totals[item.status] = (totals[item.status] || 0) + parseInt(item.jumlah);
         });
+
         Object.keys(totals).forEach(status => {
             const el = document.getElementById(`val-${status}`);
             if (el) el.innerText = totals[status].toLocaleString();
@@ -92,20 +95,21 @@ const Tetas = {
 
         const tableBody = document.getElementById('umurTableBody');
         if (data.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px; color:#aaa; font-weight:700;">BELUM ADA ANTRIAN.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#aaa; font-weight:700;">BELUM ADA ANTRIAN.</td></tr>`;
             return;
         }
 
         tableBody.innerHTML = data.map(item => {
             const tglMasuk = new Date(item.mesi_1_tgl);
-            const diffTime = Math.abs(new Date() - tglMasuk);
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor(Math.abs(new Date() - tglMasuk) / (1000 * 60 * 60 * 24));
             const estimasiPanen = new Date(tglMasuk);
             estimasiPanen.setDate(estimasiPanen.getDate() + 21);
             const isLate = diffDays >= 21 ? 'color: #e74c3c; font-weight: 900;' : 'font-weight: 700;';
+
             return `
                 <tr style="border-bottom:1px solid #f1f5f9;">
                     <td style="padding:15px; font-weight:700;">${tglMasuk.toLocaleDateString('id-ID')}</td>
+                    <td style="padding:15px; font-weight:800; color:#1e293b;">${item.status.replace('_', ' ')}</td>
                     <td style="padding:15px;"><span style="background:#f1f5f9; padding:5px 10px; border-radius:8px; font-size:0.75rem; font-weight:800; color:#475569;">${item.status}</span></td>
                     <td style="padding:15px; font-weight:800; color:#6CA651;">${item.jumlah} Butir</td>
                     <td style="padding:15px; ${isLate}">${diffDays} Hari</td>
@@ -116,63 +120,41 @@ const Tetas = {
       }
     });
 
-    // Event Klik Pindah Normal
+    // Pindah Mesin Normal (Auto-Lock)
     document.querySelectorAll('.btn-move').forEach(btn => {
         btn.onclick = async (e) => {
             const { from, to } = e.target.dataset;
-            const currentVal = parseInt(document.getElementById(`val-${from}`).innerText);
-            if (currentVal <= 0) return alert("Mesin kosong!");
-            if (!confirm(`KONFIRMASI: Pindahkan ${currentVal} butir ke tahap berikutnya?`)) return;
-
             const res = await presenter.moveMesin({
                 kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
-                from_status: from,
-                to_status: to
+                from_status: from, to_status: to
             });
             if (res.status === 'success') location.reload();
         };
     });
 
-    // ✅ FITUR TOMBOL CEPAT (⚡): LANGSUNG KE KOTAK PANEN
+    // ⚡ Simulasi Cepat (Lompat ke Kotak Panen)
     document.querySelectorAll('.btn-fast-forward').forEach(btn => {
         btn.onclick = async (e) => {
             const { from } = e.target.dataset;
-            const currentVal = parseInt(document.getElementById(`val-${from}`).innerText);
-            if (currentVal <= 0) return alert("Tidak ada data untuk disimulasikan.");
-            
-            if (!confirm(`SIMULASI CEPAT: Langsung pindahkan telur dari ${from} ke KOTAK PANEN?`)) return;
-
+            if (!confirm(`SIMULASI: Langsung pindahkan dari ${from} ke KOTAK PANEN?`)) return;
             const res = await presenter.moveMesin({
                 kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
-                from_status: from,
-                to_status: 'SIAP_PANEN' // Lompat langsung ke box 4
+                from_status: from, to_status: 'SIAP_PANEN'
             });
-
             if (res.status === 'success') location.reload();
         };
     });
 
-    // Panen Akhir dari Card 4
+    // Final Panen DOC
     document.getElementById('btnFinalHatch').onclick = async () => {
-        const currentVal = parseInt(document.getElementById('val-SIAP_PANEN').innerText);
-        if (currentVal <= 0) return alert("KOTAK PANEN kosong!");
-        const jmlHidup = prompt(`HASIL PANEN FINAL\nBerapa ekor yang HIDUP?`);
+        const jmlHidup = prompt(`Berapa ekor yang menetas hidup?`);
         if (jmlHidup === null) return;
-        const hidup = parseInt(jmlHidup) || 0;
-        const mati = currentVal - hidup;
-        if (!confirm(`Simpan ke STOK DOC?`)) return;
-
         const res = await presenter.moveMesin({
             kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
-            from_status: 'SIAP_PANEN',
-            to_status: 'SELESAI',
-            jumlah_hidup: hidup,
-            jumlah_mati: mati
+            from_status: 'SIAP_PANEN', to_status: 'SELESAI',
+            jumlah_hidup: jmlHidup, jumlah_mati: 0 // Mati dihitung otomatis di server
         });
-        if (res.status === 'success') {
-            alert("Mentereng! Stok DOC diperbarui. 🐣");
-            location.reload();
-        }
+        if (res.status === 'success') { alert("Mentereng! Stok DOC diperbarui. 🐣"); location.reload(); }
     };
 
     await presenter.init();

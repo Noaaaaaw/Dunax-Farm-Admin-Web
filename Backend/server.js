@@ -245,7 +245,7 @@ const init = async () => {
             }
         },
        {
-    // 17. POST Move / Panen Berantai (Gerbang Murni Dunax Farm)
+    // 17. POST Move / Panen Berantai (FIX TOTAL UNTUK UMUR DOC)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
@@ -255,8 +255,7 @@ const init = async () => {
             await client.query('BEGIN');
 
             if (to_status === 'SELESAI') {
-                // Ryan klik "Input Hasil DOC" di Kotak Panen
-                // 1. Ubah status antrian jadi DOC_HIDUP (Akte Kelahiran Batch)
+                // LOGIKA PANEN DOC: Jangan dihapus, tapi ubah status jadi DOC_HIDUP agar umurnya abadi
                 await client.query(
                     `UPDATE mesin_tetas 
                      SET status = 'DOC_HIDUP', 
@@ -266,20 +265,20 @@ const init = async () => {
                     [parseInt(jumlah_hidup), kategori_id]
                 );
                 
-                // 2. Tambah stok jualan di tabel komoditas
+                // Tambah ke stok barang jadi di komoditas (untuk jualan)
                 await client.query(
                     `UPDATE komoditas SET stok = stok + $1 
                      WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
                     [parseInt(jumlah_hidup), kategori_id]
                 );
 
-                // 3. Simpan history audit
+                // History Panen
                 await client.query(
                     `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
                      VALUES ($1, $2, $3)`, [kategori_id, jumlah_hidup, jumlah_mati]
                 );
             } else {
-                // Ryan klik "Konfirmasi Minggu X"
+                // GESER ANTRIAN (Lock Batch)
                 let tglCol = to_status === 'MESIN_2' ? 'mesin_2_tgl' : (to_status === 'MESIN_3' ? 'mesin_3_tgl' : 'siap_panen_tgl');
                 await client.query(
                     `UPDATE mesin_tetas SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
@@ -289,7 +288,7 @@ const init = async () => {
             }
             await client.query('COMMIT');
             return { status: 'success' };
-        } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
+        } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
         finally { client.release(); }
     }
 },
