@@ -220,21 +220,20 @@ const init = async () => {
             }
         },
         {
-            // ✅ TAMBAHAN: GET STATUS MESIN TETAS (UNTUK TAMPILIN ANGKA DI FRONTEND)
-            method: 'GET',
-            path: '/api/mesin-tetas/status/{kategori_id}',
-            handler: async (request) => {
-                const kategori_id = request.params.kategori_id.toLowerCase(); 
-                const res = await pool.query(
-                    `SELECT status, SUM(jumlah) as total 
-                     FROM mesin_tetas 
-                     WHERE kategori_id = $1 AND status != 'SELESAI' 
-                     GROUP BY status`,
-                    [kategori_id]
-                );
-                return { status: 'success', data: res.rows };
-            }
-        },
+    method: 'GET',
+    path: '/api/mesin-tetas/status/{kategori_id}',
+    handler: async (request) => {
+        const kategori_id = request.params.kategori_id.toLowerCase(); 
+        const res = await pool.query(
+            `SELECT status, SUM(jumlah) as total 
+             FROM mesin_tetas 
+             WHERE kategori_id = $1 AND status != 'SELESAI' 
+             GROUP BY status`, 
+            [kategori_id]
+        );
+        return { status: 'success', data: res.rows };
+    }
+},
         {
             // 16. GET Histori Pembibitan (Audit Trail)
             method: 'GET',
@@ -245,7 +244,7 @@ const init = async () => {
             }
         },
        {
-    // 17. POST Pindah Mesin / Panen DOC
+    // 17. POST Move / Panen Berantai (1 -> 2 -> 3 -> SIAP PANEN -> SELESAI)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
@@ -255,29 +254,35 @@ const init = async () => {
             await client.query('BEGIN');
 
             if (to_status === 'SELESAI') {
-                // LOGIKA PANEN DOC: Hanya dari box ke-4 (SIAP_PANEN)
+                // TAHAP FINAL: Box 4 (SIAP_PANEN) masuk ke stok barang jadi
                 await client.query(
                     `UPDATE mesin_tetas SET status = 'SELESAI' 
                      WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, 
                     [kategori_id]
                 );
                 
-                // Tambah ke stok barang jadi (DOC/DOD) di tabel komoditas
+                // Tambah stok DOC asli di tabel komoditas
                 await client.query(
                     `UPDATE komoditas SET stok = stok + $1 
                      WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
-                    [parseInt(jumlah_hidup), kategori_id]
+                    [jumlah_hidup, kategori_id]
                 );
-                
-                // History History panen
+
+                // Catat di history pullet_process
                 await client.query(
                     `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
                      VALUES ($1, $2, $3)`, [kategori_id, jumlah_hidup, jumlah_mati]
                 );
+
             } else {
-                // GESER ANTRIAN: MINGGU 1 -> 2 -> 3 -> SIAP_PANEN
+                // TAHAP MENGALIR: Geser status antrian
+                let tglCol = '';
+                if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
+                else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
+                else if (to_status === 'SIAP_PANEN') tglCol = 'siap_panen_tgl';
+
                 await client.query(
-                    `UPDATE mesin_tetas SET status = $1 
+                    `UPDATE mesin_tetas SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
                      WHERE kategori_id = $2 AND status = $3`,
                     [to_status, kategori_id, from_status]
                 );
