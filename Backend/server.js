@@ -244,38 +244,53 @@ const init = async () => {
                 return { status: 'success', data: res.rows };
             }
         },
-        {
-            // 17. POST Pindah Mesin / Panen DOC
-            method: 'POST',
-            path: '/api/mesin-tetas/move',
-            handler: async (request, h) => {
-                const { kategori_id, from_status, to_status, jumlah_hidup, jumlah_mati } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
+       {
+    // 17. POST Pindah Mesin / Panen DOC
+    method: 'POST',
+    path: '/api/mesin-tetas/move',
+    handler: async (request, h) => {
+        const { kategori_id, from_status, to_status, jumlah_hidup, jumlah_mati } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
 
-                    if (to_status === 'SELESAI') {
-                        await client.query(`UPDATE mesin_tetas SET status = 'SELESAI' WHERE kategori_id = $1 AND status = 'MESIN_3'`, [kategori_id]);
-                        if (parseInt(jumlah_hidup) > 0) {
-                            await client.query(
-                                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
-                                [jumlah_hidup, kategori_id]
-                            );
-                        }
-                        await client.query(`INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) VALUES ($1, $2, $3)`, [kategori_id, jumlah_hidup, jumlah_mati]);
-                    } else {
-                        const tglCol = to_status === 'MESIN_2' ? 'mesin_2_tgl' : 'mesin_3_tgl';
-                        await client.query(
-                            `UPDATE mesin_tetas SET status = $1, ${tglCol} = CURRENT_TIMESTAMP WHERE kategori_id = $2 AND status = $3`,
-                            [to_status, kategori_id, from_status]
-                        );
-                    }
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
-                finally { client.release(); }
+            if (to_status === 'SELESAI') {
+                // LOGIKA PANEN DOC: Hanya dari box ke-4 (SIAP_PANEN)
+                await client.query(
+                    `UPDATE mesin_tetas SET status = 'SELESAI' 
+                     WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, 
+                    [kategori_id]
+                );
+                
+                // Tambah ke stok barang jadi (DOC/DOD) di tabel komoditas
+                await client.query(
+                    `UPDATE komoditas SET stok = stok + $1 
+                     WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
+                    [parseInt(jumlah_hidup), kategori_id]
+                );
+                
+                // History History panen
+                await client.query(
+                    `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
+                     VALUES ($1, $2, $3)`, [kategori_id, jumlah_hidup, jumlah_mati]
+                );
+            } else {
+                // GESER ANTRIAN: MINGGU 1 -> 2 -> 3 -> SIAP_PANEN
+                await client.query(
+                    `UPDATE mesin_tetas SET status = $1 
+                     WHERE kategori_id = $2 AND status = $3`,
+                    [to_status, kategori_id, from_status]
+                );
             }
-        },
+            
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) { 
+            await client.query('ROLLBACK'); 
+            return h.response({ status: 'error', message: err.message }).code(500); 
+        } finally { client.release(); }
+    }
+},
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',

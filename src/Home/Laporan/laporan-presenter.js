@@ -216,10 +216,10 @@ class LaporanPresenter {
       { text: 'Panen Telur Sesi Pagi', type: 'panen' },
       { text: 'Cek Kesehatan Hewan', type: 'health' }
     ] : [
-      { text: 'Pemberian Pakan SORE', type: 'number', unit: 'Kg' },
-      { text: 'Panen Telur Sesi SORE', type: 'panen' },
-      { text: 'Monitoring Kegiatan SORE', type: 'check' },
-      { text: 'Pengasapan SORE', type: 'check' }
+      { text: 'Pemberian Pakan Sore', type: 'number', unit: 'Kg' },
+      { text: 'Panen Telur Sesi Sore', type: 'panen' },
+      { text: 'Check Stock Pakan Pagi Besok', type: 'check' },
+      { text: 'Pengasapan Sore', type: 'check' }
     ];
 
     container.innerHTML = tasks.map(t => `

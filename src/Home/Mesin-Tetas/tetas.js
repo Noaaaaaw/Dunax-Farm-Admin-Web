@@ -9,33 +9,48 @@ const Tetas = {
             <h2 id="catName" style="font-weight:900; color:#1f3326; margin-top:10px; text-transform:uppercase;"></h2>
         </div>
 
-        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:25px;">
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px;">
             
-            <div class="mesin-card" style="background:#fff; padding:30px; border-radius:28px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; gap:15px;">
-                <h3 style="color:#666; font-weight:900; font-size:1rem;">MINGGU 1 (AWAL)</h3>
-                <div id="val-MESIN_1" style="font-size:3.5rem; font-weight:1200; color:#6CA651; line-height:1;">0</div>
-                <div style="font-weight:800; color:#aaa; font-size:0.8rem;">BUTIR TELUR</div>
-                <button class="btn-move" data-from="MESIN_1" data-to="MESIN_2" style="margin-top:15px; width:100%; padding:18px; border-radius:15px; background:#6CA651; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase; transition:0.3s;">LANJUT MINGGU 2</button>
+            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                    <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MINGGU 1</h3>
+                    <div id="val-MESIN_1" style="font-size:2.8rem; font-weight:1200; color:#6CA651; margin: 10px 0;">0</div>
+                    <div style="font-size:0.7rem; color:#aaa; font-weight:800;">BUTIR TELUR</div>
+                </div>
+                <button class="btn-move" data-from="MESIN_1" data-to="MESIN_2" style="margin-top:20px; width:100%; padding:12px; border-radius:12px; background:#6CA651; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Lanjut Ke 2</button>
             </div>
 
-            <div class="mesin-card" style="background:#fff; padding:30px; border-radius:28px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; gap:15px;">
-                <h3 style="color:#666; font-weight:900; font-size:1rem;">MINGGU 2 (TENGAH)</h3>
-                <div id="val-MESIN_2" style="font-size:3.5rem; font-weight:1200; color:#d68910; line-height:1;">0</div>
-                <div style="font-weight:800; color:#aaa; font-size:0.8rem;">BUTIR TELUR</div>
-                <button class="btn-move" data-from="MESIN_2" data-to="MESIN_3" style="margin-top:15px; width:100%; padding:18px; border-radius:15px; background:#d68910; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase; transition:0.3s;">LANJUT MINGGU 3</button>
+            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                    <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MINGGU 2</h3>
+                    <div id="val-MESIN_2" style="font-size:2.8rem; font-weight:1200; color:#d68910; margin: 10px 0;">0</div>
+                    <div style="font-size:0.7rem; color:#aaa; font-weight:800;">BUTIR TELUR</div>
+                </div>
+                <button class="btn-move" data-from="MESIN_2" data-to="MESIN_3" style="margin-top:20px; width:100%; padding:12px; border-radius:12px; background:#d68910; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Lanjut Ke 3</button>
             </div>
 
-            <div class="mesin-card" style="background:#fff; padding:30px; border-radius:28px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; gap:15px;">
-                <h3 style="color:#666; font-weight:900; font-size:1rem;">MINGGU 3 (AKHIR)</h3>
-                <div id="val-MESIN_3" style="font-size:3.5rem; font-weight:1200; color:#1f3326; line-height:1;">0</div>
-                <div style="font-weight:800; color:#aaa; font-size:0.8rem;">BUTIR TELUR</div>
-                <button id="btnPanenDoc" style="margin-top:15px; width:100%; padding:18px; border-radius:15px; background:#1f3326; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase; transition:0.3s;">PANEN JADI DOC</button>
+            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                    <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MINGGU 3</h3>
+                    <div id="val-MESIN_3" style="font-size:2.8rem; font-weight:1200; color:#e74c3c; margin: 10px 0;">0</div>
+                    <div style="font-size:0.7rem; color:#aaa; font-weight:800;">BUTIR TELUR</div>
+                </div>
+                <button class="btn-move" data-from="MESIN_3" data-to="SIAP_PANEN" style="margin-top:20px; width:100%; padding:12px; border-radius:12px; background:#e74c3c; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Siap Panen</button>
+            </div>
+
+            <div class="mesin-card" style="background:#f0fdf4; padding:20px; border-radius:20px; text-align:center; border:2px solid #16a34a; display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                    <h3 style="color:#16a34a; font-size:0.9rem; font-weight:900;">TAHAP PANEN</h3>
+                    <div id="val-SIAP_PANEN" style="font-size:2.8rem; font-weight:1200; color:#1f3326; margin: 10px 0;">0</div>
+                    <div style="font-size:0.7rem; color:#16a34a; font-weight:800;">BUTIR TERSEDIA</div>
+                </div>
+                <button id="btnFinalHatch" style="margin-top:20px; width:100%; padding:12px; border-radius:12px; background:#1f3326; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Panen DOC</button>
             </div>
 
         </div>
 
         <div style="text-align:center; color:#999; font-weight:700; font-size:0.85rem;">
-            * Pastikan telur sudah berada di mesin selama tepat 7 hari sebelum dipindahkan ke fase berikutnya.
+            * Telur bergerak dari Minggu 1 hingga ke Tahap Panen sebelum masuk ke Stok DOC.
         </div>
       </section>
     `;
@@ -43,16 +58,13 @@ const Tetas = {
 
   async afterRender() {
     const presenter = new TetasPresenter({
-      onDataReady: (cat) => { 
-        document.getElementById('catName').innerText = cat.nama; 
-      },
+      onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
-        // Reset tampilan ke 0 dulu
-        document.getElementById('val-MESIN_1').innerText = "0";
-        document.getElementById('val-MESIN_2').innerText = "0";
-        document.getElementById('val-MESIN_3').innerText = "0";
-
-        // Isi data sesuai status dari database
+        // Reset semua tampilan ke 0
+        ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
+            document.getElementById(`val-${id}`).innerText = "0";
+        });
+        // Isi data berdasarkan status dari DB
         data.forEach(item => {
             const el = document.getElementById(`val-${item.status}`);
             if (el) el.innerText = item.total.toLocaleString();
@@ -60,45 +72,43 @@ const Tetas = {
       }
     });
 
-    // Event Klik Pindah Mesin (1 -> 2 dan 2 -> 3)
+    // Event Klik Pindah Mesin (1->2, 2->3, 3->Siap Panen)
     document.querySelectorAll('.btn-move').forEach(btn => {
         btn.onclick = async (e) => {
             const { from, to } = e.target.dataset;
             const currentVal = parseInt(document.getElementById(`val-${from}`).innerText);
             
             if (currentVal <= 0) return alert("Tidak ada telur untuk dipindahkan!");
-            if (!confirm(`Pindahkan semua telur dari ${from} ke ${to}?`)) return;
 
             const res = await presenter.moveMesin({
-                kategori_id: window.location.hash.split('-').slice(1).join('-'),
+                kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
                 from_status: from,
                 to_status: to
             });
 
             if (res.status === 'success') {
-                alert("Berhasil dipindahkan! 🚀");
                 location.reload();
             }
         };
     });
 
-    // Event Klik Panen DOC (Minggu 3 -> Selesai)
-    document.getElementById('btnPanenDoc').onclick = async () => {
-        const currentVal = parseInt(document.getElementById('val-MESIN_3').innerText);
-        if (currentVal <= 0) return alert("Belum ada telur di Minggu 3!");
+    // Event Klik Panen Akhir (Card 4 -> Masuk ke Stok DOC)
+    document.getElementById('btnFinalHatch').onclick = async () => {
+        const currentVal = parseInt(document.getElementById('val-SIAP_PANEN').innerText);
+        if (currentVal <= 0) return alert("Belum ada telur di Tahap Panen!");
 
-        const jmlHidup = prompt(`Total telur di Minggu 3: ${currentVal}\nBerapa yang HIDUP / MENETAS?`);
+        const jmlHidup = prompt(`Total telur di Tahap Panen: ${currentVal}\nBerapa yang HIDUP / MENETAS?`);
         if (jmlHidup === null) return;
         
         const hidup = parseInt(jmlHidup) || 0;
         if (hidup > currentVal) return alert("Jumlah hidup tidak boleh melebihi isi mesin!");
 
         const mati = currentVal - hidup;
-        if (!confirm(`Konfirmasi Panen:\n- Hidup: ${hidup} Ekor\n- Gagal/Mati: ${mati} Butir\n\nLanjutkan?`)) return;
+        if (!confirm(`Konfirmasi Panen:\n- Menetas Hidup: ${hidup} Ekor\n- Gagal/Mati: ${mati} Butir\n\nData akan masuk ke Stok DOC asli. Lanjutkan?`)) return;
 
         const res = await presenter.moveMesin({
-            kategori_id: window.location.hash.split('-').slice(1).join('-'),
-            from_status: 'MESIN_3',
+            kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
+            from_status: 'SIAP_PANEN',
             to_status: 'SELESAI',
             jumlah_hidup: hidup,
             jumlah_mati: mati
