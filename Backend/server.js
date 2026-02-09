@@ -442,14 +442,18 @@ const init = async () => {
         try {
             await client.query('BEGIN');
 
-            // 1. Ambil stok DOC saat ini untuk history (Biar sinkron dengan kolom stok_awal_doc)
+            // 1. Ambil stok DOC saat ini untuk mengisi kolom stok_awal_doc
             const currentDocRes = await client.query(
                 `SELECT stok FROM komoditas WHERE category_id = $1 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
                 [kategori_id]
             );
-            const stokAwal = currentDocRes.rows[0]?.stok || 0;
+            
+            if (currentDocRes.rows.length === 0) {
+                throw new Error("Produk DOC tidak ditemukan untuk kategori ini!");
+            }
+            const stokAwalDoc = currentDocRes.rows[0].stok;
 
-            // 2. Kurangi stok DOC di gudang
+            // 2. Kurangi stok DOC (Semua yang diproses keluar dari stok DOC)
             await client.query(
                 `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
                 [totalProses, kategori_id]
@@ -463,18 +467,18 @@ const init = async () => {
                 );
             }
 
-            // 4. Catat history (MENGISI SEMUA KOLOM SESUAI STRUKTUR DB)
+            // 4. Catat history ke tabel pullet_process (Sesuai 5 kolom di database kamu)
             await client.query(
                 `INSERT INTO pullet_process (tanggal_proses, kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) 
                  VALUES (CURRENT_TIMESTAMP, $1, $2, $3, $4)`,
-                [kategori_id, stokAwal, jumlah_hidup, jumlah_mati]
+                [kategori_id, stokAwalDoc, jumlah_hidup, jumlah_mati]
             );
 
             await client.query('COMMIT');
             return { status: 'success' };
         } catch (err) { 
             await client.query('ROLLBACK'); 
-            console.error("LOG ERROR DISTRIBUSI DOC:", err.message);
+            console.error("CRITICAL ERROR DOC PROCESS:", err.message);
             return h.response({ status: 'error', message: err.message }).code(500); 
         } finally { client.release(); }
     }
