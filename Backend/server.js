@@ -392,90 +392,77 @@ const init = async () => {
         }
     }
 },
-{
-    // 22. POST Simpan Asset Baru (LOGIKA MURNI PENCATATAN ASET)
-    method: 'POST', 
-    path: '/api/asset-baru/save',
-    handler: async (request, h) => {
-        const { kategori_id, produk, jumlah, harga, keterangan, umur } = request.payload;
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-            // Cuma catat di tabel history asset baru (PASTIKAN TABEL SUDAH ADA KOLOM HARGA, KETERANGAN, UMUR)
-            await client.query(
-                `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, created_at) 
-                 VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`, 
-                [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, parseInt(umur)]
-            );
-            await client.query('COMMIT');
-            return { status: 'success' };
-        } catch (err) { 
-            await client.query('ROLLBACK'); 
-            return h.response({ status: 'error', message: err.message }).code(500); 
-        } finally { client.release(); }
-    }
-},
+// GANTI BAGIAN ROUTE 22, 23, dan 24 DI server.js LO DENGAN INI:
+
         {
-    // 23. GET Riwayat Asset Baru
-    method: 'GET',
-    path: '/api/asset-baru/history',
-    handler: async (request, h) => {
-        try {
-            const res = await pool.query('SELECT * FROM pembelian_asset_baru ORDER BY created_at DESC');
-            return { status: 'success', data: res.rows };
-        } catch (err) {
-            console.error("DATABASE ERROR:", err.message);
-            return h.response({ status: 'error', message: "Gagal ambil data: Kolom mungkin belum ada di database" }).code(500);
-        }
-    }
-},
+            // 22. POST Simpan Asset Baru (MANDIRI)
+            method: 'POST', 
+            path: '/api/asset-baru/save',
+            handler: async (request, h) => {
+                const { kategori_id, produk, jumlah, harga, keterangan, umur } = request.payload;
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    await client.query(
+                        `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, created_at) 
+                         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`, 
+                        [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, parseInt(umur)]
+                    );
+                    await client.query('COMMIT');
+                    return { status: 'success' };
+                } catch (err) { 
+                    await client.query('ROLLBACK'); 
+                    console.error("LOG ERROR DB ASSET:", err.message);
+                    return h.response({ status: 'error', message: err.message }).code(500); 
+                } finally { client.release(); }
+            }
+        },
         {
-            // 24. POST Proses Distribusi DOC (FIXED INTEGER & PULLET FLOW)
-            method: 'POST', path: '/api/doc/process',
+            // 23. GET Riwayat Asset Baru
+            method: 'GET',
+            path: '/api/asset-baru/history',
+            handler: async (request, h) => {
+                try {
+                    const res = await pool.query('SELECT * FROM pembelian_asset_baru ORDER BY created_at DESC');
+                    return { status: 'success', data: res.rows };
+                } catch (err) {
+                    console.error("LOG ERROR HISTORY:", err.message);
+                    return h.response({ status: 'error', message: "Gagal: Database mungkin belum di-update kolomnya" }).code(500);
+                }
+            }
+        },
+        {
+            // 24. POST Proses Distribusi DOC (FIXED INTEGER .00)
+            method: 'POST', 
+            path: '/api/doc/process',
             handler: async (request, h) => {
                 const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
+                const totalProses = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
                     const currentDocRes = await client.query(`SELECT stok FROM komoditas WHERE category_id = $1 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [kategori_id]);
                     if (currentDocRes.rows.length === 0) throw new Error("Produk DOC tidak ditemukan!");
 
-                    // FIX .00: Paksa ke Integer murni
+                    // PAKSA KE INTEGER MURNI UNTUK FIX ERROR Syntax for type integer: "50.00"
                     const stokAwalDoc = Math.floor(parseFloat(currentDocRes.rows[0].stok)) || 0;
                     const nHidup = Math.floor(parseFloat(jumlah_hidup)) || 0;
                     const nMati = Math.floor(parseFloat(jumlah_mati)) || 0;
-                    const totalKeluar = nHidup + nMati;
 
-                    // 1. Potong stok DOC
-                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [totalKeluar, kategori_id]);
-                    // 2. Tambah stok Pullet (Hanya yang hidup)
+                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [totalProses, kategori_id]);
                     if (nHidup > 0) {
                         await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`, [nHidup, kategori_id]);
                     }
-                    // 3. Simpan History (Sesuai database lo: image_6afe76.png)
                     await client.query(
                         `INSERT INTO pullet_process (tanggal_proses, kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) 
                          VALUES (CURRENT_TIMESTAMP, $1, $2, $3, $4)`, [kategori_id, stokAwalDoc, nHidup, nMati]
                     );
-
                     await client.query('COMMIT'); return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
-                finally { client.release(); }
-            }
-        },
-        {
-            method: 'GET', path: '/api/asset-baru/history',
-            handler: async () => {
-                const res = await pool.query('SELECT * FROM pembelian_asset_baru ORDER BY created_at DESC');
-                return { status: 'success', data: res.rows };
-            }
-        },
-        {
-            method: 'GET', path: '/api/mesin-tetas/status/{kategori_id}',
-            handler: async (request) => {
-                const kategori_id = request.params.kategori_id.toLowerCase(); 
-                const res = await pool.query(`SELECT id, jumlah, status, mesi_1_tgl FROM mesin_tetas WHERE kategori_id = $1 AND status != 'SELESAI' ORDER BY mesi_1_tgl ASC`, [kategori_id]);
-                return { status: 'success', data: res.rows };
+                } catch (err) { 
+                    await client.query('ROLLBACK'); 
+                    console.error("LOG ERROR DISTRIBUSI:", err.message);
+                    return h.response({ status: 'error', message: err.message }).code(500); 
+                } finally { client.release(); }
             }
         }
     ]);
