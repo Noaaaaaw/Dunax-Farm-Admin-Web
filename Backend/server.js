@@ -255,28 +255,27 @@ const init = async () => {
             await client.query('BEGIN');
 
             if (to_status === 'SELESAI') {
-                // 1. Ambil total jumlah yang sedang SIAP_PANEN
-                const checkStok = await client.query(
-                    `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                // 1. Ambil batch yang berstatus SIAP_PANEN
+                const batchRes = await client.query(
+                    `SELECT id, jumlah FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
                     [kategori_id]
                 );
-                const jumlahPanen = parseInt(checkStok.rows[0].total) || 0;
+                
+                if (batchRes.rows.length > 0) {
+                    const totalBaru = batchRes.rows.reduce((acc, row) => acc + row.jumlah, 0);
 
-                if (jumlahPanen > 0) {
-                    // 2. Update status antrian mesin_tetas jadi SELESAI
+                    // 2. Tandai data di mesin_tetas sebagai SELESAI
                     await client.query(
-                        `UPDATE mesin_tetas 
-                         SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP 
-                         WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, 
+                        `UPDATE mesin_tetas SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP 
+                         WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
                         [kategori_id]
                     );
 
-                    // 3. Masukkan ke stok barang gudang (DOC)
+                    // 3. Masukkan ke STOK KOMODITAS (Mencari nama 'DOC' atau 'DOD')
                     await client.query(
-                        `UPDATE komoditas 
-                         SET stok = stok + $1 
-                         WHERE category_id = $2 AND nama ILIKE '%DOC%'`, 
-                        [jumlahPanen, kategori_id]
+                        `UPDATE komoditas SET stok = stok + $1 
+                         WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
+                        [totalBaru, kategori_id]
                     );
                 }
             } else {
@@ -297,7 +296,7 @@ const init = async () => {
             return { status: 'success' };
         } catch (err) { 
             await client.query('ROLLBACK'); 
-            console.error("LOG ERROR RYAN:", err.message);
+            console.error("ERROR PANEN:", err.message);
             return h.response({ status: 'error', message: err.message }).code(500); 
         } finally { client.release(); }
     }
