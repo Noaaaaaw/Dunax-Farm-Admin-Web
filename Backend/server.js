@@ -393,32 +393,32 @@ const init = async () => {
     }
 },
 {
-            // 22. POST Simpan Asset Baru (PEMBELIAN TELUR TETAS -> MASUK KE MESIN 1)
-            method: 'POST',
-            path: '/api/asset-baru/save',
+            // 22. POST Simpan Asset Baru (LOGIKA BARU: MANDIRI, GAK MASUK KOMODITAS UTAMA)
+            method: 'POST', path: '/api/asset-baru/save',
             handler: async (request, h) => {
-                const { kategori_id, produk, jumlah } = request.payload;
+                const { kategori_id, produk, jumlah, harga, keterangan, umur } = request.payload;
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
-                    const nJumlah = parseInt(jumlah);
-                    const cleanId = kategori_id.replace('asset-', '');
+                    // Input ke tabel history asset baru dengan detail lengkap
+                    await client.query(
+                        `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, created_at) 
+                         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`, 
+                        [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, parseInt(umur)]
+                    );
 
-                    await client.query(`INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah) VALUES ($1, $2, $3)`, [kategori_id, produk, nJumlah]);
-
-                    if (produk === 'DOC') {
+                    // JIKA produknya DOC, dia otomatis masuk ke Antrian Mesin Tetas 1
+                    if (produk.toUpperCase() === 'DOC') {
                         await client.query(
                             `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl) VALUES ($1, $2, 'MESIN_1', CURRENT_TIMESTAMP)`,
-                            [cleanId, nJumlah]
+                            [kategori_id.replace('asset-', ''), parseInt(jumlah)]
                         );
-                    } else {
-                        let target = produk === 'PULLET' ? 'Pullet (8 Minggu)' : (produk === 'AYAM PEJANTAN' ? 'Pejantan' : 'Petelur');
-                        await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE $3`, [nJumlah, cleanId, `%${target}%`]);
                     }
+                    // CATATAN: Stok di tabel 'komoditas' TIDAK di-update sesuai request lo.
 
                     await client.query('COMMIT');
                     return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
+                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
                 finally { client.release(); }
             }
         },
@@ -432,57 +432,54 @@ const init = async () => {
             }
         },
         {
-    // 24. POST Proses Distribusi DOC (HIDUP JADI PULLET, MATI DIBUANG)
-    method: 'POST',
-    path: '/api/doc/process',
-    handler: async (request, h) => {
-        const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
-        const totalProses = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
+            // 24. POST Proses Distribusi DOC (FIXED INTEGER & PULLET FLOW)
+            method: 'POST', path: '/api/doc/process',
+            handler: async (request, h) => {
+                const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    const currentDocRes = await client.query(`SELECT stok FROM komoditas WHERE category_id = $1 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [kategori_id]);
+                    if (currentDocRes.rows.length === 0) throw new Error("Produk DOC tidak ditemukan!");
 
-            // 1. Ambil stok DOC saat ini untuk mengisi kolom stok_awal_doc
-            const currentDocRes = await client.query(
-                `SELECT stok FROM komoditas WHERE category_id = $1 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
-                [kategori_id]
-            );
-            
-            if (currentDocRes.rows.length === 0) {
-                throw new Error("Produk DOC tidak ditemukan untuk kategori ini!");
+                    // FIX .00: Paksa ke Integer murni
+                    const stokAwalDoc = Math.floor(parseFloat(currentDocRes.rows[0].stok)) || 0;
+                    const nHidup = Math.floor(parseFloat(jumlah_hidup)) || 0;
+                    const nMati = Math.floor(parseFloat(jumlah_mati)) || 0;
+                    const totalKeluar = nHidup + nMati;
+
+                    // 1. Potong stok DOC
+                    await client.query(`UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [totalKeluar, kategori_id]);
+                    // 2. Tambah stok Pullet (Hanya yang hidup)
+                    if (nHidup > 0) {
+                        await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`, [nHidup, kategori_id]);
+                    }
+                    // 3. Simpan History (Sesuai database lo: image_6afe76.png)
+                    await client.query(
+                        `INSERT INTO pullet_process (tanggal_proses, kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) 
+                         VALUES (CURRENT_TIMESTAMP, $1, $2, $3, $4)`, [kategori_id, stokAwalDoc, nHidup, nMati]
+                    );
+
+                    await client.query('COMMIT'); return { status: 'success' };
+                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
+                finally { client.release(); }
             }
-            const stokAwalDoc = currentDocRes.rows[0].stok;
-
-            // 2. Kurangi stok DOC (Semua yang diproses keluar dari stok DOC)
-            await client.query(
-                `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
-                [totalProses, kategori_id]
-            );
-
-            // 3. Tambah ke stok PULLET (Hanya yang hidup)
-            if (jumlah_hidup > 0) {
-                await client.query(
-                    `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`,
-                    [jumlah_hidup, kategori_id]
-                );
+        },
+        {
+            method: 'GET', path: '/api/asset-baru/history',
+            handler: async () => {
+                const res = await pool.query('SELECT * FROM pembelian_asset_baru ORDER BY created_at DESC');
+                return { status: 'success', data: res.rows };
             }
-
-            // 4. Catat history ke tabel pullet_process (Sesuai 5 kolom di database kamu)
-            await client.query(
-                `INSERT INTO pullet_process (tanggal_proses, kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) 
-                 VALUES (CURRENT_TIMESTAMP, $1, $2, $3, $4)`,
-                [kategori_id, stokAwalDoc, jumlah_hidup, jumlah_mati]
-            );
-
-            await client.query('COMMIT');
-            return { status: 'success' };
-        } catch (err) { 
-            await client.query('ROLLBACK'); 
-            console.error("CRITICAL ERROR DOC PROCESS:", err.message);
-            return h.response({ status: 'error', message: err.message }).code(500); 
-        } finally { client.release(); }
-    }
-}
+        },
+        {
+            method: 'GET', path: '/api/mesin-tetas/status/{kategori_id}',
+            handler: async (request) => {
+                const kategori_id = request.params.kategori_id.toLowerCase(); 
+                const res = await pool.query(`SELECT id, jumlah, status, mesi_1_tgl FROM mesin_tetas WHERE kategori_id = $1 AND status != 'SELESAI' ORDER BY mesi_1_tgl ASC`, [kategori_id]);
+                return { status: 'success', data: res.rows };
+            }
+        }
     ]);
     
     await server.start();
