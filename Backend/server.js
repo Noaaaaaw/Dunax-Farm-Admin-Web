@@ -442,14 +442,14 @@ const init = async () => {
         try {
             await client.query('BEGIN');
 
-            // 1. Ambil stok DOC saat ini buat disimpen ke history (Biar sinkron sama kolom database lo)
+            // 1. Ambil stok DOC saat ini untuk history (Biar sinkron dengan kolom stok_awal_doc)
             const currentDocRes = await client.query(
                 `SELECT stok FROM komoditas WHERE category_id = $1 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
                 [kategori_id]
             );
             const stokAwal = currentDocRes.rows[0]?.stok || 0;
 
-            // 2. Kurangi stok DOC
+            // 2. Kurangi stok DOC di gudang
             await client.query(
                 `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
                 [totalProses, kategori_id]
@@ -463,7 +463,7 @@ const init = async () => {
                 );
             }
 
-            // 4. Catat history (MENGISI SEMUA KOLOM SESUAI SCREENSHOT DB LO)
+            // 4. Catat history (MENGISI SEMUA KOLOM SESUAI STRUKTUR DB)
             await client.query(
                 `INSERT INTO pullet_process (tanggal_proses, kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) 
                  VALUES (CURRENT_TIMESTAMP, $1, $2, $3, $4)`,
