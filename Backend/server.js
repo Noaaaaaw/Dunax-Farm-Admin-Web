@@ -245,7 +245,7 @@ const init = async () => {
             }
         },
        {
-    // 17. POST Move / Panen Berantai (FIXED LOGIC)
+    // 17. POST Move / Panen Berantai (ALUR FIX: DIAM DI MESIN -> LANGSUNG PANEN)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
@@ -258,25 +258,19 @@ const init = async () => {
             const nMati = parseInt(jumlah_mati) || 0;
 
             if (to_status === 'SELESAI') {
-                // PROSES PANEN: Mengubah SIAP_PANEN menjadi DOC_HIDUP
-                // Kita ambil data SIAP_PANEN yang paling lama (ASC) untuk diproses
+                // Logika Panen Akhir (Dari Kotak Panen ke DOC)
                 await client.query(
                     `UPDATE mesin_tetas 
-                     SET status = 'DOC_HIDUP', 
-                         jumlah = $1, 
-                         siap_panen_tgl = CURRENT_TIMESTAMP 
+                     SET status = 'DOC_HIDUP', jumlah = $1, siap_panen_tgl = CURRENT_TIMESTAMP 
                      WHERE id = (
                         SELECT id FROM mesin_tetas 
                         WHERE kategori_id = $2 AND status = 'SIAP_PANEN' 
                         ORDER BY mesi_1_tgl ASC LIMIT 1
-                     )`, 
-                    [nHidup, kategori_id]
+                     )`, [nHidup, kategori_id]
                 );
                 
-                // Update Stok di Komoditas
                 await client.query(
-                    `UPDATE komoditas 
-                     SET stok = stok + $1 
+                    `UPDATE komoditas SET stok = stok + $1 
                      WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
                     [nHidup, kategori_id]
                 );
@@ -287,25 +281,17 @@ const init = async () => {
                 );
 
             } else {
-                // PROSES ROTASI: M1 -> M2 -> M3 -> SIAP_PANEN
-                let tglCol = '';
-                if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
-                else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
-                else if (to_status === 'SIAP_PANEN') tglCol = 'siap_panen_tgl';
-
-                if (!tglCol) throw new Error("Target status tidak valid");
-
-                // Kita update baris yang paling lama di status 'from_status' 
-                // Biar batch-nya nggak tertukar
+                // LOGIKA BARU: Apapun mesinnya (M1/M2/M3), pindah langsung ke SIAP_PANEN
+                // Kita ambil batch paling lama (FIFO) agar tidak salah tarik data
                 await client.query(
                     `UPDATE mesin_tetas 
-                     SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
+                     SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
                      WHERE id = (
                         SELECT id FROM mesin_tetas 
-                        WHERE kategori_id = $2 AND status = $3 
+                        WHERE kategori_id = $1 AND status = $2 
                         ORDER BY mesi_1_tgl ASC LIMIT 1
                      )`,
-                    [to_status, kategori_id, from_status]
+                    [kategori_id, from_status]
                 );
             }
 
@@ -313,7 +299,6 @@ const init = async () => {
             return { status: 'success' };
         } catch (err) { 
             await client.query('ROLLBACK'); 
-            console.error("LOG ERROR RYAN:", err.message);
             return h.response({ status: 'error', message: err.message }).code(500); 
         } finally { client.release(); }
     }
