@@ -87,10 +87,10 @@ const Pembibitan = {
           border:2px solid white;
         }
 
-        /* ===== GRID TOMBOL 3 ATAS 3 BAWAH ===== */
+        /* ===== GRID TOMBOL 3 ATAS 2 BAWAH ===== */
         .button-group-pembibitan {
           display:grid;
-          grid-template-columns: repeat(3, 1fr); /* Tetapkan 3 kolom */
+          grid-template-columns: repeat(3, 1fr); 
           gap:10px;
           margin-top:auto;
         }
@@ -113,7 +113,17 @@ const Pembibitan = {
           min-height: 45px;
         }
 
-        /* Tombol Full Width untuk kategori non-ayam */
+        /* Container khusus baris bawah biar isi 2 tombol bagi rata */
+        .row-bottom-wrap {
+          grid-column: span 3;
+          display: flex;
+          gap: 10px;
+        }
+
+        .row-bottom-wrap .btn-kelola-pembibitan {
+          flex: 1;
+        }
+
         .btn-full-width {
           grid-column: span 3;
         }
@@ -156,7 +166,6 @@ const Pembibitan = {
       const id = cat.id.toLowerCase();
       const name = cat.nama.toUpperCase();
       
-      // ✅ LOGIKA FILTER KHUSUS AYAM
       const isAyam = name.includes('AYAM');
 
       return `
@@ -169,12 +178,13 @@ const Pembibitan = {
           <div class="button-group-pembibitan">
             ${isAyam ? `
               <button class="btn-kelola-pembibitan" onclick="location.hash='#/bibit-${id}'">KELOLA PANEN</button>
-              <button class="btn-kelola-pembibitan" onclick="location.hash='#/new-asset-${id}'">ASSET BARU</button>
               <button class="btn-kelola-pembibitan" onclick="location.hash='#/tetas-${id}'">MESIN TETAS</button>
-
               <button class="btn-kelola-pembibitan" onclick="location.hash='#/doc-${id}'">KELOLA DOC</button>
-              <button class="btn-kelola-pembibitan" onclick="location.hash='#/pullet-${id}'">KELOLA PULLET</button>
-              <button class="btn-kelola-pembibitan" onclick="location.hash='#/ayam-${id}'">KELOLA AYAM</button>
+
+              <div class="row-bottom-wrap">
+                <button class="btn-kelola-pembibitan" onclick="location.hash='#/pullet-${id}'">KELOLA PULLET</button>
+                <button class="btn-kelola-pembibitan" onclick="location.hash='#/ayam-${id}'">KELOLA AYAM</button>
+              </div>
             ` : `
               <button class="btn-kelola-pembibitan btn-full-width" onclick="location.hash='#/bibit-${id}'">Kelola Panen</button>
             `}

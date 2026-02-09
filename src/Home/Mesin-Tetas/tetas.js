@@ -51,14 +51,14 @@ const Tetas = {
         </div>
 
         <div class="table-container" style="background:white; border-radius:20px; padding:25px; border:1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
-            <h3 style="margin-bottom:20px; color:#41644A; font-weight:900; text-transform:uppercase;">Monitoring Antrian</h3>
+            <h3 style="margin-bottom:20px; color:#41644A; font-weight:900; text-align: center; text-transform:uppercase;">Monitoring Antrian</h3>
             <table style="width:100%; border-collapse:collapse; text-align:left;">
                 <thead>
                     <tr style="background:#f8fafc; border-bottom:2px solid #eee;">
-                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">TANGGAL MASUK</th>
-                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">POSISI</th>
-                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">JUMLAH</th>
-                        <th style="padding:15px; color:#64748b; font-size:0.85rem;">UMUR</th>
+                        <th style="padding:15px; color:#64748b; text-align: center; font-size:0.85rem;">TANGGAL MASUK</th>
+                        <th style="padding:15px; color:#64748b; text-align: center; font-size:0.85rem;">POSISI</th>
+                        <th style="padding:15px; color:#64748b; text-align: center; font-size:0.85rem;">JUMLAH</th>
+                        <th style="padding:15px; color:#64748b; text-align: center; font-size:0.85rem;">UMUR</th>
                     </tr>
                 </thead>
                 <tbody id="umurTableBody">

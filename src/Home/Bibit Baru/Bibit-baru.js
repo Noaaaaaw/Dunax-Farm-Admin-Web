@@ -13,37 +13,21 @@ const BibitBaru = {
                 
                 <div class="form-group" style="grid-column: span 2; position: relative;">
                     <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">PRODUK KOMODITAS</label>
-                    
                     <div id="customSelectTrigger" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background:#f9fbf9; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
                         <span id="selectedProductLabel">-- PILIH PRODUK --</span>
                         <span style="color: #6CA651; transform: scaleY(0.7); font-size: 1.2rem;">▼</span>
                     </div>
-
                     <div id="customSelectList" style="display: none; position: absolute; top: 105%; left: 0; width: 100%; max-height: 250px; background: white; border: 2px solid #6CA651; border-radius: 12px; overflow-y: auto; z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
                         <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem; border-bottom: 1px solid #e0eadd;">UNGGAS</div>
                         <div class="optionItem" data-value="DOC" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">DOC</div>
                         <div class="optionItem" data-value="DOD" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">DOD</div>
-                        <div class="optionItem" data-value="PULLET (8 MINGGU)" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">PULLET (8 MINGGU)</div>
-                        <div class="optionItem" data-value="AYAM PEJANTAN" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">AYAM PEJANTAN</div>
-                        <div class="optionItem" data-value="AYAM BETINA" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">AYAM BETINA</div>
-                        <div class="optionItem" data-value="BEBEK" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">BEBEK</div>
-                        
+                        <div class="optionItem" data-value="PULLET" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">PULLET</div>
                         <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem; border-bottom: 1px solid #e0eadd; border-top: 1px solid #e0eadd;">IKAN</div>
                         <div class="optionItem" data-value="IKAN LELE" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">IKAN LELE</div>
                         <div class="optionItem" data-value="IKAN NILA" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">IKAN NILA</div>
-                        <div class="optionItem" data-value="IKAN GURAME" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">IKAN GURAME</div>
-                        <div class="optionItem" data-value="IKAN BAWAL" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">IKAN BAWAL</div>
-                        
-                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem; border-bottom: 1px solid #e0eadd; border-top: 1px solid #e0eadd;">TERNAK BESAR</div>
+                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem; border-bottom: 1px solid #e0eadd; border-top: 1px solid #e0eadd;">LAINNYA</div>
                         <div class="optionItem" data-value="KAMBING" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">KAMBING</div>
-                        <div class="optionItem" data-value="KAMBING MUDA" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">KAMBING MUDA</div>
                         <div class="optionItem" data-value="SAPI" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">SAPI</div>
-                        
-                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem; border-bottom: 1px solid #e0eadd; border-top: 1px solid #e0eadd;">PERTANIAN</div>
-                        <div class="optionItem" data-value="BAYAM" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">BAYAM</div>
-                        <div class="optionItem" data-value="KANGKUNG" style="padding: 12px 20px; cursor: pointer; font-weight: 700;">KANGKUNG</div>
-                        
-                        <div class="optionItem" data-value="LAINNYA" style="padding: 12px 20px; cursor: pointer; font-weight: 700; border-top: 1px solid #eee;">LAINNYA</div>
                     </div>
                     <input type="hidden" id="produkAsset" required>
                 </div>
@@ -59,13 +43,20 @@ const BibitBaru = {
                 </div>
 
                 <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">UMUR SAAT INI (HARI)</label>
-                    <input type="number" id="umurAsset" required placeholder="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">UMUR SAAT INI</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="umurAsset" required placeholder="0" style="flex: 1; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                        <select id="kategoriUmur" style="padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #f9fbf9;">
+                            <option value="Hari">Hari</option>
+                            <option value="Bulan">Bulan</option>
+                            <option value="Tahun">Tahun</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">KETERANGAN</label>
-                    <input type="text" id="keteranganAsset" placeholder="Supplier, Lokasi, dll" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                    <input type="text" id="keteranganAsset" placeholder=" " style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
                 </div>
 
                 <button type="submit" style="grid-column: span 2; padding: 20px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 0 #4a7337; text-transform: uppercase;">
@@ -80,15 +71,16 @@ const BibitBaru = {
                 <table style="width: 100%; border-collapse: collapse; text-align: center;">
                     <thead style="background: #41644A; color: white;">
                         <tr>
-                            <th style="padding: 15px;">TANGGAL</th>
-                            <th style="padding: 15px;">PRODUK</th>
-                            <th style="padding: 15px;">UMUR</th>
-                            <th style="padding: 15px;">JUMLAH</th>
-                            <th style="padding: 15px;">TOTAL HARGA BELI</th>
+                            <th style="padding: 15px; text-align: center;">TANGGAL</th>
+                            <th style="padding: 15px; text-align: center;">PRODUK</th>
+                            <th style="padding: 15px; text-align: center;">UMUR</th>
+                            <th style="padding: 15px; text-align: center;">JUMLAH</th>
+                            <th style="padding: 15px; text-align: center;">TOTAL HARGA</th>
+                            <th style="padding: 15px; text-align: center;">KETERANGAN</th>
                         </tr>
                     </thead>
                     <tbody id="historyAssetBody">
-                        <tr><td colspan="5" style="padding: 30px; color: #ccc;">Memuat data asset...</td></tr>
+                        <tr><td colspan="6" style="padding: 30px; color: #ccc; text-align: center;">Memuat data asset...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -110,7 +102,6 @@ const BibitBaru = {
     const form = document.getElementById('assetBaruForm');
     const historyBody = document.getElementById('historyAssetBody');
 
-    // LOGIKA DROPDOWN SAKTI (Selalu Kebawah & Pendek)
     trigger.onclick = (e) => {
         e.stopPropagation();
         list.style.display = list.style.display === 'none' ? 'block' : 'none';
@@ -118,7 +109,7 @@ const BibitBaru = {
 
     document.querySelectorAll('.optionItem').forEach(item => {
         item.onclick = (e) => {
-            const val = e.target.dataset.value;
+            const val = e.target.innerText;
             selectedLabel.innerText = val;
             hiddenInput.value = val;
             list.style.display = 'none';
@@ -131,16 +122,17 @@ const BibitBaru = {
     const loadHistory = async () => {
         const history = await presenter.fetchHistory();
         if (history.length === 0) {
-            historyBody.innerHTML = `<tr><td colspan="5" style="padding: 30px; color: #999;">Belum ada riwayat asset.</td></tr>`;
+            historyBody.innerHTML = `<tr><td colspan="6" style="padding: 30px; color: #999; text-align: center;">Belum ada riwayat asset.</td></tr>`;
             return;
         }
         historyBody.innerHTML = history.map(item => `
             <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 15px;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
-                <td style="padding: 15px; font-weight: 800;">${item.produk}</td>
-                <td style="padding: 15px;">${item.umur || 0} Hari</td>
-                <td style="padding: 15px; font-weight: 900; color: #6CA651;">${item.jumlah} Unit</td>
-                <td style="padding: 15px; font-weight: 700;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
+                <td style="padding: 15px; text-align: center;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
+                <td style="padding: 15px; font-weight: 800; text-align: center;">${item.produk}</td>
+                <td style="padding: 15px; text-align: center;">${item.umur || '-'}</td>
+                <td style="padding: 15px; font-weight: 900; color: #6CA651; text-align: center;">${item.jumlah} Unit</td>
+                <td style="padding: 15px; font-weight: 700; text-align: center;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
+                <td style="padding: 15px; color: #666; font-style: italic; text-align: center;">${item.keterangan || '-'}</td>
             </tr>
         `).join('');
     };
@@ -149,11 +141,14 @@ const BibitBaru = {
         e.preventDefault();
         if (!hiddenInput.value) return alert("Pilih produk komoditas dulu!");
 
+        const umurValue = document.getElementById('umurAsset').value;
+        const kategoriUmur = document.getElementById('kategoriUmur').value;
+
         const res = await presenter.submitAsset({
             produk: hiddenInput.value,
             jumlah: parseInt(document.getElementById('jumlahAsset').value),
             harga: parseInt(document.getElementById('hargaAsset').value),
-            umur: parseInt(document.getElementById('umurAsset').value),
+            umur: `${umurValue} ${kategoriUmur}`,
             keterangan: document.getElementById('keteranganAsset').value
         });
 
@@ -161,7 +156,6 @@ const BibitBaru = {
             alert("Aset Baru Berhasil Disimpan!");
             form.reset();
             selectedLabel.innerText = "-- PILIH PRODUK --";
-            selectedLabel.style.color = '#757575';
             hiddenInput.value = "";
             await loadHistory();
         }
