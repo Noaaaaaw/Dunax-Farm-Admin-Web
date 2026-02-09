@@ -12,7 +12,6 @@ class TetasPresenter {
     const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
     
     try {
-      // Ambil detail kategori dan status antrian mesin tetas sekaligus
       const [resCat, resMesin] = await Promise.all([
         fetch(`${this.baseUrl}/commodities/${categoryId}`),
         fetch(`${this.baseUrl}/api/mesin-tetas/status/${categoryId}`)
@@ -30,7 +29,6 @@ class TetasPresenter {
   }
 
   async moveMesin(payload) {
-    // Fungsi untuk pindah dari Minggu 1 -> 2 -> 3 -> DOC
     const res = await fetch(`${this.baseUrl}/api/mesin-tetas/move`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -245,44 +245,25 @@ const init = async () => {
             }
         },
        {
-    // 17. POST Move / Panen Berantai (ALUR FIX: DIAM DI MESIN -> LANGSUNG PANEN)
+    // 17. POST Move / Panen (Full Otomatis ke Kotak Panen & Selesai)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
-        const { kategori_id, from_status, to_status, jumlah_hidup, jumlah_mati } = request.payload;
+        const { kategori_id, from_status, to_status } = request.payload;
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
 
-            const nHidup = parseInt(jumlah_hidup) || 0;
-            const nMati = parseInt(jumlah_mati) || 0;
-
             if (to_status === 'SELESAI') {
-                // Logika Panen Akhir (Dari Kotak Panen ke DOC)
+                // Pindahkan SEMUA yang ada di SIAP_PANEN ke SELESAI
                 await client.query(
                     `UPDATE mesin_tetas 
-                     SET status = 'DOC_HIDUP', jumlah = $1, siap_panen_tgl = CURRENT_TIMESTAMP 
-                     WHERE id = (
-                        SELECT id FROM mesin_tetas 
-                        WHERE kategori_id = $2 AND status = 'SIAP_PANEN' 
-                        ORDER BY mesi_1_tgl ASC LIMIT 1
-                     )`, [nHidup, kategori_id]
+                     SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP 
+                     WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, 
+                    [kategori_id]
                 );
-                
-                await client.query(
-                    `UPDATE komoditas SET stok = stok + $1 
-                     WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
-                    [nHidup, kategori_id]
-                );
-
-                await client.query(
-                    `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
-                     VALUES ($1, $2, $3)`, [kategori_id, nHidup, nMati]
-                );
-
             } else {
-                // LOGIKA BARU: Apapun mesinnya (M1/M2/M3), pindah langsung ke SIAP_PANEN
-                // Kita ambil batch paling lama (FIFO) agar tidak salah tarik data
+                // Pindahkan Batch Tertua dari Mesin (1/2/3) ke Kotak Panen (SIAP_PANEN)
                 await client.query(
                     `UPDATE mesin_tetas 
                      SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
