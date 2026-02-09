@@ -432,51 +432,53 @@ const init = async () => {
             }
         },
         {
-            // 24. POST Proses Distribusi DOC (HIDUP JADI PULLET, MATI DIBUANG)
-            method: 'POST',
-            path: '/api/doc/process',
-            handler: async (request, h) => {
-                const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
-                const totalProses = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    // A. Kurangi stok DOC (Semua yang diproses keluar dari stok)
-                    await client.query(
-                        `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
-                        [totalProses, kategori_id]
-                    );
-                    // B. Tambah ke stok PULLET (Hanya yang hidup)
-                    if (jumlah_hidup > 0) {
-                        await client.query(
-                            `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`,
-                            [jumlah_hidup, kategori_id]
-                        );
-                    }
-                    // C. Catat history di pullet_process
-                    await client.query(
-                        `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati, tanggal_proses) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
-                        [kategori_id, jumlah_hidup, jumlah_mati]
-                    );
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
-                finally { client.release(); }
-            }
-        },
-        {
-            // API UNTUK NARIK SEMUA DATA ANTRIAN
-            method: 'GET',
-            path: '/api/mesin-tetas/status/{kategori_id}',
-            handler: async (request) => {
-                const kategori_id = request.params.kategori_id.toLowerCase(); 
-                const res = await pool.query(
-                    `SELECT id, jumlah, status, mesi_1_tgl FROM mesin_tetas WHERE kategori_id = $1 AND status != 'SELESAI' ORDER BY mesi_1_tgl ASC`,
-                    [kategori_id]
+    // 24. POST Proses Distribusi DOC (HIDUP JADI PULLET, MATI DIBUANG)
+    method: 'POST',
+    path: '/api/doc/process',
+    handler: async (request, h) => {
+        const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
+        const totalProses = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. Ambil stok DOC saat ini buat disimpen ke history (Biar sinkron sama kolom database lo)
+            const currentDocRes = await client.query(
+                `SELECT stok FROM komoditas WHERE category_id = $1 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
+                [kategori_id]
+            );
+            const stokAwal = currentDocRes.rows[0]?.stok || 0;
+
+            // 2. Kurangi stok DOC
+            await client.query(
+                `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
+                [totalProses, kategori_id]
+            );
+
+            // 3. Tambah ke stok PULLET (Hanya yang hidup)
+            if (jumlah_hidup > 0) {
+                await client.query(
+                    `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`,
+                    [jumlah_hidup, kategori_id]
                 );
-                return { status: 'success', data: res.rows };
             }
-        }
+
+            // 4. Catat history (MENGISI SEMUA KOLOM SESUAI SCREENSHOT DB LO)
+            await client.query(
+                `INSERT INTO pullet_process (tanggal_proses, kategori_id, stok_awal_doc, jumlah_hidup, jumlah_mati) 
+                 VALUES (CURRENT_TIMESTAMP, $1, $2, $3, $4)`,
+                [kategori_id, stokAwal, jumlah_hidup, jumlah_mati]
+            );
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) { 
+            await client.query('ROLLBACK'); 
+            console.error("LOG ERROR DISTRIBUSI DOC:", err.message);
+            return h.response({ status: 'error', message: err.message }).code(500); 
+        } finally { client.release(); }
+    }
+}
     ]);
     
     await server.start();
