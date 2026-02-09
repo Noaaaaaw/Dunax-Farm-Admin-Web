@@ -59,7 +59,7 @@ const AppBar = {
             <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
             <a href="#/pembibitan" class="${isActive('#/pembibitan')}">PEMBIBITAN</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
-            <a href="#/new-asset" class="${isActive('#/new-asset')}">ASSET BARU</a>
+            <a href="#/new-asset" class="${isActive('#/new-asset')}">MANAJEMEN ASSET</a>
             <a href="#/pengaturan" class="${isActive('#/pengaturan')}">PUSTAKA</a>
           </nav>
         </div>
@@ -82,7 +82,7 @@ const AppBar = {
             <a href="#/laporan" class="${isActive('#/laporan')}">OPERASIONAL</a>
             <a href="#/pembibitan" class="${isActive('#/pembibitan')}">PEMBIBITAN</a>
             <a href="#/jual-komoditas" class="${isActive('#/jual-komoditas')}">KOMODITAS</a>
-            <a href="#/new-asset" class="${isActive('#/new-asset')}">ASSET BARU</a>
+            <a href="#/new-asset" class="${isActive('#/new-asset')}">MANAJEMEN ASSET</a>
             <a href="#/pengaturan" class="${isActive('#/pengaturan')}">PUSTAKA</a>
           </nav>
         </div>
