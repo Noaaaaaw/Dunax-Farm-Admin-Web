@@ -244,70 +244,79 @@ const init = async () => {
                 return { status: 'success', data: res.rows };
             }
         },
-       // 17. POST Move / Panen Berantai
-method: 'POST',
-path: '/api/mesin-tetas/move',
-handler: async (request, h) => {
-    const { kategori_id, from_status, to_status, jumlah_hidup, jumlah_mati } = request.payload;
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+       {
+    // 17. POST Move / Panen Berantai (FIXED LOGIC)
+    method: 'POST',
+    path: '/api/mesin-tetas/move',
+    handler: async (request, h) => {
+        const { kategori_id, from_status, to_status, jumlah_hidup, jumlah_mati } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
 
-        const nHidup = parseInt(jumlah_hidup) || 0;
-        const nMati = parseInt(jumlah_mati) || 0;
+            const nHidup = parseInt(jumlah_hidup) || 0;
+            const nMati = parseInt(jumlah_mati) || 0;
 
-        if (to_status === 'SELESAI') {
-            // Logika Panen Akhir
-            await client.query(
-                `UPDATE mesin_tetas 
-                 SET status = 'DOC_HIDUP', jumlah = $1, siap_panen_tgl = CURRENT_TIMESTAMP 
-                 WHERE kategori_id = $2 AND status = 'SIAP_PANEN'`, 
-                [nHidup, kategori_id]
-            );
-            
-            // Masuk ke Stock DOC
-            await client.query(
-                `UPDATE komoditas 
-                 SET stok = stok + $1 
-                 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
-                [nHidup, kategori_id]
-            );
+            if (to_status === 'SELESAI') {
+                // PROSES PANEN: Mengubah SIAP_PANEN menjadi DOC_HIDUP
+                // Kita ambil data SIAP_PANEN yang paling lama (ASC) untuk diproses
+                await client.query(
+                    `UPDATE mesin_tetas 
+                     SET status = 'DOC_HIDUP', 
+                         jumlah = $1, 
+                         siap_panen_tgl = CURRENT_TIMESTAMP 
+                     WHERE id = (
+                        SELECT id FROM mesin_tetas 
+                        WHERE kategori_id = $2 AND status = 'SIAP_PANEN' 
+                        ORDER BY mesi_1_tgl ASC LIMIT 1
+                     )`, 
+                    [nHidup, kategori_id]
+                );
+                
+                // Update Stok di Komoditas
+                await client.query(
+                    `UPDATE komoditas 
+                     SET stok = stok + $1 
+                     WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, 
+                    [nHidup, kategori_id]
+                );
 
-            await client.query(
-                `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
-                 VALUES ($1, $2, $3)`, [kategori_id, nHidup, nMati]
-            );
-        } else {
-            // Logika Pindah Minggu (MESIN 1 -> 2 -> 3)
-            let tglCol = '';
-            if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
-            else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
-            else if (to_status === 'SIAP_PANEN') tglCol = 'siap_panen_tgl';
+                await client.query(
+                    `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati) 
+                     VALUES ($1, $2, $3)`, [kategori_id, nHidup, nMati]
+                );
 
-            // PROTEKSI CRITICAL: Jika tglCol kosong, jangan eksekusi query!
-            if (!tglCol) {
-                throw new Error(`Status tujuan '${to_status}' tidak valid.`);
+            } else {
+                // PROSES ROTASI: M1 -> M2 -> M3 -> SIAP_PANEN
+                let tglCol = '';
+                if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
+                else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
+                else if (to_status === 'SIAP_PANEN') tglCol = 'siap_panen_tgl';
+
+                if (!tglCol) throw new Error("Target status tidak valid");
+
+                // Kita update baris yang paling lama di status 'from_status' 
+                // Biar batch-nya nggak tertukar
+                await client.query(
+                    `UPDATE mesin_tetas 
+                     SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
+                     WHERE id = (
+                        SELECT id FROM mesin_tetas 
+                        WHERE kategori_id = $2 AND status = $3 
+                        ORDER BY mesi_1_tgl ASC LIMIT 1
+                     )`,
+                    [to_status, kategori_id, from_status]
+                );
             }
 
-            const updateRes = await client.query(
-                `UPDATE mesin_tetas 
-                 SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
-                 WHERE kategori_id = $2 AND status = $3`,
-                [to_status, kategori_id, from_status]
-            );
-
-            if (updateRes.rowCount === 0) {
-                throw new Error(`Data tidak ditemukan! Cek apakah kategori '${kategori_id}' dan status '${from_status}' sudah benar di database.`);
-            }
-        }
-
-        await client.query('COMMIT');
-        return { status: 'success' };
-    } catch (err) { 
-        await client.query('ROLLBACK'); 
-        console.error("ERROR DETAIL:", err.message); 
-        return h.response({ status: 'error', message: err.message }).code(500); 
-    } finally { client.release(); }
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) { 
+            await client.query('ROLLBACK'); 
+            console.error("LOG ERROR RYAN:", err.message);
+            return h.response({ status: 'error', message: err.message }).code(500); 
+        } finally { client.release(); }
+    }
 },
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
