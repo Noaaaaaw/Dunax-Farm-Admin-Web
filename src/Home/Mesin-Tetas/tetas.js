@@ -10,7 +10,8 @@ const Tetas = {
         </div>
 
         <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px;">
-            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between;">
+            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
+                <button class="btn-cheat" data-from="MESIN_1" title="Cheat: Langsung Panen" style="position:absolute; top:10px; right:10px; background:#fef3c7; border:1px solid #f59e0b; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:1rem;">⚡</button>
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN 1</h3>
                     <div id="val-MESIN_1" style="font-size:2.8rem; font-weight:1200; color:#6CA651; margin: 10px 0;">0</div>
@@ -19,7 +20,8 @@ const Tetas = {
                 <button class="btn-move" data-from="MESIN_1" data-to="SIAP_PANEN" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:#6CA651; color:#fff; border:none; cursor:pointer; font-weight:900;">KONFIRMASI PANEN</button>
             </div>
 
-            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between;">
+            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
+                <button class="btn-cheat" data-from="MESIN_2" title="Cheat: Langsung Panen" style="position:absolute; top:10px; right:10px; background:#fef3c7; border:1px solid #f59e0b; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:1rem;">⚡</button>
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN 2</h3>
                     <div id="val-MESIN_2" style="font-size:2.8rem; font-weight:1200; color:#d68910; margin: 10px 0;">0</div>
@@ -28,7 +30,8 @@ const Tetas = {
                 <button class="btn-move" data-from="MESIN_2" data-to="SIAP_PANEN" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:#d68910; color:#fff; border:none; cursor:pointer; font-weight:900;">KONFIRMASI PANEN</button>
             </div>
 
-            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between;">
+            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
+                <button class="btn-cheat" data-from="MESIN_3" title="Cheat: Langsung Panen" style="position:absolute; top:10px; right:10px; background:#fef3c7; border:1px solid #f59e0b; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:1rem;">⚡</button>
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN 3</h3>
                     <div id="val-MESIN_3" style="font-size:2.8rem; font-weight:1200; color:#e74c3c; margin: 10px 0;">0</div>
@@ -104,13 +107,28 @@ const Tetas = {
       }
     });
 
-    // Pindah dari Mesin ke Kotak Panen
+    // Pindah Normal (Sama kayak tombol konfirmasi biasa)
     document.querySelectorAll('.btn-move').forEach(btn => {
         btn.onclick = async (e) => {
             const { from, to } = e.target.dataset;
             const res = await presenter.moveMesin({
                 kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
                 from_status: from, to_status: to
+            });
+            if (res.status === 'success') location.reload();
+        };
+    });
+
+    // ⚡ FITUR CHEATING: Langsung Pindah Semua Batch di Mesin Itu
+    document.querySelectorAll('.btn-cheat').forEach(btn => {
+        btn.onclick = async (e) => {
+            const { from } = e.target.dataset;
+            if (!confirm(`⚡ CHEAT ACTIVATED: Pindahkan paksa semua telur dari ${from} ke Kotak Panen?`)) return;
+            
+            const res = await presenter.moveMesin({
+                kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
+                from_status: from, 
+                to_status: 'SIAP_PANEN'
             });
             if (res.status === 'success') location.reload();
         };

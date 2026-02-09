@@ -245,62 +245,46 @@ const init = async () => {
             }
         },
        {
-    // 17. POST Move / Panen (Full Otomatis ke Kotak Panen & Selesai)
-    method: 'POST',
-    path: '/api/mesin-tetas/move',
-    handler: async (request, h) => {
-        const { kategori_id, from_status, to_status } = request.payload;
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
+            // 17. POST Move / Panen Berantai (FIX PANEN & CHEATING)
+            method: 'POST',
+            path: '/api/mesin-tetas/move',
+            handler: async (request, h) => {
+                const { kategori_id, from_status, to_status } = request.payload;
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    if (to_status === 'SELESAI') {
+                        // AMBIL SEMUA DATA SIAP_PANEN UNTUK DIPINDAHKAN KE STOK DOC
+                        const batchRes = await client.query(
+                            `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                            [kategori_id]
+                        );
+                        const totalPanen = parseInt(batchRes.rows[0].total) || 0;
 
-            if (to_status === 'SELESAI') {
-                // 1. Ambil batch yang berstatus SIAP_PANEN
-                const batchRes = await client.query(
-                    `SELECT id, jumlah FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
-                    [kategori_id]
-                );
-                
-                if (batchRes.rows.length > 0) {
-                    const totalBaru = batchRes.rows.reduce((acc, row) => acc + row.jumlah, 0);
-
-                    // 2. Tandai data di mesin_tetas sebagai SELESAI
-                    await client.query(
-                        `UPDATE mesin_tetas SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP 
-                         WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
-                        [kategori_id]
-                    );
-
-                    // 3. Masukkan ke STOK KOMODITAS (Mencari nama 'DOC' atau 'DOD')
-                    await client.query(
-                        `UPDATE komoditas SET stok = stok + $1 
-                         WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
-                        [totalBaru, kategori_id]
-                    );
-                }
-            } else {
-                // LOGIKA PINDAH DARI MESIN (1/2/3) KE KOTAK PANEN (SIAP_PANEN)
-                await client.query(
-                    `UPDATE mesin_tetas 
-                     SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
-                     WHERE id = (
-                        SELECT id FROM mesin_tetas 
-                        WHERE kategori_id = $1 AND status = $2 
-                        ORDER BY mesi_1_tgl ASC LIMIT 1
-                     )`,
-                    [kategori_id, from_status]
-                );
+                        if (totalPanen > 0) {
+                            await client.query(
+                                `UPDATE mesin_tetas SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                                [kategori_id]
+                            );
+                            await client.query(
+                                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
+                                [totalPanen, kategori_id]
+                            );
+                        }
+                    } else {
+                        // LOGIKA PINDAH / CHEATING KE KOTAK PANEN
+                        await client.query(
+                            `UPDATE mesin_tetas SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
+                             WHERE id = (SELECT id FROM mesin_tetas WHERE kategori_id = $1 AND status = $2 ORDER BY mesi_1_tgl ASC LIMIT 1)`,
+                            [kategori_id, from_status]
+                        );
+                    }
+                    await client.query('COMMIT');
+                    return { status: 'success' };
+                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
+                finally { client.release(); }
             }
-
-            await client.query('COMMIT');
-            return { status: 'success' };
-        } catch (err) { 
-            await client.query('ROLLBACK'); 
-            console.error("ERROR PANEN:", err.message);
-            return h.response({ status: 'error', message: err.message }).code(500); 
-        } finally { client.release(); }
-    }
-},
+        },
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',
@@ -448,8 +432,42 @@ const init = async () => {
                 const res = await pool.query('SELECT * FROM pembelian_asset_baru ORDER BY created_at DESC');
                 return { status: 'success', data: res.rows };
             }
+        },
+        {
+            // 24. POST Proses Distribusi DOC (HIDUP JADI PULLET, MATI DIBUANG)
+            method: 'POST',
+            path: '/api/doc/process',
+            handler: async (request, h) => {
+                const { kategori_id, jumlah_hidup, jumlah_mati } = request.payload;
+                const totalProses = (parseInt(jumlah_hidup) || 0) + (parseInt(jumlah_mati) || 0);
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    // 1. Kurangi stok DOC (Semua yang diproses keluar dari stok DOC)
+                    await client.query(
+                        `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
+                        [totalProses, kategori_id]
+                    );
+                    // 2. Tambah ke stok PULLET (Hanya yang hidup)
+                    if (jumlah_hidup > 0) {
+                        await client.query(
+                            `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`,
+                            [jumlah_hidup, kategori_id]
+                        );
+                    }
+                    // 3. Catat history di pullet_process
+                    await client.query(
+                        `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati, tanggal_proses) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
+                        [kategori_id, jumlah_hidup, jumlah_mati]
+                    );
+                    await client.query('COMMIT');
+                    return { status: 'success' };
+                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
+                finally { client.release(); }
+            }
         }
     ]);
+    
 
     await server.start();
     console.log(`🚀 API Dunax Farm FIX TOTAL! Jalur Stok Asset Baru Mentereng!`);

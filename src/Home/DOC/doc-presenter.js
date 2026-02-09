@@ -18,10 +18,10 @@ class DocPresenter {
       if (result.status === 'success') {
         this.onDataReady(result.data);
         
-        // MENCARI ITEM MESIN TETAS SEBAGAI SUMBER PROSES
-        const sourceItem = result.data.details.find(p => 
-          p.nama.toUpperCase().includes('MESIN TETAS')
-        );
+       // MENCARI ITEM DOC SEBAGAI SUMBER STOK (Sesuai nama di tabel komoditas)
+const sourceItem = result.data.details.find(p => 
+  p.nama.toUpperCase() === 'DOC' || p.nama.toUpperCase() === 'DOD'
+);
         
         // Kirim data ke UI
         this.onDocReady(sourceItem || { stok: 0 });
