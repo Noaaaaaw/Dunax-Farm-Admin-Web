@@ -393,35 +393,32 @@ const init = async () => {
     }
 },
 {
-            // 22. POST Simpan Asset Baru (LOGIKA BARU: MANDIRI, GAK MASUK KOMODITAS UTAMA)
-            method: 'POST', path: '/api/asset-baru/save',
-            handler: async (request, h) => {
-                const { kategori_id, produk, jumlah, harga, keterangan, umur } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    // Input ke tabel history asset baru dengan detail lengkap
-                    await client.query(
-                        `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, created_at) 
-                         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`, 
-                        [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, parseInt(umur)]
-                    );
+    // 22. POST Simpan Asset Baru (LOGIKA MURNI PENCATATAN ASET)
+    method: 'POST', 
+    path: '/api/asset-baru/save',
+    handler: async (request, h) => {
+        const { kategori_id, produk, jumlah, harga, keterangan, umur } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
 
-                    // JIKA produknya DOC, dia otomatis masuk ke Antrian Mesin Tetas 1
-                    if (produk.toUpperCase() === 'DOC') {
-                        await client.query(
-                            `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl) VALUES ($1, $2, 'MESIN_1', CURRENT_TIMESTAMP)`,
-                            [kategori_id.replace('asset-', ''), parseInt(jumlah)]
-                        );
-                    }
-                    // CATATAN: Stok di tabel 'komoditas' TIDAK di-update sesuai request lo.
+            // Cuma catat di tabel history asset baru
+            await client.query(
+                `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, created_at) 
+                 VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`, 
+                [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, parseInt(umur)]
+            );
 
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
-                finally { client.release(); }
-            }
-        },
+            // LOGIKA LAMA YANG MASUKIN KE MESIN TETAS SUDAH DIHAPUS 🗑️
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) { 
+            await client.query('ROLLBACK'); 
+            return h.response({ status: 'error', message: err.message }).code(500); 
+        } finally { client.release(); }
+    }
+},
         {
             // 23. GET Riwayat Asset Baru
             method: 'GET',
