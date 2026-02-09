@@ -287,19 +287,27 @@ const init = async () => {
                 );
 
             } else {
-                // Logika pindah mesin normal antar minggu (Lock Batch)
-                let tglCol = '';
-                if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
-                else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
-                else if (to_status === 'SIAP_PANEN') tglCol = 'siap_panen_tgl';
+    // Logika pindah mesin normal antar minggu
+    let tglCol = '';
+    if (to_status === 'MESIN_2') tglCol = 'mesin_2_tgl';
+    else if (to_status === 'MESIN_3') tglCol = 'mesin_3_tgl';
+    else if (to_status === 'SIAP_PANEN') tglCol = 'siap_panen_tgl';
 
-                await client.query(
-                    `UPDATE mesin_tetas 
-                     SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
-                     WHERE kategori_id = $2 AND status = $3`,
-                    [to_status, kategori_id, from_status]
-                );
-            }
+    // TAMBAHKAN VALIDASI INI BIAR GAK ERROR 500
+    if (!tglCol) {
+        return h.response({ 
+            status: 'error', 
+            message: `Status tujuan '${to_status}' tidak dikenali oleh sistem.` 
+        }).code(400); 
+    }
+
+    await client.query(
+        `UPDATE mesin_tetas 
+         SET status = $1, ${tglCol} = CURRENT_TIMESTAMP 
+         WHERE kategori_id = $2 AND status = $3`,
+        [to_status, kategori_id, from_status]
+    );
+}
 
             await client.query('COMMIT');
             return { status: 'success' };
