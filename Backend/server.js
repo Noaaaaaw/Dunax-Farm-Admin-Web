@@ -254,7 +254,6 @@ const init = async () => {
                 try {
                     await client.query('BEGIN');
                     if (to_status === 'SELESAI') {
-                        // AMBIL SEMUA DATA SIAP_PANEN UNTUK DIPINDAHKAN KE STOK DOC
                         const batchRes = await client.query(
                             `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
                             [kategori_id]
@@ -272,7 +271,6 @@ const init = async () => {
                             );
                         }
                     } else {
-                        // LOGIKA PINDAH / CHEATING KE KOTAK PANEN
                         await client.query(
                             `UPDATE mesin_tetas SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
                              WHERE id = (SELECT id FROM mesin_tetas WHERE kategori_id = $1 AND status = $2 ORDER BY mesi_1_tgl ASC LIMIT 1)`,
@@ -281,7 +279,7 @@ const init = async () => {
                     }
                     await client.query('COMMIT');
                     return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
+                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
                 finally { client.release(); }
             }
         },
@@ -443,19 +441,19 @@ const init = async () => {
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
-                    // 1. Kurangi stok DOC (Semua yang diproses keluar dari stok DOC)
+                    // A. Kurangi stok DOC (Semua yang diproses keluar dari stok)
                     await client.query(
                         `UPDATE komoditas SET stok = stok - $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
                         [totalProses, kategori_id]
                     );
-                    // 2. Tambah ke stok PULLET (Hanya yang hidup)
+                    // B. Tambah ke stok PULLET (Hanya yang hidup)
                     if (jumlah_hidup > 0) {
                         await client.query(
                             `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Pullet%'`,
                             [jumlah_hidup, kategori_id]
                         );
                     }
-                    // 3. Catat history di pullet_process
+                    // C. Catat history di pullet_process
                     await client.query(
                         `INSERT INTO pullet_process (kategori_id, jumlah_hidup, jumlah_mati, tanggal_proses) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
                         [kategori_id, jumlah_hidup, jumlah_mati]
@@ -465,10 +463,22 @@ const init = async () => {
                 } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error', message: err.message }).code(500); }
                 finally { client.release(); }
             }
+        },
+        {
+            // API UNTUK NARIK SEMUA DATA ANTRIAN
+            method: 'GET',
+            path: '/api/mesin-tetas/status/{kategori_id}',
+            handler: async (request) => {
+                const kategori_id = request.params.kategori_id.toLowerCase(); 
+                const res = await pool.query(
+                    `SELECT id, jumlah, status, mesi_1_tgl FROM mesin_tetas WHERE kategori_id = $1 AND status != 'SELESAI' ORDER BY mesi_1_tgl ASC`,
+                    [kategori_id]
+                );
+                return { status: 'success', data: res.rows };
+            }
         }
     ]);
     
-
     await server.start();
     console.log(`🚀 API Dunax Farm FIX TOTAL! Jalur Stok Asset Baru Mentereng!`);
 };
