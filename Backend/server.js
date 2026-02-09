@@ -401,16 +401,12 @@ const init = async () => {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
-
-            // Cuma catat di tabel history asset baru
+            // Cuma catat di tabel history asset baru (PASTIKAN TABEL SUDAH ADA KOLOM HARGA, KETERANGAN, UMUR)
             await client.query(
                 `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, created_at) 
                  VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`, 
                 [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, parseInt(umur)]
             );
-
-            // LOGIKA LAMA YANG MASUKIN KE MESIN TETAS SUDAH DIHAPUS 🗑️
-
             await client.query('COMMIT');
             return { status: 'success' };
         } catch (err) { 
@@ -420,14 +416,19 @@ const init = async () => {
     }
 },
         {
-            // 23. GET Riwayat Asset Baru
-            method: 'GET',
-            path: '/api/asset-baru/history',
-            handler: async () => {
-                const res = await pool.query('SELECT * FROM pembelian_asset_baru ORDER BY created_at DESC');
-                return { status: 'success', data: res.rows };
-            }
-        },
+    // 23. GET Riwayat Asset Baru
+    method: 'GET',
+    path: '/api/asset-baru/history',
+    handler: async (request, h) => {
+        try {
+            const res = await pool.query('SELECT * FROM pembelian_asset_baru ORDER BY created_at DESC');
+            return { status: 'success', data: res.rows };
+        } catch (err) {
+            console.error("DATABASE ERROR:", err.message);
+            return h.response({ status: 'error', message: "Gagal ambil data: Kolom mungkin belum ada di database" }).code(500);
+        }
+    }
+},
         {
             // 24. POST Proses Distribusi DOC (FIXED INTEGER & PULLET FLOW)
             method: 'POST', path: '/api/doc/process',
