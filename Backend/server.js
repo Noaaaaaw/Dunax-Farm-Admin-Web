@@ -255,15 +255,32 @@ const init = async () => {
             await client.query('BEGIN');
 
             if (to_status === 'SELESAI') {
-                // Pindahkan SEMUA yang ada di SIAP_PANEN ke SELESAI
-                await client.query(
-                    `UPDATE mesin_tetas 
-                     SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP 
-                     WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, 
+                // 1. Ambil total jumlah yang sedang SIAP_PANEN
+                const checkStok = await client.query(
+                    `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
                     [kategori_id]
                 );
+                const jumlahPanen = parseInt(checkStok.rows[0].total) || 0;
+
+                if (jumlahPanen > 0) {
+                    // 2. Update status antrian mesin_tetas jadi SELESAI
+                    await client.query(
+                        `UPDATE mesin_tetas 
+                         SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP 
+                         WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, 
+                        [kategori_id]
+                    );
+
+                    // 3. Masukkan ke stok barang gudang (DOC)
+                    await client.query(
+                        `UPDATE komoditas 
+                         SET stok = stok + $1 
+                         WHERE category_id = $2 AND nama ILIKE '%DOC%'`, 
+                        [jumlahPanen, kategori_id]
+                    );
+                }
             } else {
-                // Pindahkan Batch Tertua dari Mesin (1/2/3) ke Kotak Panen (SIAP_PANEN)
+                // LOGIKA PINDAH DARI MESIN (1/2/3) KE KOTAK PANEN (SIAP_PANEN)
                 await client.query(
                     `UPDATE mesin_tetas 
                      SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
@@ -280,6 +297,7 @@ const init = async () => {
             return { status: 'success' };
         } catch (err) { 
             await client.query('ROLLBACK'); 
+            console.error("LOG ERROR RYAN:", err.message);
             return h.response({ status: 'error', message: err.message }).code(500); 
         } finally { client.release(); }
     }
