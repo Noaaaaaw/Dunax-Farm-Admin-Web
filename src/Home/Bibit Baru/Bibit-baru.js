@@ -13,26 +13,18 @@ const BibitBaru = {
                 
                 <div class="form-group" style="grid-column: span 2; position: relative;">
                     <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">PRODUK KOMODITAS</label>
-                    
                     <div id="customSelectTrigger" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background:#f9fbf9; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
                         <span id="selectedProductLabel">-- PILIH PRODUK --</span>
-                        <span style="color: #6CA651; transform: scaleY(0.7); font-size: 1.2rem;">▼</span>
+                        <span style="color: #6CA651;">▼</span>
                     </div>
-
                     <div id="customSelectList" style="display: none; position: absolute; top: 105%; left: 0; width: 100%; max-height: 250px; background: white; border: 2px solid #6CA651; border-radius: 12px; overflow-y: auto; z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem; border-bottom: 1px solid #e0eadd;">UNGGAS</div>
+                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem;">UNGGAS</div>
                         <div class="optionItem" data-value="DOC">DOC</div>
                         <div class="optionItem" data-value="DOD">DOD</div>
-                        <div class="optionItem" data-value="PULLET (8 MINGGU)">PULLET (8 MINGGU)</div>
+                        <div class="optionItem" data-value="PULLET">PULLET</div>
                         <div class="optionItem" data-value="AYAM PEJANTAN">AYAM PEJANTAN</div>
                         <div class="optionItem" data-value="AYAM BETINA">AYAM BETINA</div>
-                        <div class="optionItem" data-value="BEBEK">BEBEK</div>
-                        
-                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem; border-bottom: 1px solid #e0eadd; border-top: 1px solid #e0eadd;">IKAN</div>
-                        <div class="optionItem" data-value="IKAN LELE">IKAN LELE</div>
-                        <div class="optionItem" data-value="IKAN NILA">IKAN NILA</div>
-                        
-                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem; border-bottom: 1px solid #e0eadd; border-top: 1px solid #e0eadd;">LAINNYA</div>
+                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem;">LAINNYA</div>
                         <div class="optionItem" data-value="KAMBING">KAMBING</div>
                         <div class="optionItem" data-value="SAPI">SAPI</div>
                     </div>
@@ -50,9 +42,9 @@ const BibitBaru = {
                 </div>
 
                 <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">UMUR SAAT INI</label>
+                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">UMUR SAAT INI (HITUNG MUNDUR)</label>
                     <div style="display: flex; gap: 10px;">
-                        <input type="number" id="umurAsset" required placeholder="0" style="flex: 1; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                        <input type="number" id="umurAngka" required placeholder="0" style="flex: 1; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
                         <select id="kategoriUmur" style="padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #f9fbf9;">
                             <option value="Hari">Hari</option>
                             <option value="Bulan">Bulan</option>
@@ -75,7 +67,7 @@ const BibitBaru = {
         <div class="dashboard-card" style="background: white; padding: 30px; border-radius: 28px; border: 1px solid #eef2ed; position: relative; z-index: 1;">
             <h3 style="font-weight: 900; color: #1f3326; margin-bottom: 20px; text-align: center; text-transform: uppercase;">📦 DATA RIWAYAT ASSET MASUK</h3>
             <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; text-align: center;">
+                <table style="width: 100%; border-collapse: collapse;">
                     <thead style="background: #41644A; color: white;">
                         <tr>
                             <th style="padding: 15px; text-align: center;">TANGGAL</th>
@@ -93,7 +85,6 @@ const BibitBaru = {
             </div>
         </div>
       </section>
-      
       <style>
         .optionItem { padding: 12px 20px; cursor: pointer; font-weight: 700; transition: 0.2s; text-align: left; }
         .optionItem:hover { background: #f0f7f0; color: #6CA651; }
@@ -110,6 +101,34 @@ const BibitBaru = {
     const form = document.getElementById('assetBaruForm');
     const historyBody = document.getElementById('historyAssetBody');
 
+    // LOGIKA HITUNG JEDA WAKTU REAL-TIME (DARI TANGGAL LAHIR KE SEKARANG)
+    const calculateAge = (birthDateStr) => {
+        if (!birthDateStr || !birthDateStr.includes('-')) return birthDateStr || '-';
+        const birthDate = new Date(birthDateStr);
+        const today = new Date();
+        birthDate.setHours(0,0,0,0);
+        today.setHours(0,0,0,0);
+        
+        let years = today.getFullYear() - birthDate.getFullYear();
+        let months = today.getMonth() - birthDate.getMonth();
+        let days = today.getDate() - birthDate.getDate();
+
+        if (days < 0) {
+            months--;
+            days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+        }
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+
+        let parts = [];
+        if (years > 0) parts.push(`${years} Thn`);
+        if (months > 0) parts.push(`${months} Bln`);
+        if (days >= 0 || parts.length === 0) parts.push(`${days} Hari`);
+        return parts.join(' ');
+    };
+
     trigger.onclick = (e) => {
         e.stopPropagation();
         list.style.display = list.style.display === 'none' ? 'block' : 'none';
@@ -117,15 +136,14 @@ const BibitBaru = {
 
     document.querySelectorAll('.optionItem').forEach(item => {
         item.onclick = (e) => {
-            const val = e.target.innerText;
-            selectedLabel.innerText = val;
-            hiddenInput.value = val;
+            selectedLabel.innerText = e.target.innerText;
+            hiddenInput.value = e.target.innerText;
             list.style.display = 'none';
             selectedLabel.style.color = '#1f3326';
         };
     });
 
-    document.onclick = () => { list.style.display = 'none'; };
+    document.onclick = () => { if (list) list.style.display = 'none'; };
 
     const loadHistory = async () => {
         const history = await presenter.fetchHistory();
@@ -137,7 +155,7 @@ const BibitBaru = {
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 15px; text-align: center;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
                 <td style="padding: 15px; font-weight: 800; text-align: center;">${item.produk}</td>
-                <td style="padding: 15px; text-align: center;">${item.umur || '-'}</td>
+                <td style="padding: 15px; text-align: center; color: #d68910; font-weight: 900;">${calculateAge(item.umur)}</td>
                 <td style="padding: 15px; font-weight: 900; color: #6CA651; text-align: center;">${item.jumlah} Unit</td>
                 <td style="padding: 15px; font-weight: 700; text-align: center;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
                 <td style="padding: 15px; color: #666; font-style: italic; text-align: center;">${item.keterangan || '-'}</td>
@@ -147,25 +165,31 @@ const BibitBaru = {
 
     form.onsubmit = async (e) => {
         e.preventDefault();
+        const num = parseInt(document.getElementById('umurAngka').value);
+        const unit = document.getElementById('kategoriUmur').value;
+        
         if (!hiddenInput.value) return alert("Pilih produk komoditas dulu!");
-
-        const umurValue = document.getElementById('umurAsset').value;
-        const kategoriUmur = document.getElementById('kategoriUmur').value;
+        
+        // --- LOGIKA HITUNG MUNDUR UNTUK MENDAPATKAN TANGGAL LAHIR ---
+        const birthDate = new Date();
+        if (unit === 'Hari') birthDate.setDate(birthDate.getDate() - num);
+        else if (unit === 'Bulan') birthDate.setMonth(birthDate.getMonth() - num);
+        else if (unit === 'Tahun') birthDate.setFullYear(birthDate.getFullYear() - num);
+        
+        const formattedBirthDate = birthDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
 
         const res = await presenter.submitAsset({
             produk: hiddenInput.value,
             jumlah: parseInt(document.getElementById('jumlahAsset').value),
             harga: parseInt(document.getElementById('hargaAsset').value),
-            umur: `${umurValue} ${kategoriUmur}`,
+            umur: formattedBirthDate, // Simpan tanggal lahir asli ke database
             keterangan: document.getElementById('keteranganAsset').value
         });
 
         if (res.status === 'success') {
-            alert("Aset Baru Berhasil Disimpan!");
+            alert("Aset Baru Berhasil Disimpan! 🚀");
             form.reset();
             selectedLabel.innerText = "-- PILIH PRODUK --";
-            selectedLabel.style.color = '#757575';
-            hiddenInput.value = "";
             await loadHistory();
         }
     };

@@ -90,7 +90,7 @@ class HomePresenter {
         <div class="summary-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
           ${this._createSummaryItem('Total Kategori', summaryItems.totalKategori, '#f39c12')}
           ${this._createSummaryItem('Total Produk', summaryItems.totalJenis, '#41644A')}
-          ${this._createSummaryItem('Nilai Omset Stok', `Rp ${summaryItems.totalEstimasiNilai.toLocaleString('id-ID')}`, '#3498db')}
+          ${this._createSummaryItem('Nilai Omzet Stok', `Rp ${summaryItems.totalEstimasiNilai.toLocaleString('id-ID')}`, '#3498db')}
           ${this._createSummaryItem('Omzet Terjual', `Rp ${summaryItems.danaMasuk.toLocaleString('id-ID')}`, '#9b59b6')}
         </div>
 

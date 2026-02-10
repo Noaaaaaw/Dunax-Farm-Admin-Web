@@ -395,7 +395,7 @@ const init = async () => {
 // GANTI BAGIAN ROUTE 22, 23, dan 24 DI server.js LO DENGAN INI:
 
         {
-            // 22. POST Simpan Asset Baru (MANDIRI)
+            // 22. POST Simpan Asset Baru (FIX JALUR STRING TANGGAL)
             method: 'POST', 
             path: '/api/asset-baru/save',
             handler: async (request, h) => {
@@ -406,13 +406,12 @@ const init = async () => {
                     await client.query(
                         `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, created_at) 
                          VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`, 
-                        [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, parseInt(umur)]
+                        [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, umur] // umur JANGAN di-parseInt
                     );
                     await client.query('COMMIT');
                     return { status: 'success' };
                 } catch (err) { 
                     await client.query('ROLLBACK'); 
-                    console.error("LOG ERROR DB ASSET:", err.message);
                     return h.response({ status: 'error', message: err.message }).code(500); 
                 } finally { client.release(); }
             }
