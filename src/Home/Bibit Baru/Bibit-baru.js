@@ -9,7 +9,7 @@ const BibitBaru = {
         </div>
 
         <div class="main-content-card" style="background: white; padding: 40px; border-radius: 30px; border: 1px solid #e0eadd; box-shadow: 0 10px 30px rgba(0,0,0,0.05); position: relative; z-index: 10;">
-            <h2 style="font-weight: 900; color: #6CA651; margin-bottom: 20px; text-transform: uppercase; font-size: 1.2rem;">🐣 Input Bibit Ternak Baru</h2>
+            <h2 style="font-weight: 900; color: #6CA651; margin-bottom: 20px; text-transform: uppercase; font-size: 1.2rem;">INPUT ASSET TERNAK BARU</h2>
             <form id="assetBaruForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div class="form-group" style="grid-column: span 2; position: relative;">
                     <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">PRODUK KOMODITAS</label>
@@ -41,18 +41,18 @@ const BibitBaru = {
                     <input type="date" id="tglLahirAsset" required style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #f9fbf9; cursor: pointer;">
                 </div>
                 <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">KETERANGAN / SUPPLIER</label>
-                    <input type="text" id="keteranganAsset" placeholder="Detail supplier..." style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">KETERANGAN</label>
+                    <input type="text" id="keteranganAsset" placeholder="Masukan Detail" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
                 </div>
-                <button type="submit" style="grid-column: span 2; padding: 20px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 0 #4a7337; text-transform: uppercase;">Simpan Bibit Baru 🚀</button>
+                <button type="submit" style="grid-column: span 2; padding: 20px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 0 #4a7337; text-transform: uppercase;">Simpan Bibit Baru</button>
             </form>
         </div>
 
         <div class="main-content-card" style="background: #fdfdfd; padding: 40px; border-radius: 30px; border: 1.5px dashed #6CA651; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
-            <h2 style="font-weight: 900; color: #41644A; margin-bottom: 20px; text-transform: uppercase; font-size: 1.2rem;">🛠️ Input Alat & Barang Baru</h2>
+            <h2 style="font-weight: 900; color: #41644A; margin-bottom: 20px; text-transform: uppercase; font-size: 1.2rem;">INPUT ALAT & BARANG BARU</h2>
             <form id="alatBaruForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div class="form-group" style="grid-column: span 2;">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">NAMA BARANG / ALAT</label>
+                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">NAMA BARANG</label>
                     <input type="text" id="namaAlat" required placeholder="Contoh: Mesin Tetas / Wadah Pakan" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
                 </div>
                 <div class="form-group">
@@ -64,10 +64,10 @@ const BibitBaru = {
                     <input type="number" id="hargaAlat" required placeholder="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
                 </div>
                 <div class="form-group" style="grid-column: span 2;">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">NAMA PEMBELI / PENANGGUNG JAWAB</label>
-                    <input type="text" id="pembeliAlat" required placeholder="Siapa yang beli?" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #fff;">
+                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">NAMA PEMBELI</label>
+                    <input type="text" id="pembeliAlat" required placeholder=" " style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #fff;">
                 </div>
-                <button type="submit" style="grid-column: span 2; padding: 20px; background: #41644A; color: white; border: none; border-radius: 15px; font-weight: 900; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 0 #2d4a36; text-transform: uppercase;">Simpan Alat Baru 🔧</button>
+                <button type="submit" style="grid-column: span 2; padding: 20px; background: #41644A; color: white; border: none; border-radius: 15px; font-weight: 900; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 0 #2d4a36; text-transform: uppercase;">Simpan Alat Baru</button>
             </form>
         </div>
 

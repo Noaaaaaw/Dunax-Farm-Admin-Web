@@ -463,7 +463,7 @@ const init = async () => {
                     return h.response({ status: 'error', message: err.message }).code(500); 
                 } finally { client.release(); }
             }
-        }
+        },
         {
             // 25. POST Simpan Asset Alat Baru
             method: 'POST', 
