@@ -42,15 +42,8 @@ const BibitBaru = {
                 </div>
 
                 <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">UMUR SAAT INI (HITUNG MUNDUR)</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="number" id="umurAngka" required placeholder="0" style="flex: 1; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
-                        <select id="kategoriUmur" style="padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #f9fbf9;">
-                            <option value="Hari">Hari</option>
-                            <option value="Bulan">Bulan</option>
-                            <option value="Tahun">Tahun</option>
-                        </select>
-                    </div>
+                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">TANGGAL LAHIR TERNAK</label>
+                    <input type="date" id="tglLahirAsset" required style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #f9fbf9; cursor: pointer;">
                 </div>
 
                 <div class="form-group">
@@ -70,9 +63,9 @@ const BibitBaru = {
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead style="background: #41644A; color: white;">
                         <tr>
-                            <th style="padding: 15px; text-align: center;">TANGGAL</th>
+                            <th style="padding: 15px; text-align: center;">TANGGAL BELI</th>
                             <th style="padding: 15px; text-align: center;">PRODUK</th>
-                            <th style="padding: 15px; text-align: center;">UMUR</th>
+                            <th style="padding: 15px; text-align: center;">UMUR SAAT INI</th>
                             <th style="padding: 15px; text-align: center;">JUMLAH</th>
                             <th style="padding: 15px; text-align: center;">TOTAL HARGA</th>
                             <th style="padding: 15px; text-align: center;">KETERANGAN</th>
@@ -101,7 +94,7 @@ const BibitBaru = {
     const form = document.getElementById('assetBaruForm');
     const historyBody = document.getElementById('historyAssetBody');
 
-    // LOGIKA HITUNG JEDA WAKTU REAL-TIME (DARI TANGGAL LAHIR KE SEKARANG)
+    // LOGIKA HITUNG JEDA WAKTU REAL-TIME (YYYY-MM-DD ke Hari Ini)
     const calculateAge = (birthDateStr) => {
         if (!birthDateStr || !birthDateStr.includes('-')) return birthDateStr || '-';
         const birthDate = new Date(birthDateStr);
@@ -165,24 +158,15 @@ const BibitBaru = {
 
     form.onsubmit = async (e) => {
         e.preventDefault();
-        const num = parseInt(document.getElementById('umurAngka').value);
-        const unit = document.getElementById('kategoriUmur').value;
-        
-        if (!hiddenInput.value) return alert("Pilih produk komoditas dulu!");
-        
-        // --- LOGIKA HITUNG MUNDUR UNTUK MENDAPATKAN TANGGAL LAHIR ---
-        const birthDate = new Date();
-        if (unit === 'Hari') birthDate.setDate(birthDate.getDate() - num);
-        else if (unit === 'Bulan') birthDate.setMonth(birthDate.getMonth() - num);
-        else if (unit === 'Tahun') birthDate.setFullYear(birthDate.getFullYear() - num);
-        
-        const formattedBirthDate = birthDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        const tglLahir = document.getElementById('tglLahirAsset').value;
+        if (!hiddenInput.value) return alert("Pilih produk dulu!");
+        if (!tglLahir) return alert("Pilih tanggal lahir!");
 
         const res = await presenter.submitAsset({
             produk: hiddenInput.value,
             jumlah: parseInt(document.getElementById('jumlahAsset').value),
             harga: parseInt(document.getElementById('hargaAsset').value),
-            umur: formattedBirthDate, // Simpan tanggal lahir asli ke database
+            umur: tglLahir, // Kirim format YYYY-MM-DD langsung
             keterangan: document.getElementById('keteranganAsset').value
         });
 
