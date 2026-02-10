@@ -9,7 +9,7 @@ class LaporanPresenter {
     this.allData = []; 
     this.tempPanenData = []; 
     this.MAX_KANDANG_PER_SESI = 10;
-    this.MAX_TELUR_PER_HARI = 5; // ✅ Kuota Maksimal
+    this.MAX_TELUR_PER_HARI = 5; 
   }
 
   async init() {
@@ -105,13 +105,10 @@ class LaporanPresenter {
       if (this.hewanSelect.value) this.stepSesi.style.display = 'flex';
     };
 
-    // --- LOGIKA MODAL PANEN OTOMATIS ---
     const panenModal = document.getElementById('panenModal');
-    const panenEntries = document.getElementById('panenEntries');
-    
     document.body.addEventListener('click', (e) => {
       if (e.target.classList.contains('btn-open-panen')) {
-        this._generatePanenKandang(); // Generate otomatis 1-15 sesuai deret
+        this._generatePanenKandang(); 
         panenModal.style.display = 'flex';
       }
     });
@@ -143,6 +140,11 @@ class LaporanPresenter {
         if (btnPanen) {
             btnPanen.innerText = `PANEN: ${total} BUTIR ✅`;
             btnPanen.style.background = '#1f3326';
+
+            // ✅ AUTO CHECK PANEN
+            const panenRow = btnPanen.closest('tr');
+            const checkbox = panenRow.querySelector('.task-check');
+            if (checkbox) checkbox.checked = total > 0;
         }
         panenModal.style.display = 'none';
     };
@@ -169,7 +171,26 @@ class LaporanPresenter {
     });
   }
 
-  // ✅ FUNGSI GENERATE KANDANG BERDASARKAN DERET (1-15, 16-30, dst)
+  // ✅ LOGIKA AUTO CHECK (STATUS CENTANG OTOMATIS)
+  _setupAutoCheck() {
+    const container = document.getElementById('taskContainer');
+    container.addEventListener('input', (e) => {
+      if (e.target.classList.contains('task-input')) {
+        const row = e.target.closest('tr');
+        const checkbox = row.querySelector('.task-check');
+        checkbox.checked = e.target.value.trim() !== "";
+      }
+    });
+
+    container.addEventListener('change', (e) => {
+      if (e.target.classList.contains('health-status-select')) {
+        const row = e.target.closest('tr');
+        const checkbox = row.querySelector('.task-check');
+        checkbox.checked = true; 
+      }
+    });
+  }
+
   _generatePanenKandang() {
     const deret = parseInt(this.noKandangSelect.value);
     const start = (deret - 1) * 15 + 1;
@@ -177,12 +198,10 @@ class LaporanPresenter {
     const panenEntries = document.getElementById('panenEntries');
     panenEntries.innerHTML = '';
 
-    // Cari riwayat hari ini untuk hitung kuota
     const todayStr = new Date().toLocaleDateString('id-ID');
     const todayData = this.allData.filter(d => new Date(d.tanggal_jam).toLocaleDateString('id-ID') === todayStr);
 
     for (let i = start; i <= end; i++) {
-        // Hitung berapa yang sudah dipanen di kandang ini hari ini
         let sudahPanen = 0;
         todayData.forEach(rep => {
             const task = rep.pekerjaan_data.find(t => t.name.toLowerCase().includes('panen telur'));
@@ -191,15 +210,13 @@ class LaporanPresenter {
                 if (kandangInfo) sudahPanen += parseFloat(kandangInfo.jumlah);
             }
         });
-
         const sisaQuota = Math.max(0, this.MAX_TELUR_PER_HARI - sudahPanen);
-
         const div = document.createElement('div');
         div.className = 'panen-row';
         div.style = "display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background: #f9f9f9; padding: 10px; border-radius: 10px;";
         div.innerHTML = `
             <input type="text" class="p-no-kandang" value="${i}" readonly style="width: 60px; padding:10px; border-radius:8px; border:1px solid #ddd; font-weight:900; text-align:center; background:#eee;">
-            <input type="number" class="p-jumlah" step="0.1" data-quota="${sisaQuota}" placeholder="Butir (Maks: ${sisaQuota})" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd; font-weight:700;">
+            <input type="number" class="p-jumlah" step="0.1" data-quota="${sisaQuota}" placeholder="Butir" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd; font-weight:700;">
             <span style="font-size:0.6rem; color:#888; width:40px;">SISA:${sisaQuota}</span>
         `;
         panenEntries.appendChild(div);
@@ -227,8 +244,8 @@ class LaporanPresenter {
         <td style="padding: 15px; font-weight: 700; text-align: left;">${t.text}</td>
         <td style="padding: 10px; text-align: center;">
           <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-            ${t.type === 'number' ? `<input type="number" class="task-input" data-unit="${t.unit}" placeholder="${t.unit}" step="0.1" inputmode="decimal" style="width: 80px; padding: 10px; text-align: center; font-weight: 800; border-radius: 10px; border: 1px solid #ddd;">` : ''}
-            ${t.type === 'panen' ? `<button type="button" class="btn-open-panen" style="padding:10px 15px; border-radius:10px; background:#6CA651; color:white; border:2px dashed rgba(255,255,255,0.4); cursor:pointer; font-size:0.75rem; font-weight:900; min-width:160px;">+ INPUT PANEN</button>` : ''}
+            ${t.type === 'number' ? `<input type="number" class="task-input" data-unit="${t.unit}" placeholder="${t.unit}" step="0.1" style="width: 80px; padding: 10px; text-align: center; font-weight: 800; border-radius: 10px; border: 1px solid #ddd;">` : ''}
+            ${t.type === 'panen' ? `<button type="button" class="btn-open-panen" style="padding:10px 15px; border-radius:10px; background:#6CA651; color:white; border:none; cursor:pointer; font-size:0.75rem; font-weight:900; min-width:160px;">+ INPUT PANEN</button>` : ''}
             ${t.type === 'health' ? `<select class="health-status-select" style="padding: 10px; border-radius: 10px; font-weight: 700; border: 1px solid #ddd; width: 110px;"><option value="SEHAT">SEHAT</option><option value="SAKIT">SAKIT</option></select> <button type="button" class="add-health-btn" style="display:none; padding:6px 12px; border-radius:10px; background:#41644A; color:white; border:none; cursor:pointer; font-size:0.75rem; font-weight:900;">Tambah Data</button>` : ''}
           </div>
         </td>
@@ -238,6 +255,7 @@ class LaporanPresenter {
     `).join('');
 
     this._bindHealthLogic(container);
+    this._setupAutoCheck(); 
   }
 
   _bindHealthLogic(container) {
@@ -332,9 +350,20 @@ class LaporanPresenter {
     const result = await response.json();
     if (result.status === 'success') {
         alert('Laporan Berhasil Disimpan! ☁️');
+        
+        // ✅ BUG FIX: BERSIHKAN SEMUA DATA SETELAH SUBMIT
         this.form.reset();
+        document.getElementById('problemListContainer').innerHTML = ""; // Bersihkan masalah
+        this.form.querySelector('.alert-row').style.display = 'none'; // Sembunyikan row merah
         this.stepSesi.style.display = 'none';
         this.tempPanenData = [];
+        
+        // Reset tombol panen
+        const btnPanen = document.querySelector('.btn-open-panen');
+        if (btnPanen) {
+            btnPanen.innerText = "+ INPUT PANEN";
+            btnPanen.style.background = "#6CA651";
+        }
     }
   }
 
@@ -389,7 +418,7 @@ class LaporanPresenter {
           </table>`;
         document.getElementById('statusModal').style.display = 'flex';
     };
-    // Sisa fungsi popup (health, layak, task) tetap sama...
+    
     row.querySelector('.btn-task-pop').onclick = (e) => {
       const tasks = JSON.parse(e.currentTarget.dataset.tasks);
       document.getElementById('taskListContent').innerHTML = `<table style="width:100%; border-collapse:collapse;">${tasks.map(t => `<tr><td>${t.status?'✅':'❌'} ${t.name}</td><td>${t.val} ${t.unit}</td></tr>`).join('')}</table>`;
@@ -407,13 +436,22 @@ class LaporanPresenter {
     } catch (err) {}
   }
 
+  // ✅ LOGIKA KELAYAKAN KANDANG (DENGAN BUG FIX MEMBERSIHKAN CONTAINER)
   _setupKelayakanLogic() {
     const selectKelayakan = this.form.querySelector('.status-kandang-select');
     const alertRow = this.form.querySelector('.alert-row');
+    const container = document.getElementById('problemListContainer');
+
     if (selectKelayakan) {
       selectKelayakan.onchange = (e) => {
-        alertRow.style.display = e.target.value === 'TIDAK_STANDAR' ? 'block' : 'none';
-        if (e.target.value === 'TIDAK_STANDAR' && document.getElementById('problemListContainer').innerHTML === "") this._addProblemRow();
+        if (e.target.value === 'TIDAK_STANDAR') {
+          alertRow.style.display = 'block';
+          if (container.innerHTML === "") this._addProblemRow();
+        } else {
+          // ✅ BUG FIX: Hapus inputan masalah kandang kalau balik ke STANDAR
+          alertRow.style.display = 'none';
+          container.innerHTML = ""; 
+        }
       };
     }
     document.getElementById('btnAddProblem').onclick = () => this._addProblemRow();

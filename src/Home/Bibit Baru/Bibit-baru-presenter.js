@@ -11,13 +11,12 @@ class BibitBaruPresenter {
             const result = await res.json();
             return result.status === 'success' ? result.data : [];
         } catch (err) { 
-            console.error("Gagal ambil riwayat:", err);
+            console.error("Gagal ambil riwayat bibit:", err);
             return []; 
         }
     }
 
     async submitAsset(data) {
-        // Ambil ID dari URL, misal: #/new-asset-ayam -> ayam
         const hash = window.location.hash.slice(1);
         const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
         
@@ -35,7 +34,35 @@ class BibitBaruPresenter {
 
             return await res.json();
         } catch (err) { 
-            console.error("Gagal koneksi server:", err);
+            console.error("Gagal simpan bibit:", err);
+            return { status: 'error', message: 'Koneksi server gagal' }; 
+        }
+    }
+
+    // --- LOGIKA BARU UNTUK ASSET ALAT (INVENTARIS) ---
+
+    async fetchAlatHistory() {
+        try {
+            const res = await fetch(`${this.baseUrl}/api/asset-alat/history`);
+            const result = await res.json();
+            return result.status === 'success' ? result.data : [];
+        } catch (err) { 
+            console.error("Gagal ambil riwayat alat:", err);
+            return []; 
+        }
+    }
+
+    async submitAlat(data) {
+        try {
+            const res = await fetch(`${this.baseUrl}/api/asset-alat/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data) // Mengirim nama_alat, jumlah, harga, pembeli
+            });
+
+            return await res.json();
+        } catch (err) { 
+            console.error("Gagal simpan alat:", err);
             return { status: 'error', message: 'Koneksi server gagal' }; 
         }
     }

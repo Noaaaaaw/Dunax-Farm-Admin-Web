@@ -464,6 +464,38 @@ const init = async () => {
                 } finally { client.release(); }
             }
         }
+        {
+            // 25. POST Simpan Asset Alat Baru
+            method: 'POST', 
+            path: '/api/asset-alat/save',
+            handler: async (request, h) => {
+                const { nama_alat, jumlah, harga, pembeli } = request.payload;
+                try {
+                    await pool.query(
+                        `INSERT INTO asset_alat (nama_alat, jumlah, harga, pembeli) 
+                         VALUES ($1, $2, $3, $4)`, 
+                        [nama_alat, parseInt(jumlah), parseInt(harga), pembeli]
+                    );
+                    return { status: 'success' };
+                } catch (err) { 
+                    console.error("LOG ERROR ALAT:", err.message);
+                    return h.response({ status: 'error', message: err.message }).code(500); 
+                }
+            }
+        },
+        {
+            // 26. GET Riwayat Asset Alat
+            method: 'GET',
+            path: '/api/asset-alat/history',
+            handler: async (request, h) => {
+                try {
+                    const res = await pool.query('SELECT * FROM asset_alat ORDER BY created_at DESC');
+                    return { status: 'success', data: res.rows };
+                } catch (err) {
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                }
+            }
+        }
     ]);
     
     await server.start();
