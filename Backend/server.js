@@ -392,21 +392,19 @@ const init = async () => {
         }
     }
 },
-// GANTI BAGIAN ROUTE 22, 23, dan 24 DI server.js LO DENGAN INI:
-
-        {
-            // 22. POST Simpan Asset Baru (FIX JALUR STRING TANGGAL)
+{
+            // 22. POST Simpan Asset Baru (DENGAN BUKTI)
             method: 'POST', 
             path: '/api/asset-baru/save',
             handler: async (request, h) => {
-                const { kategori_id, produk, jumlah, harga, keterangan, umur } = request.payload;
+                const { kategori_id, produk, jumlah, harga, keterangan, umur, bukti_pembayaran } = request.payload;
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
                     await client.query(
-                        `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, created_at) 
-                         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`, 
-                        [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, umur] // umur JANGAN di-parseInt
+                        `INSERT INTO pembelian_asset_baru (kategori_id, produk, jumlah, harga, keterangan, umur, bukti_pembayaran, created_at) 
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`, 
+                        [kategori_id, produk, parseInt(jumlah), parseInt(harga), keterangan, umur, bukti_pembayaran]
                     );
                     await client.query('COMMIT');
                     return { status: 'success' };
@@ -465,16 +463,16 @@ const init = async () => {
             }
         },
         {
-            // 25. POST Simpan Asset Alat Baru
+            // 25. POST Simpan Asset Alat Baru (DENGAN BUKTI)
             method: 'POST', 
             path: '/api/asset-alat/save',
             handler: async (request, h) => {
-                const { nama_alat, jumlah, harga, pembeli } = request.payload;
+                const { nama_alat, jumlah, harga, pembeli, bukti_pembayaran } = request.payload;
                 try {
                     await pool.query(
-                        `INSERT INTO asset_alat (nama_alat, jumlah, harga, pembeli) 
-                         VALUES ($1, $2, $3, $4)`, 
-                        [nama_alat, parseInt(jumlah), parseInt(harga), pembeli]
+                        `INSERT INTO asset_alat (nama_alat, jumlah, harga, pembeli, bukti_pembayaran) 
+                         VALUES ($1, $2, $3, $4, $5)`, 
+                        [nama_alat, parseInt(jumlah), parseInt(harga), pembeli, bukti_pembayaran]
                     );
                     return { status: 'success' };
                 } catch (err) { 

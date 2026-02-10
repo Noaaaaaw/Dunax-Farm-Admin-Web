@@ -3,110 +3,115 @@ import BibitBaruPresenter from './Bibit-baru-presenter.js';
 const BibitBaru = {
   async render() {
     return `
-      <section class="page" style="display: flex; flex-direction: column; gap: 30px; padding: 0 20px; max-width:1200px; margin: 0 auto; min-height: 100vh;">
+      <section class="page" style="display: flex; flex-direction: column; gap: 30px; padding: 0 20px; max-width:1400px; margin: 0 auto; min-height: 100vh;">
         <div class="page-header-card" style="background: #ffffff; border-radius: 24px; padding: 40px; text-align: center; border: 1px solid #e0eadd; box-shadow: 0 8px 24px rgba(0,0,0,0.04);">
           <h1 style="margin: 0; font-family: 'Luckiest Guy'; color: #6CA651; font-size: 2.5rem; letter-spacing: 2px;">PENGADAAN ASSET BARU</h1>
         </div>
 
-        <div class="main-content-card" style="background: white; padding: 40px; border-radius: 30px; border: 1px solid #e0eadd; box-shadow: 0 10px 30px rgba(0,0,0,0.05); position: relative; z-index: 10;">
-            <h2 style="font-weight: 900; color: #6CA651; margin-bottom: 20px; text-transform: uppercase; font-size: 1.2rem;">INPUT ASSET TERNAK BARU</h2>
-            <form id="assetBaruForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div class="form-group" style="grid-column: span 2; position: relative;">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">PRODUK KOMODITAS</label>
-                    <div id="customSelectTrigger" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background:#f9fbf9; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                        <span id="selectedProductLabel">-- PILIH PRODUK --</span>
-                        <span style="color: #6CA651;">▼</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: stretch;">
+            <div class="main-content-card" style="background: white; padding: 30px; border-radius: 30px; border: 1px solid #e0eadd; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; flex-direction: column;">
+                <h2 style="font-weight: 900; color: #6CA651; margin-bottom: 20px; text-transform: uppercase; font-size: 1rem; text-align: center;">INPUT ASSET TERNAK BARU</h2>
+                <form id="assetBaruForm" style="display: flex; flex-direction: column; gap: 15px; flex-grow: 1;">
+                    <div class="form-group" style="position: relative;">
+                        <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 5px; font-size: 0.8rem;">PRODUK KOMODITAS</label>
+                        <div id="customSelectTrigger" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background:#f9fbf9; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span id="selectedProductLabel">-- PILIH PRODUK --</span>
+                            <span style="color: #6CA651;">▼</span>
+                        </div>
+                        <div id="customSelectList" style="display: none; position: absolute; top: 105%; left: 0; width: 100%; max-height: 200px; background: white; border: 2px solid #6CA651; border-radius: 12px; overflow-y: auto; z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                            <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem;">UNGGAS</div>
+                            <div class="optionItem" data-value="DOC">DOC</div>
+                            <div class="optionItem" data-value="DOD">DOD</div>
+                            <div class="optionItem" data-value="PULLET">PULLET</div>
+                            <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem;">LAINNYA</div>
+                            <div class="optionItem" data-value="KAMBING">KAMBING</div>
+                            <div class="optionItem" data-value="SAPI">SAPI</div>
+                        </div>
+                        <input type="hidden" id="produkAsset" required>
                     </div>
-                    <div id="customSelectList" style="display: none; position: absolute; top: 105%; left: 0; width: 100%; max-height: 250px; background: white; border: 2px solid #6CA651; border-radius: 12px; overflow-y: auto; z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem;">UNGGAS</div>
-                        <div class="optionItem" data-value="DOC">DOC</div>
-                        <div class="optionItem" data-value="DOD">DOD</div>
-                        <div class="optionItem" data-value="PULLET">PULLET</div>
-                        <div style="padding: 10px; background: #f0f7f0; font-weight: 900; color: #1f3326; font-size: 0.75rem;">LAINNYA</div>
-                        <div class="optionItem" data-value="KAMBING">KAMBING</div>
-                        <div class="optionItem" data-value="SAPI">SAPI</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">JUMLAH EKOR</label>
+                            <input type="number" id="jumlahAsset" required min="1" placeholder="0" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">HARGA (RUPIAH)</label>
+                            <input type="number" id="hargaAsset" required placeholder="0" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                        </div>
                     </div>
-                    <input type="hidden" id="produkAsset" required>
-                </div>
-                <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">JUMLAH EKOR</label>
-                    <input type="number" id="jumlahAsset" required min="1" placeholder="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
-                </div>
-                <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">HARGA PER EKOR (RP)</label>
-                    <input type="number" id="hargaAsset" required placeholder="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
-                </div>
-                <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">TANGGAL LAHIR TERNAK</label>
-                    <input type="date" id="tglLahirAsset" required style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #f9fbf9; cursor: pointer;">
-                </div>
-                <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">KETERANGAN</label>
-                    <input type="text" id="keteranganAsset" placeholder="Masukan Detail" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
-                </div>
-                <button type="submit" style="grid-column: span 2; padding: 20px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 0 #4a7337; text-transform: uppercase;">Simpan Bibit Baru</button>
-            </form>
-        </div>
+                    <div class="form-group">
+                        <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">TANGGAL LAHIR TERNAK</label>
+                        <input type="date" id="tglLahirAsset" required style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #f9fbf9;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">KETERANGAN / DETAIL</label>
+                        <input type="text" id="keteranganAsset" placeholder="Masukan Detail..." style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                    </div>
+                    <button type="submit" style="margin-top: auto; padding: 18px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer; box-shadow: 0 5px 0 #4a7337; text-transform: uppercase;">SIMPAN</button>
+                </form>
+            </div>
 
-        <div class="main-content-card" style="background: #fdfdfd; padding: 40px; border-radius: 30px; border: 1.5px dashed #6CA651; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
-            <h2 style="font-weight: 900; color: #41644A; margin-bottom: 20px; text-transform: uppercase; font-size: 1.2rem;">INPUT ALAT & BARANG BARU</h2>
-            <form id="alatBaruForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div class="form-group" style="grid-column: span 2;">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">NAMA BARANG</label>
-                    <input type="text" id="namaAlat" required placeholder="Contoh: Mesin Tetas / Wadah Pakan" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
-                </div>
-                <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">JUMLAH BARANG</label>
-                    <input type="number" id="jumlahAlat" required min="1" placeholder="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
-                </div>
-                <div class="form-group">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">HARGA SATUAN (RP)</label>
-                    <input type="number" id="hargaAlat" required placeholder="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
-                </div>
-                <div class="form-group" style="grid-column: span 2;">
-                    <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 8px;">NAMA PEMBELI</label>
-                    <input type="text" id="pembeliAlat" required placeholder=" " style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #fff;">
-                </div>
-                <button type="submit" style="grid-column: span 2; padding: 20px; background: #41644A; color: white; border: none; border-radius: 15px; font-weight: 900; font-size: 1.1rem; cursor: pointer; box-shadow: 0 5px 0 #2d4a36; text-transform: uppercase;">Simpan Alat Baru</button>
-            </form>
-        </div>
-
-        <div class="dashboard-card" style="background: white; padding: 30px; border-radius: 28px; border: 1px solid #eef2ed;">
-            <h3 style="font-weight: 900; color: #1f3326; margin-bottom: 20px; text-align: center; text-transform: uppercase;">📦 DATA RIWAYAT BIBIT TERNAK</h3>
-            <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #6CA651; color: white;">
-                        <tr>
-                            <th style="padding: 15px; text-align: center;">TANGGAL BELI</th>
-                            <th style="padding: 15px; text-align: center;">PRODUK</th>
-                            <th style="padding: 15px; text-align: center;">UMUR</th>
-                            <th style="padding: 15px; text-align: center;">JUMLAH</th>
-                            <th style="padding: 15px; text-align: center;">TOTAL HARGA</th>
-                            <th style="padding: 15px; text-align: center;">KETERANGAN</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyAssetBody"></tbody>
-                </table>
+            <div class="main-content-card" style="background: #fdfdfd; padding: 30px; border-radius: 30px; border: 1.5px dashed #6CA651; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; flex-direction: column;">
+                <h2 style="font-weight: 900; color: #41644A; margin-bottom: 20px; text-transform: uppercase; font-size: 1rem; text-align: center;">INPUT ALAT & BARANG BARU</h2>
+                <form id="alatBaruForm" style="display: flex; flex-direction: column; gap: 15px; flex-grow: 1;">
+                    <div class="form-group">
+                        <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">NAMA BARANG</label>
+                        <input type="text" id="namaAlat" required placeholder="Contoh: Mesin Tetas" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">JUMLAH UNIT</label>
+                            <input type="number" id="jumlahAlat" required min="1" placeholder="0" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">HARGA SATUAN</label>
+                            <input type="number" id="hargaAlat" required placeholder="0" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">NAMA PEMBELI</label>
+                        <input type="text" id="pembeliAlat" required placeholder="Siapa yang beli?" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                    </div>
+                    <div style="height: 65px;"></div> 
+                    <button type="submit" style="margin-top: auto; padding: 18px; background: #41644A; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer; box-shadow: 0 5px 0 #2d4a36; text-transform: uppercase;">SIMPAN</button>
+                </form>
             </div>
         </div>
 
-        <div class="dashboard-card" style="background: white; padding: 30px; border-radius: 28px; border: 1px solid #eef2ed;">
-            <h3 style="font-weight: 900; color: #1f3326; margin-bottom: 20px; text-align: center; text-transform: uppercase;">🛠️ DATA RIWAYAT BELANJA ALAT</h3>
-            <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #41644A; color: white;">
-                        <tr>
-                            <th style="padding: 15px; text-align: center;">TANGGAL</th>
-                            <th style="padding: 15px; text-align: center;">NAMA BARANG</th>
-                            <th style="padding: 15px; text-align: center;">JUMLAH</th>
-                            <th style="padding: 15px; text-align: center;">TOTAL HARGA</th>
-                            <th style="padding: 15px; text-align: center;">PEMBELI</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyAlatBody">
-                        <tr><td colspan="5" style="padding: 30px; color: #ccc; text-align: center;">Memuat data alat...</td></tr>
-                    </tbody>
-                </table>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: stretch;">
+            
+            <div class="dashboard-card" style="background: white; padding: 25px; border-radius: 28px; border: 1px solid #eef2ed; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column;">
+                <h3 style="font-weight: 900; color: #1f3326; margin-bottom: 15px; text-align: center; text-transform: uppercase; font-size: 0.85rem;">RIWAYAT BIBIT TERNAK</h3>
+                <div style="overflow-x: auto; flex-grow: 1;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem;">
+                        <thead style="background: #6CA651; color: white;">
+                            <tr>
+                                <th style="padding: 12px 5px; text-align: center;">TANGGAL</th>
+                                <th style="padding: 12px 5px; text-align: center;">PRODUK</th>
+                                <th style="padding: 12px 5px; text-align: center;">UMUR</th>
+                                <th style="padding: 12px 5px; text-align: center;">TOTAL RP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyAssetBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="dashboard-card" style="background: white; padding: 25px; border-radius: 28px; border: 1px solid #eef2ed; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column;">
+                <h3 style="font-weight: 900; color: #1f3326; margin-bottom: 15px; text-align: center; text-transform: uppercase; font-size: 0.85rem;">RIWAYAT BELANJA ALAT</h3>
+                <div style="overflow-x: auto; flex-grow: 1;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem;">
+                        <thead style="background: #41644A; color: white;">
+                            <tr>
+                                <th style="padding: 12px 5px; text-align: center;">TANGGAL</th>
+                                <th style="padding: 12px 5px; text-align: center;">NAMA ALAT</th>
+                                <th style="padding: 12px 5px; text-align: center;">JUMLAH</th>
+                                <th style="padding: 12px 5px; text-align: center;">TOTAL RP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyAlatBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
       </section>
@@ -151,9 +156,9 @@ const BibitBaru = {
         }
 
         let parts = [];
-        if (years > 0) parts.push(`${years} Thn`);
-        if (months > 0) parts.push(`${months} Bln`);
-        if (days >= 0 || parts.length === 0) parts.push(`${days} Hari`);
+        if (years > 0) parts.push(`${years}T`);
+        if (months > 0) parts.push(`${months}B`);
+        if (days >= 0 || parts.length === 0) parts.push(`${days}H`);
         return parts.join(' ');
     };
 
@@ -167,46 +172,40 @@ const BibitBaru = {
             selectedLabel.innerText = e.target.innerText;
             hiddenInput.value = e.target.innerText;
             list.style.display = 'none';
-            selectedLabel.style.color = '#1f3326';
         };
     });
 
     document.onclick = () => { if (list) list.style.display = 'none'; };
 
     const loadHistory = async () => {
-        const history = await presenter.fetchHistory();
-        const alatHistory = await presenter.fetchAlatHistory(); // Fungsi baru di presenter
+        const [history, alatHistory] = await Promise.all([
+            presenter.fetchHistory(),
+            presenter.fetchAlatHistory()
+        ]);
 
-        // Render Tabel Ternak
-        historyBody.innerHTML = history.length === 0 ? `<tr><td colspan="6" style="padding: 20px; color: #999; text-align: center;">Belum ada riwayat bibit.</td></tr>` : 
+        historyBody.innerHTML = history.length === 0 ? `<tr><td colspan="4" style="padding: 20px; color: #999; text-align: center;">Kosong</td></tr>` : 
         history.map(item => `
             <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 15px; text-align: center;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
-                <td style="padding: 15px; font-weight: 800; text-align: center;">${item.produk}</td>
-                <td style="padding: 15px; text-align: center; color: #d68910; font-weight: 900;">${calculateAge(item.umur)}</td>
-                <td style="padding: 15px; font-weight: 900; color: #6CA651; text-align: center;">${item.jumlah} Unit</td>
-                <td style="padding: 15px; font-weight: 700; text-align: center;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
-                <td style="padding: 15px; color: #000; font-style: italic; text-align: left;">${item.keterangan || '-'}</td>
+                <td style="padding: 12px 5px; text-align: center;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
+                <td style="padding: 12px 5px; font-weight: 800; text-align: center;">${item.produk}</td>
+                <td style="padding: 12px 5px; text-align: center; color: #d68910; font-weight: 800;">${calculateAge(item.umur)}</td>
+                <td style="padding: 12px 5px; font-weight: 700; text-align: center;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
             </tr>
         `).join('');
 
-        // Render Tabel Alat
-        historyAlatBody.innerHTML = alatHistory.length === 0 ? `<tr><td colspan="5" style="padding: 20px; color: #999; text-align: center;">Belum ada riwayat alat.</td></tr>` : 
+        historyAlatBody.innerHTML = alatHistory.length === 0 ? `<tr><td colspan="4" style="padding: 20px; color: #999; text-align: center;">Kosong</td></tr>` : 
         alatHistory.map(item => `
             <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 15px; text-align: center;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
-                <td style="padding: 15px; font-weight: 800; text-align: center;">${item.nama_alat}</td>
-                <td style="padding: 15px; text-align: center;">${item.jumlah} Pcs</td>
-                <td style="padding: 15px; font-weight: 700; text-align: center; color: #41644A;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
-                <td style="padding: 15px; font-weight: 700; text-align: center;">${item.pembeli}</td>
+                <td style="padding: 12px 5px; text-align: center;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
+                <td style="padding: 12px 5px; font-weight: 800; text-align: center;">${item.nama_alat}</td>
+                <td style="padding: 12px 5px; text-align: center;">${item.jumlah} Unit</td>
+                <td style="padding: 12px 5px; font-weight: 700; text-align: center; color: #41644A;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
             </tr>
         `).join('');
     };
 
-    // SUBMIT BIBIT
     formBibit.onsubmit = async (e) => {
         e.preventDefault();
-        if (!hiddenInput.value) return alert("Pilih produk bibit!");
         const res = await presenter.submitAsset({
             produk: hiddenInput.value,
             jumlah: parseInt(document.getElementById('jumlahAsset').value),
@@ -215,14 +214,13 @@ const BibitBaru = {
             keterangan: document.getElementById('keteranganAsset').value
         });
         if (res.status === 'success') {
-            alert("Bibit Berhasil Disimpan!");
+            alert("Bibit Disimpan!");
             formBibit.reset();
             selectedLabel.innerText = "-- PILIH PRODUK --";
             await loadHistory();
         }
     };
 
-    // SUBMIT ALAT
     formAlat.onsubmit = async (e) => {
         e.preventDefault();
         const res = await presenter.submitAlat({
@@ -232,7 +230,7 @@ const BibitBaru = {
             pembeli: document.getElementById('pembeliAlat').value
         });
         if (res.status === 'success') {
-            alert("Asset Alat Berhasil Dicatat!");
+            alert("Alat Disimpan!");
             formAlat.reset();
             await loadHistory();
         }
