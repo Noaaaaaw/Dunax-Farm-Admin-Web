@@ -44,8 +44,12 @@ const BibitBaru = {
                         <input type="date" id="tglLahirAsset" required style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background: #f9fbf9;">
                     </div>
                     <div class="form-group">
-                        <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">KETERANGAN / DETAIL</label>
+                        <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">KETERANGAN</label>
                         <input type="text" id="keteranganAsset" placeholder="Masukan Detail..." style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">UPLOAD FOTO TERNAK/BUKTI</label>
+                        <input type="file" id="buktiBibit" accept="image/*" style="width: 100%; padding: 10px; border: 2px dashed #6CA651; border-radius: 12px; font-weight: 800; background: #f9fbf9;">
                     </div>
                     <button type="submit" style="margin-top: auto; padding: 18px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer; box-shadow: 0 5px 0 #4a7337; text-transform: uppercase;">SIMPAN</button>
                 </form>
@@ -72,14 +76,16 @@ const BibitBaru = {
                         <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">NAMA PEMBELI</label>
                         <input type="text" id="pembeliAlat" required placeholder="Siapa yang beli?" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800;">
                     </div>
-                    <div style="height: 65px;"></div> 
+                    <div class="form-group">
+                        <label style="font-weight: 900; color: #41644A; font-size: 0.8rem;">UPLOAD BUKTI PEMBAYARAN/ALAT</label>
+                        <input type="file" id="buktiAlat" accept="image/*" style="width: 100%; padding: 10px; border: 2px dashed #41644A; border-radius: 12px; font-weight: 800; background: #f9fbf9;">
+                    </div>
                     <button type="submit" style="margin-top: auto; padding: 18px; background: #41644A; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer; box-shadow: 0 5px 0 #2d4a36; text-transform: uppercase;">SIMPAN</button>
                 </form>
             </div>
         </div>
-
+        
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: stretch;">
-            
             <div class="dashboard-card" style="background: white; padding: 25px; border-radius: 28px; border: 1px solid #eef2ed; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column;">
                 <h3 style="font-weight: 900; color: #1f3326; margin-bottom: 15px; text-align: center; text-transform: uppercase; font-size: 0.85rem;">RIWAYAT BIBIT TERNAK</h3>
                 <div style="overflow-x: auto; flex-grow: 1;">
@@ -89,7 +95,8 @@ const BibitBaru = {
                                 <th style="padding: 12px 5px; text-align: center;">TANGGAL</th>
                                 <th style="padding: 12px 5px; text-align: center;">PRODUK</th>
                                 <th style="padding: 12px 5px; text-align: center;">UMUR</th>
-                                <th style="padding: 12px 5px; text-align: center;">TOTAL RP</th>
+                                <th style="padding: 12px 5px; text-align: center;">TOTAL</th>
+                                <th style="padding: 12px 5px; text-align: center;">BUKTI</th>
                             </tr>
                         </thead>
                         <tbody id="historyAssetBody"></tbody>
@@ -106,7 +113,8 @@ const BibitBaru = {
                                 <th style="padding: 12px 5px; text-align: center;">TANGGAL</th>
                                 <th style="padding: 12px 5px; text-align: center;">NAMA ALAT</th>
                                 <th style="padding: 12px 5px; text-align: center;">JUMLAH</th>
-                                <th style="padding: 12px 5px; text-align: center;">TOTAL RP</th>
+                                <th style="padding: 12px 5px; text-align: center;">TOTAL</th>
+                                <th style="padding: 12px 5px; text-align: center;">BUKTI</th>
                             </tr>
                         </thead>
                         <tbody id="historyAlatBody"></tbody>
@@ -114,10 +122,21 @@ const BibitBaru = {
                 </div>
             </div>
         </div>
+
+        <div id="imageModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;">
+            <div style="position: relative; max-width: 80%; max-height: 80%;">
+                <span id="closeModal" style="position: absolute; top: -40px; right: 0; color: white; font-size: 30px; font-weight: bold; cursor: pointer;">&times;</span>
+                <img id="modalImg" src="" style="width: 100%; border-radius: 15px; box-shadow: 0 0 20px rgba(255,255,255,0.2);">
+            </div>
+        </div>
+
       </section>
       <style>
         .optionItem { padding: 12px 20px; cursor: pointer; font-weight: 700; transition: 0.2s; text-align: left; }
         .optionItem:hover { background: #f0f7f0; color: #6CA651; }
+        .btn-bukti { background: #6CA651; color: white; border: none; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 0.65rem; }
+        .btn-bukti:hover { opacity: 0.8; }
+        .no-img { color: #ccc; font-style: italic; }
       </style>
     `;
   },
@@ -135,26 +154,23 @@ const BibitBaru = {
     const historyBody = document.getElementById('historyAssetBody');
     const historyAlatBody = document.getElementById('historyAlatBody');
 
+    // Element Modal
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+    const closeModal = document.getElementById('closeModal');
+
+    closeModal.onclick = () => modal.style.display = "none";
+    window.onclick = (event) => { if (event.target == modal) modal.style.display = "none"; };
+
     const calculateAge = (birthDateStr) => {
         if (!birthDateStr || !birthDateStr.includes('-')) return birthDateStr || '-';
         const birthDate = new Date(birthDateStr);
         const today = new Date();
-        birthDate.setHours(0,0,0,0);
-        today.setHours(0,0,0,0);
-        
         let years = today.getFullYear() - birthDate.getFullYear();
         let months = today.getMonth() - birthDate.getMonth();
         let days = today.getDate() - birthDate.getDate();
-
-        if (days < 0) {
-            months--;
-            days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
-        }
-        if (months < 0) {
-            years--;
-            months += 12;
-        }
-
+        if (days < 0) { months--; days += new Date(today.getFullYear(), today.getMonth(), 0).getDate(); }
+        if (months < 0) { years--; months += 12; }
         let parts = [];
         if (years > 0) parts.push(`${years}T`);
         if (months > 0) parts.push(`${months}B`);
@@ -166,7 +182,6 @@ const BibitBaru = {
         e.stopPropagation();
         list.style.display = list.style.display === 'none' ? 'block' : 'none';
     };
-
     document.querySelectorAll('.optionItem').forEach(item => {
         item.onclick = (e) => {
             selectedLabel.innerText = e.target.innerText;
@@ -174,7 +189,6 @@ const BibitBaru = {
             list.style.display = 'none';
         };
     });
-
     document.onclick = () => { if (list) list.style.display = 'none'; };
 
     const loadHistory = async () => {
@@ -183,35 +197,58 @@ const BibitBaru = {
             presenter.fetchAlatHistory()
         ]);
 
-        historyBody.innerHTML = history.length === 0 ? `<tr><td colspan="4" style="padding: 20px; color: #999; text-align: center;">Kosong</td></tr>` : 
+        // Render Tabel Bibit
+        historyBody.innerHTML = history.length === 0 ? `<tr><td colspan="5" style="padding: 20px; color: #999; text-align: center;">Kosong</td></tr>` : 
         history.map(item => `
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 12px 5px; text-align: center;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
                 <td style="padding: 12px 5px; font-weight: 800; text-align: center;">${item.produk}</td>
                 <td style="padding: 12px 5px; text-align: center; color: #d68910; font-weight: 800;">${calculateAge(item.umur)}</td>
                 <td style="padding: 12px 5px; font-weight: 700; text-align: center;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
+                <td style="padding: 12px 5px; text-align: center;">
+                    ${item.bukti_pembayaran ? `<button class="btn-bukti" onclick="window.showImage('${item.bukti_pembayaran}')">LIHAT</button>` : `<span class="no-img">N/A</span>`}
+                </td>
             </tr>
         `).join('');
 
-        historyAlatBody.innerHTML = alatHistory.length === 0 ? `<tr><td colspan="4" style="padding: 20px; color: #999; text-align: center;">Kosong</td></tr>` : 
+        // Render Tabel Alat
+        historyAlatBody.innerHTML = alatHistory.length === 0 ? `<tr><td colspan="5" style="padding: 20px; color: #999; text-align: center;">Kosong</td></tr>` : 
         alatHistory.map(item => `
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 12px 5px; text-align: center;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
                 <td style="padding: 12px 5px; font-weight: 800; text-align: center;">${item.nama_alat}</td>
                 <td style="padding: 12px 5px; text-align: center;">${item.jumlah} Unit</td>
                 <td style="padding: 12px 5px; font-weight: 700; text-align: center; color: #41644A;">Rp ${(item.jumlah * (item.harga || 0)).toLocaleString()}</td>
+                <td style="padding: 12px 5px; text-align: center;">
+                    ${item.bukti_pembayaran ? `<button class="btn-bukti" style="background:#41644A;" onclick="window.showImage('${item.bukti_pembayaran}')">LIHAT</button>` : `<span class="no-img">N/A</span>`}
+                </td>
             </tr>
         `).join('');
     };
 
+    // Fungsi Global untuk panggil Modal dari string HTML
+    window.showImage = (imgSrc) => {
+        // Ganti path_ke_folder_kamu dengan path storage atau base64 data
+        modalImg.src = imgSrc; 
+        modal.style.display = "flex";
+    };
+
     formBibit.onsubmit = async (e) => {
         e.preventDefault();
+        const fileInput = document.getElementById('buktiBibit');
+        // Logic upload file biasanya dikonversi ke Base64 atau FormData
+        let fileBase64 = null;
+        if(fileInput.files[0]) {
+            fileBase64 = await toBase64(fileInput.files[0]);
+        }
+
         const res = await presenter.submitAsset({
             produk: hiddenInput.value,
             jumlah: parseInt(document.getElementById('jumlahAsset').value),
             harga: parseInt(document.getElementById('hargaAsset').value),
             umur: document.getElementById('tglLahirAsset').value,
-            keterangan: document.getElementById('keteranganAsset').value
+            keterangan: document.getElementById('keteranganAsset').value,
+            bukti_pembayaran: fileBase64 
         });
         if (res.status === 'success') {
             alert("Bibit Disimpan!");
@@ -223,11 +260,18 @@ const BibitBaru = {
 
     formAlat.onsubmit = async (e) => {
         e.preventDefault();
+        const fileInput = document.getElementById('buktiAlat');
+        let fileBase64 = null;
+        if(fileInput.files[0]) {
+            fileBase64 = await toBase64(fileInput.files[0]);
+        }
+
         const res = await presenter.submitAlat({
             nama_alat: document.getElementById('namaAlat').value,
             jumlah: parseInt(document.getElementById('jumlahAlat').value),
             harga: parseInt(document.getElementById('hargaAlat').value),
-            pembeli: document.getElementById('pembeliAlat').value
+            pembeli: document.getElementById('pembeliAlat').value,
+            bukti_pembayaran: fileBase64
         });
         if (res.status === 'success') {
             alert("Alat Disimpan!");
@@ -235,6 +279,13 @@ const BibitBaru = {
             await loadHistory();
         }
     };
+
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 
     await loadHistory();
   }

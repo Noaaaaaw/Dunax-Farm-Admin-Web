@@ -16,31 +16,6 @@ class BibitBaruPresenter {
         }
     }
 
-    async submitAsset(data) {
-        const hash = window.location.hash.slice(1);
-        const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
-        
-        if (!categoryId) return { status: 'error', message: 'Kategori tidak valid' };
-
-        try {
-            const res = await fetch(`${this.baseUrl}/api/asset-baru/save`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    ...data, 
-                    kategori_id: categoryId.toLowerCase() 
-                })
-            });
-
-            return await res.json();
-        } catch (err) { 
-            console.error("Gagal simpan bibit:", err);
-            return { status: 'error', message: 'Koneksi server gagal' }; 
-        }
-    }
-
-    // --- LOGIKA BARU UNTUK ASSET ALAT (INVENTARIS) ---
-
     async fetchAlatHistory() {
         try {
             const res = await fetch(`${this.baseUrl}/api/asset-alat/history`);
@@ -52,18 +27,35 @@ class BibitBaruPresenter {
         }
     }
 
+    async submitAsset(data) {
+        const hash = window.location.hash.slice(1);
+        const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
+        
+        try {
+            const res = await fetch(`${this.baseUrl}/api/asset-baru/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ...data, 
+                    kategori_id: categoryId.toLowerCase() 
+                })
+            });
+            return await res.json();
+        } catch (err) { 
+            return { status: 'error', message: 'Koneksi gagal' }; 
+        }
+    }
+
     async submitAlat(data) {
         try {
             const res = await fetch(`${this.baseUrl}/api/asset-alat/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data) // Mengirim nama_alat, jumlah, harga, pembeli
+                body: JSON.stringify(data)
             });
-
             return await res.json();
         } catch (err) { 
-            console.error("Gagal simpan alat:", err);
-            return { status: 'error', message: 'Koneksi server gagal' }; 
+            return { status: 'error', message: 'Koneksi gagal' }; 
         }
     }
 }
