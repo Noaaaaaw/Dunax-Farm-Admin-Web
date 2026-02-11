@@ -463,10 +463,11 @@ const init = async () => {
             }
         },
         {
-    // 25. POST Simpan Asset & Alat (GABUNGAN KE SATU TABEL)
+    // 25. POST Simpan Asset & Alat (GABUNGAN)
     method: 'POST', 
     path: '/api/asset-alat/save',
     handler: async (request, h) => {
+        // Destructuring data dari payload
         const { nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran } = request.payload;
         try {
             await pool.query(
@@ -477,7 +478,7 @@ const init = async () => {
             return { status: 'success' };
         } catch (err) { 
             console.error("DATABASE ERROR:", err.message);
-            // Ini yang bikin error 500 jika kolom di DB belum ada
+            // Error 500 biasanya karena kolom kategori_id belum ada di tabel atau query salah
             return h.response({ status: 'error', message: err.message }).code(500); 
         }
     }

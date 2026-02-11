@@ -144,6 +144,7 @@ const BibitBaru = {
         modal.style.display = "flex";
     };
     document.getElementById('closeModal').onclick = () => modal.style.display = "none";
+    window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 
     const toBase64 = file => new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -156,7 +157,7 @@ const BibitBaru = {
         const history = await presenter.fetchAlatHistory();
         const container = document.getElementById('historyCombinedBody');
         
-        // Update UI Tombol
+        // Update UI Tombol Filter (Warna)
         [btnAll, btnAsset, btnAlat].forEach(b => { b.style.background = '#ececec'; b.style.color = '#666'; });
         if(filterType === 'all') { btnAll.style.background = '#41644A'; btnAll.style.color = 'white'; tableHeader.style.background = '#41644A'; }
         else if(filterType === 'asset_ternak') { btnAsset.style.background = '#6CA651'; btnAsset.style.color = 'white'; tableHeader.style.background = '#6CA651'; }
