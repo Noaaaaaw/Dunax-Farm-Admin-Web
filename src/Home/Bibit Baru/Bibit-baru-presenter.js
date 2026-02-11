@@ -19,7 +19,7 @@ class BibitBaruPresenter {
                 body: JSON.stringify(data)
             });
             return await res.json();
-        } catch (err) { return { status: 'error' }; }
+        } catch (err) { return { status: 'error', message: err.message }; }
     }
 }
 export default BibitBaruPresenter;
