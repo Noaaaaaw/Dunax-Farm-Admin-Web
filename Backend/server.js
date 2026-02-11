@@ -463,24 +463,24 @@ const init = async () => {
             }
         },
         {
-            // 25. POST Simpan Asset Alat Baru (DENGAN BUKTI)
-            method: 'POST', 
-            path: '/api/asset-alat/save',
-            handler: async (request, h) => {
-                const { nama_alat, jumlah, harga, pembeli, bukti_pembayaran } = request.payload;
-                try {
-                    await pool.query(
-                        `INSERT INTO asset_alat (nama_alat, jumlah, harga, pembeli, bukti_pembayaran) 
-                         VALUES ($1, $2, $3, $4, $5)`, 
-                        [nama_alat, parseInt(jumlah), parseInt(harga), pembeli, bukti_pembayaran]
-                    );
-                    return { status: 'success' };
-                } catch (err) { 
-                    console.error("LOG ERROR ALAT:", err.message);
-                    return h.response({ status: 'error', message: err.message }).code(500); 
-                }
-            }
-        },
+    // 25. POST Simpan Asset & Alat (GABUNGAN)
+    method: 'POST', 
+    path: '/api/asset-alat/save',
+    handler: async (request, h) => {
+        const { nama_alat, jumlah, harga, tanggal_beli, keterangan, bukti_pembayaran } = request.payload;
+        try {
+            await pool.query(
+                `INSERT INTO asset_alat (nama_alat, jumlah, harga, tanggal_beli, keterangan, bukti_pembayaran) 
+                 VALUES ($1, $2, $3, $4, $5, $6)`, 
+                [nama_alat, parseInt(jumlah), parseInt(harga), tanggal_beli, keterangan, bukti_pembayaran]
+            );
+            return { status: 'success' };
+        } catch (err) { 
+            console.error("LOG ERROR API:", err.message);
+            return h.response({ status: 'error' }).code(500); 
+        }
+    }
+},
         {
             // 26. GET Riwayat Asset Alat
             method: 'GET',
