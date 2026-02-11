@@ -115,11 +115,10 @@ const BibitBaru = {
         <div id="imageModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); align-items: center; justify-content: center;">
             <div style="position: relative; max-width: 90%; max-height: 90%;">
                 <span id="closeModal" style="position: absolute; top: -45px; right: 0; color: white; font-size: 40px; font-weight: bold; cursor: pointer;">&times;</span>
-                <img id="modalImg" src="" style="width: 100%; border-radius: 10px; border: 4px solid white; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
+                <img id="modalImg" src="" style="width: 100%; border-radius: 10px; border: 4px solid white;">
             </div>
         </div>
       </section>
-
       <style>
         .optionItem { padding: 12px 20px; cursor: pointer; font-weight: 700; transition: 0.2s; }
         .optionItem:hover { background: #f0f7f0; color: #6CA651; }
@@ -150,14 +149,14 @@ const BibitBaru = {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
+        reader.onerror = error => resolve(null);
     });
 
     const loadHistory = async (filterType) => {
         const history = await presenter.fetchAlatHistory();
         const container = document.getElementById('historyCombinedBody');
         
-        // Update UI Tombol Filter (Warna)
+        // Update UI Tombol
         [btnAll, btnAsset, btnAlat].forEach(b => { b.style.background = '#ececec'; b.style.color = '#666'; });
         if(filterType === 'all') { btnAll.style.background = '#41644A'; btnAll.style.color = 'white'; tableHeader.style.background = '#41644A'; }
         else if(filterType === 'asset_ternak') { btnAsset.style.background = '#6CA651'; btnAsset.style.color = 'white'; tableHeader.style.background = '#6CA651'; }
@@ -165,10 +164,10 @@ const BibitBaru = {
 
         const filteredData = filterType === 'all' ? history : history.filter(item => item.kategori_id === filterType);
 
-        container.innerHTML = filteredData.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:30px; color:#999;">Tidak ada data riwayat.</td></tr>' : 
+        container.innerHTML = filteredData.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:30px; color:#999;">Kosong.</td></tr>' : 
         filteredData.map(item => `
             <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 15px 5px; text-align: center; font-weight: 600;">${new Date(item.tanggal_beli || item.created_at).toLocaleDateString('id-ID')}</td>
+                <td style="padding: 15px 5px; text-align: center;">${new Date(item.tanggal_beli || item.created_at).toLocaleDateString('id-ID')}</td>
                 <td style="padding: 15px 5px; font-weight: 800; text-align: center;">${item.nama_alat}</td>
                 <td style="padding: 15px 5px; text-align: center;">${item.jumlah} Unit/Ekor</td>
                 <td style="padding: 15px 5px; font-weight: 800; text-align: center;">Rp ${(item.jumlah * item.harga).toLocaleString()}</td>
@@ -196,7 +195,7 @@ const BibitBaru = {
             kategori_id: 'asset_ternak',
             bukti_pembayaran: file ? await toBase64(file) : null
         });
-        if (res.status === 'success') { alert("Data Tersimpan!"); loadHistory(currentFilter); }
+        if (res.status === 'success') { alert("Simpan Berhasil!"); loadHistory(currentFilter); }
     };
 
     document.getElementById('alatBaruForm').onsubmit = async (e) => {
@@ -211,7 +210,7 @@ const BibitBaru = {
             kategori_id: 'alat_barang',
             bukti_pembayaran: file ? await toBase64(file) : null
         });
-        if (res.status === 'success') { alert("Data Tersimpan!"); loadHistory(currentFilter); }
+        if (res.status === 'success') { alert("Simpan Berhasil!"); loadHistory(currentFilter); }
     };
 
     const trigger = document.getElementById('customSelectTrigger');

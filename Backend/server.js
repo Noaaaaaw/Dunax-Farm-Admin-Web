@@ -467,18 +467,17 @@ const init = async () => {
     method: 'POST', 
     path: '/api/asset-alat/save',
     handler: async (request, h) => {
-        // Destructuring data dari payload
         const { nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran } = request.payload;
         try {
-            await pool.query(
-                `INSERT INTO asset_alat (nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`, 
-                [nama_alat, parseInt(jumlah), parseInt(harga), tanggal_beli, keterangan, kategori_id, bukti_pembayaran]
-            );
+            const query = `
+                INSERT INTO asset_alat (nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran, created_at) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+            `;
+            const values = [nama_alat, parseInt(jumlah), parseInt(harga), tanggal_beli, keterangan, kategori_id, bukti_pembayaran];
+            await pool.query(query, values);
             return { status: 'success' };
         } catch (err) { 
-            console.error("DATABASE ERROR:", err.message);
-            // Error 500 biasanya karena kolom kategori_id belum ada di tabel atau query salah
+            console.error(err); 
             return h.response({ status: 'error', message: err.message }).code(500); 
         }
     }

@@ -1,19 +1,14 @@
 import { CONFIG } from '../../config.js';
 
 class BibitBaruPresenter {
-    constructor() { 
-        this.baseUrl = CONFIG.BASE_URL; 
-    }
+    constructor() { this.baseUrl = CONFIG.BASE_URL; }
 
     async fetchAlatHistory() {
         try {
             const res = await fetch(`${this.baseUrl}/api/asset-alat/history`);
             const result = await res.json();
             return result.status === 'success' ? result.data : [];
-        } catch (err) { 
-            console.error("Fetch Error:", err);
-            return []; 
-        }
+        } catch (err) { return []; }
     }
 
     async submitToUnifiedTable(data) {
@@ -24,10 +19,7 @@ class BibitBaruPresenter {
                 body: JSON.stringify(data)
             });
             return await res.json();
-        } catch (err) { 
-            return { status: 'error', message: 'Koneksi gagal' }; 
-        }
+        } catch (err) { return { status: 'error' }; }
     }
 }
-
 export default BibitBaruPresenter;
