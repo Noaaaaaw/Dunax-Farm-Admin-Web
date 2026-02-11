@@ -463,21 +463,22 @@ const init = async () => {
             }
         },
         {
-    // 25. POST Simpan Asset & Alat (GABUNGAN)
+    // 25. POST Simpan Asset & Alat (GABUNGAN KE SATU TABEL)
     method: 'POST', 
     path: '/api/asset-alat/save',
     handler: async (request, h) => {
-        const { nama_alat, jumlah, harga, tanggal_beli, keterangan, bukti_pembayaran } = request.payload;
+        const { nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran } = request.payload;
         try {
             await pool.query(
-                `INSERT INTO asset_alat (nama_alat, jumlah, harga, tanggal_beli, keterangan, bukti_pembayaran) 
-                 VALUES ($1, $2, $3, $4, $5, $6)`, 
-                [nama_alat, parseInt(jumlah), parseInt(harga), tanggal_beli, keterangan, bukti_pembayaran]
+                `INSERT INTO asset_alat (nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`, 
+                [nama_alat, parseInt(jumlah), parseInt(harga), tanggal_beli, keterangan, kategori_id, bukti_pembayaran]
             );
             return { status: 'success' };
         } catch (err) { 
-            console.error("LOG ERROR API:", err.message);
-            return h.response({ status: 'error' }).code(500); 
+            console.error("DATABASE ERROR:", err.message);
+            // Ini yang bikin error 500 jika kolom di DB belum ada
+            return h.response({ status: 'error', message: err.message }).code(500); 
         }
     }
 },
