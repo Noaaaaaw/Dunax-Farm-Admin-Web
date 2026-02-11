@@ -18,7 +18,7 @@ const BibitBaru = {
                             <span id="selectedProductLabel">-- PILIH PRODUK --</span>
                             <span style="color: #6CA651;">▼</span>
                         </div>
-                        <div id="customSelectList" style="display: none; position: absolute; width: 100%; max-height: 200px; background: white; border: 2px solid #6CA651; border-radius: 12px; overflow-y: auto; z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                        <div id="customSelectList" style="display: none; position: absolute; width: 38%; max-height: 200px; background: white; border: 2px solid #6CA651; border-radius: 12px; overflow-y: auto; z-index: 999; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
                             <div class="optionItem" data-value="DOC">DOC</div>
                             <div class="optionItem" data-value="DOD">DOD</div>
                             <div class="optionItem" data-value="KAMBING">KAMBING</div>
@@ -101,6 +101,7 @@ const BibitBaru = {
                         <tr>
                             <th style="padding: 15px 5px; text-align: center;">TANGGAL</th>
                             <th style="padding: 15px 5px; text-align: center;">NAMA ITEM</th>
+                            <th style="padding: 15px 5px; text-align: center;">UMUR</th>
                             <th style="padding: 15px 5px; text-align: center;">JUMLAH</th>
                             <th style="padding: 15px 5px; text-align: center;">TOTAL RP</th>
                             <th style="padding: 15px 5px; text-align: center;">KETERANGAN</th>
@@ -145,17 +146,28 @@ const BibitBaru = {
         reader.onerror = () => resolve(null);
     });
 
+    // LOGIKA HITUNG UMUR OTOMATIS
+    const hitungUmurHari = (tglInput) => {
+        if (!tglInput) return 0;
+        const tglBeli = new Date(tglInput);
+        const hariIni = new Date();
+        const selisihWaktu = hariIni.getTime() - tglBeli.getTime();
+        const selisihHari = Math.floor(selisihWaktu / (1000 * 3600 * 24));
+        return selisihHari > 0 ? selisihHari : 0;
+    };
+
     const loadHistory = async (filterType) => {
         const history = await presenter.fetchAlatHistory();
         const container = document.getElementById('historyCombinedBody');
         
         const filteredData = filterType === 'all' ? history : history.filter(item => item.kategori_id === filterType);
 
-        container.innerHTML = filteredData.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:30px; color:#999;">Kosong.</td></tr>' : 
+        container.innerHTML = filteredData.length === 0 ? '<tr><td colspan="7" style="text-align:center; padding:30px; color:#999;">Kosong.</td></tr>' : 
         filteredData.map(item => `
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding: 15px 5px; text-align: center;">${new Date(item.tanggal_beli || item.created_at).toLocaleDateString('id-ID')}</td>
                 <td style="padding: 15px 5px; font-weight: 800; text-align: center;">${item.nama_alat}</td>
+                <td style="padding: 15px 5px; text-align: center;">${item.umur || 0} Hari</td>
                 <td style="padding: 15px 5px; text-align: center;">${item.jumlah} ${item.kategori_id === 'asset_ternak' ? 'Ekor' : 'Unit'}</td>
                 <td style="padding: 15px 5px; font-weight: 800; text-align: center;">Rp ${(item.jumlah * item.harga).toLocaleString()}</td>
                 <td style="padding: 15px 5px; text-align: center; color: #666; font-style: italic;">${item.keterangan || '-'}</td>
@@ -170,14 +182,16 @@ const BibitBaru = {
     document.getElementById('assetBaruForm').onsubmit = async (e) => {
         e.preventDefault();
         const file = document.getElementById('buktiBibit').files[0];
+        const tgl = document.getElementById('tglAsset').value;
         const jm = parseInt(document.getElementById('jumlahAsset').value);
         const totalHarga = parseInt(document.getElementById('hargaAsset').value);
 
         const res = await presenter.submitToUnifiedTable({
             nama_alat: document.getElementById('produkAsset').value,
             jumlah: jm,
-            harga: Math.round(totalHarga / jm), // Simpan harga per ekor
-            tanggal_beli: document.getElementById('tglAsset').value,
+            harga: Math.round(totalHarga / jm),
+            tanggal_beli: tgl,
+            umur: hitungUmurHari(tgl),
             keterangan: document.getElementById('ketAsset').value,
             kategori_id: 'asset_ternak',
             bukti_pembayaran: file ? await toBase64(file) : null
@@ -189,11 +203,14 @@ const BibitBaru = {
     document.getElementById('alatBaruForm').onsubmit = async (e) => {
         e.preventDefault();
         const file = document.getElementById('buktiAlat').files[0];
+        const tgl = document.getElementById('tglAlat').value;
+
         const res = await presenter.submitToUnifiedTable({
             nama_alat: document.getElementById('namaAlat').value,
             jumlah: parseInt(document.getElementById('jumlahAlat').value),
             harga: parseInt(document.getElementById('hargaAlat').value),
-            tanggal_beli: document.getElementById('tglAlat').value,
+            tanggal_beli: tgl,
+            umur: hitungUmurHari(tgl),
             keterangan: document.getElementById('ketAlat').value,
             kategori_id: 'alat_barang',
             bukti_pembayaran: file ? await toBase64(file) : null

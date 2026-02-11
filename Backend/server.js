@@ -463,15 +463,15 @@ const init = async () => {
             }
         },
         {
-    // 25. POST Simpan Asset & Alat (FIXED UNIFIED)
+    // 25. POST Simpan Asset & Alat (DENGAN LOGIKA UMUR)
     method: 'POST', 
     path: '/api/asset-alat/save',
     handler: async (request, h) => {
-        const { nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran } = request.payload;
+        const { nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran, umur } = request.payload;
         try {
             const query = `
-                INSERT INTO asset_alat (nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran, created_at) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+                INSERT INTO asset_alat (nama_alat, jumlah, harga, tanggal_beli, keterangan, kategori_id, bukti_pembayaran, umur, created_at) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
             `;
             const values = [
                 nama_alat, 
@@ -480,12 +480,13 @@ const init = async () => {
                 tanggal_beli, 
                 keterangan, 
                 kategori_id, 
-                bukti_pembayaran // Database harus bertipe TEXT
+                bukti_pembayaran,
+                parseInt(umur) || 0 // Data umur masuk ke sini
             ];
             await pool.query(query, values);
             return { status: 'success' };
         } catch (err) { 
-            console.error("EROR DATABASE ASSET_ALAT:", err.message); 
+            console.error("Database Error:", err.message); 
             return h.response({ status: 'error', message: err.message }).code(500); 
         }
     }
