@@ -503,7 +503,42 @@ const init = async () => {
                     return h.response({ status: 'error', message: err.message }).code(500);
                 }
             }
+        },
+        // 27. POST Update Asset & Alat (FIXED)
+{
+    method: 'POST',
+    path: '/api/asset-alat/update',
+    handler: async (request, h) => {
+        const { id, nama_alat, jumlah, harga, tanggal_beli, keterangan, bukti_pembayaran } = request.payload;
+        try {
+            const query = `
+                UPDATE asset_alat 
+                SET nama_alat = $1, jumlah = $2, harga = $3, tanggal_beli = $4, keterangan = $5, 
+                    bukti_pembayaran = COALESCE($6, bukti_pembayaran)
+                WHERE id = $7
+            `;
+            const values = [nama_alat, parseInt(jumlah), parseInt(harga), tanggal_beli, keterangan, bukti_pembayaran, id];
+            await pool.query(query, values);
+            return { status: 'success' };
+        } catch (err) {
+            console.error(err);
+            return h.response({ status: 'error', message: err.message }).code(500);
         }
+    }
+},
+// 28. DELETE Hapus Asset & Alat
+{
+    method: 'DELETE',
+    path: '/api/asset-alat/delete/{id}',
+    handler: async (request, h) => {
+        try {
+            await pool.query('DELETE FROM asset_alat WHERE id = $1', [request.params.id]);
+            return { status: 'success' };
+        } catch (err) {
+            return h.response({ status: 'error' }).code(500);
+        }
+    }
+}
     ]);
     
     await server.start();
