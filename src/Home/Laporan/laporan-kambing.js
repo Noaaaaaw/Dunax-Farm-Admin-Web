@@ -157,7 +157,7 @@ const LaporanKambing = {
                     <td style="font-weight:bold;">Kdg: ${p.kandang}<br>ID: ${p.noKambing}</td>
                     <td style="text-align:left;">
                       <div style="margin-bottom:10px; font-weight:800;">${p.note}</div>
-                      ${p.photo ? `<img src="${p.photo}" style="width:100%; border-radius:12px; border:2.5px solid #000; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">` : '<span style="color:#888; font-style:italic;">(Tidak ada foto bukti)</span>'}
+                      ${p.photo ? `<img src="${p.photo}" style="width:100%; border-radius:12px; border:2.5px solid #000; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: block;">` : '<span style="color:#888; font-style:italic;">(Tidak ada foto bukti)</span>'}
                     </td>
                   </tr>`).join('')}
               </tbody>
@@ -182,6 +182,14 @@ const LaporanKambing = {
           document.getElementById('taskModal').style.display = 'none';
         };
       });
+
+      // Tutup modal jika klik di luar box
+      window.onclick = (event) => {
+        if (event.target == statusModal || event.target == document.getElementById('taskModal')) {
+          statusModal.style.display = 'none';
+          document.getElementById('taskModal').style.display = 'none';
+        }
+      };
     };
 
     presenter.init();

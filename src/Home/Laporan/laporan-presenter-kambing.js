@@ -6,7 +6,6 @@ class LaporanPresenterKambing {
     this.isSubmitting = false;
     this.viewDate = new Date();
     this.allData = [];
-    this.BUCKET_NAME = 'laporan-kambing-images';
     this.TOTAL_KANDANG = 9; 
   }
 
@@ -105,10 +104,21 @@ class LaporanPresenterKambing {
     }
   }
 
+  // LOGIKA STATUS OTOMATIS
   _updateStatusOtomatis() {
     const hasProblems = this.problemListContainer.children.length > 0;
     this.statusKandang.value = hasProblems ? "TIDAK_STANDAR" : "STANDAR";
     this.alertRow.style.display = hasProblems ? "block" : "none";
+  }
+
+  // KONVERSI GAMBAR KE BASE64 (DATA MENTAH)
+  async _fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
   }
 
   _setupEvents() {
@@ -133,8 +143,6 @@ class LaporanPresenterKambing {
         this._updateStatusOtomatis();
     };
 
-    document.addEventListener('problemRemoved', () => this._updateStatusOtomatis());
-
     this.form.onsubmit = async (e) => {
       e.preventDefault();
       if (this.isSubmitting) return;
@@ -144,7 +152,7 @@ class LaporanPresenterKambing {
 
       this.isSubmitting = true;
       this.btnSubmit.disabled = true;
-      this.btnSubmit.innerText = "SEDANG MENGUNGGAH...";
+      this.btnSubmit.innerText = "MEMPROSES DATA...";
 
       try {
         const problemRows = Array.from(this.form.querySelectorAll('.problem-entry-row'));
@@ -152,18 +160,18 @@ class LaporanPresenterKambing {
 
         for (const row of problemRows) {
           const fileInput = row.querySelector('.kandang-photo');
-          let photoUrl = "";
+          let photoData = "";
           
           if (fileInput && fileInput.files[0]) {
-            // PROSES UPLOAD KE BUCKET
-            photoUrl = await this._uploadImage(fileInput.files[0]);
+            // LANGSUNG JADI TEKS BASE64
+            photoData = await this._fileToBase64(fileInput.files[0]);
           }
 
           problems.push({
             kandang: row.querySelector('.problem-kandang-no').value,
             noKambing: row.querySelector('.problem-kambing-id').value,
             note: row.querySelector('.kandang-note').value,
-            photo: photoUrl 
+            photo: photoData 
           });
         }
 
@@ -189,43 +197,14 @@ class LaporanPresenterKambing {
         if (res.ok) {
           alert("Laporan Berhasil Disimpan! 🐐✨");
           location.reload();
-        } else {
-          throw new Error("Gagal menyimpan data ke database.");
         }
       } catch (err) {
-        console.error("Error Simpan:", err);
-        alert("Pesan dari Server: " + err.message);
+        alert("Gagal simpan data.");
       } finally {
         this.isSubmitting = false;
         this.btnSubmit.disabled = false;
-        this.btnSubmit.innerText = "SIMPAN LAPORAN";
       }
     };
-  }
-
-  async _uploadImage(file) {
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('bucket', this.BUCKET_NAME);
-    
-    const res = await fetch(`${CONFIG.BASE_URL}/api/storage/upload`, { 
-        method: 'POST', 
-        body: formData 
-    });
-    
-    const result = await res.json();
-    
-    // DEBUG: Lihat isi respon di Console Inspect
-    console.log("Cek Respon Upload:", result);
-
-    // FIX: Cek apakah backend mengembalikan publicUrl yang valid (string yang diawali http)
-    if (result.publicUrl && typeof result.publicUrl === 'string' && result.publicUrl.startsWith('http')) {
-        return result.publicUrl;
-    } else {
-        // Jika server memberikan pesan aneh, kita tampilkan detailnya
-        const serverMsg = result.message || JSON.stringify(result);
-        throw new Error(`Gagal Upload: ${serverMsg}`);
-    }
   }
 
   _getTaskList() {
@@ -303,7 +282,7 @@ class LaporanPresenterKambing {
       const card = document.createElement('div');
       card.className = 'health-entry-card';
       card.style = "border: 1.5px solid #feb2b2; padding: 15px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; position: relative; background: #fff;";
-      card.innerHTML = `<button type="button" style="position:absolute; top:-10px; right:-10px; background:#c53030; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;" onclick="this.parentElement.remove(); document.dispatchEvent(new CustomEvent('problemRemoved'));">✕</button><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KANDANG</label><input type="text" class="disease-kandang" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">ID KAMBING</label><input type="text" class="disease-ayam" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group" style="grid-column:span 2;"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">INDIKASI</label><input type="text" class="disease-name" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KARANTINA?</label><select class="is-quarantine" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"><option>TIDAK</option><option>YA</option></select></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">PEMULIHAN</label><input type="text" class="recovery-step" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>`;
+      card.innerHTML = `<button type="button" style="position:absolute; top:-10px; right:-10px; background:#c53030; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;" onclick="this.parentElement.remove()">✕</button><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">KANDANG</label><input type="text" class="disease-kandang" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">ID KAMBING</label><input type="text" class="disease-ayam" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div><div class="form-group" style="grid-column:span 2;"><label style="font-size:0.65rem; font-weight:900; color:#c53030;">INDIKASI</label><input type="text" class="disease-name" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>`;
       entriesCont.appendChild(card);
     };
   }
@@ -317,7 +296,7 @@ class LaporanPresenterKambing {
       <div style="grid-column: span 1;"><label style="font-size: 0.7rem; font-weight: 900; color: #c53030;">NO KANDANG</label><input type="text" class="problem-kandang-no" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></div>
       <div style="grid-column: span 1;"><label style="font-size: 0.7rem; font-weight: 900; color: #c53030;">ID KAMBING</label><input type="text" class="problem-kambing-id" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></div>
       <div style="grid-column: span 2;"><label style="font-size: 0.7rem; font-weight: 900; color: #c53030;">KETERANGAN</label><textarea class="kandang-note" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-family:inherit;"></textarea></div>
-      <div style="grid-column: span 2;"><label style="font-size: 0.7rem; font-weight: 900; color: #c53030;">FOTO BUKTI (KHUSUS GAMBAR)</label><input type="file" class="kandang-photo" accept="image/*" capture="environment" style="width:100%;"></div>`;
+      <div style="grid-column: span 2;"><label style="font-size: 0.7rem; font-weight: 900; color: #c53030;">FOTO BUKTI (DATA MENTAH)</label><input type="file" class="kandang-photo" accept="image/*" style="width:100%;"></div>`;
     this.problemListContainer.appendChild(div);
   }
 }

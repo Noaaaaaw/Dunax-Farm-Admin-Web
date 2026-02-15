@@ -595,6 +595,14 @@ const init = async () => {
             // 33. POST Simpan Laporan Kambing Baru
             method: 'POST',
             path: '/api/laporan-kambing/save',
+            options: {
+                // 2. UBAH DI SINI: Pastikan route spesifik ini juga mendukung payload besar
+                payload: {
+                    maxBytes: 10485760,
+                    parse: true,
+                    output: 'data'
+                }
+            },
             handler: async (request, h) => {
                 const { hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas } = request.payload;
                 try {
@@ -622,7 +630,7 @@ const init = async () => {
             }
         },
         {
-            // 34. GET Histori Laporan Kambing (Terbaru di Atas)
+            // 34. GET Histori Laporan Kambing
             method: 'GET',
             path: '/api/laporan-kambing',
             handler: async (request, h) => {
@@ -635,7 +643,7 @@ const init = async () => {
             }
         },
         {
-            // 35. POST Proxy Upload ke Supabase Storage (Agar tidak 404)
+            // 35. POST Proxy Upload (Tetap ada agar tidak 404, tapi kamu sekarang pakai Base64)
             method: 'POST',
             path: '/api/storage/upload',
             options: {
@@ -644,22 +652,12 @@ const init = async () => {
                     parse: true,
                     multipart: true,
                     allow: 'multipart/form-data',
-                    maxBytes: 5 * 1024 * 1024 // Batas 5MB
+                    // 3. UBAH DI SINI: Set ke 10MB
+                    maxBytes: 10485760 
                 }
             },
             handler: async (request, h) => {
-                try {
-                    const { image, bucket } = request.payload;
-                    // Logika ini mengasumsikan kamu memproses upload di server
-                    // atau sekadar memberikan instruksi URL Public jika upload langsung dari FE.
-                    // Jika FE sudah upload langsung ke Supabase, route ini bisa digunakan untuk logging.
-                    return { 
-                        status: 'success', 
-                        message: 'Endpoint siap menerima file metadata' 
-                    };
-                } catch (err) {
-                    return h.response({ status: 'error', message: err.message }).code(500);
-                }
+                return { status: 'success', message: 'Endpoint standby' };
             }
         }
     ]);
