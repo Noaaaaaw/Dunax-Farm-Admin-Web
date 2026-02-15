@@ -5,7 +5,7 @@ const LaporanKambing = {
 
       <div class="page" style="display: flex; flex-direction: column; gap: 20px; padding: 0 20px;">
         <div class="page-header-card" style="background: #ffffff; border-radius: 24px; padding: 40px 20px; border: 1px solid #e0eadd; box-shadow: 0 8px 24px rgba(0,0,0,0.04); text-align: center;">
-          <h1 style="margin: 0; font-family: 'Luckiest Guy', cursive; font-size: 2.8rem; letter-spacing: 3px; text-transform: uppercase;">LAPORAN OPERASIONAL KAMBING</h1>
+          <h1 style="margin: 0; font-family: 'Luckiest Guy', cursive; font-size: 2.8rem; letter-spacing: 3px; text-transform: uppercase;">LAPORAN OPERASIONAL KAMBING 🐐</h1>
         </div>
 
         <form id="laporanForm" style="display: flex; flex-direction: column; gap: 20px;">
@@ -72,15 +72,14 @@ const LaporanKambing = {
             <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center;">
               <thead style="background: #6CA651; color: white;">
                 <tr>
-                  <th style="padding:15px;">WAKTU</th>
-                  <th style="padding:15px;">HEWAN</th>
-                  <th style="padding:15px;">DERET</th>
-                  <th style="padding:15px;">SESI</th>
-                  <th style="padding:15px;">PANEN</th>
-                  <th style="padding:15px;">KESEHATAN</th>
-                  <th style="padding:15px;">KELAYAKAN</th>
-                  <th style="padding:15px;">PETUGAS</th>
-                  <th style="padding:15px;">KINERJA</th>
+                  <th style="padding:15px; text-align: center; ">WAKTU</th>
+                  <th style="padding:15px; text-align: center;">HEWAN</th>
+                  <th style="padding:15px; text-align: center;">DERET</th>
+                  <th style="padding:15px; text-align: center;">SESI</th>
+                  <th style="padding:15px; text-align: center;">KESEHATAN</th>
+                  <th style="padding:15px; text-align: center;">KELAYAKAN</th>
+                  <th style="padding:15px; text-align: center;">PETUGAS</th>
+                  <th style="padding:15px; text-align: center;">KINERJA</th>
                 </tr>
               </thead>
               <tbody id="reportTableBody"></tbody>
@@ -89,12 +88,12 @@ const LaporanKambing = {
         </div>
 
         <div id="statusModal" class="modal-overlay">
-          <div class="modal-box" style="max-width: 400px;">
+          <div class="modal-box" style="max-width: 450px;">
             <div style="background: #6CA651; padding: 15px; text-align: center; position: relative; border-bottom: 2px solid #000;">
                 <h3 id="statusModalTitle" style="margin: 0; color: white; font-family: 'Luckiest Guy', cursive; font-weight: normal; font-size: 1.2rem; letter-spacing: 1px;">DETAIL</h3>
                 <button class="close-modal-btn" style="position: absolute; top: 12px; right: 15px; background: white; border: 2px solid #000; font-size: 0.8rem; cursor: pointer; width: 25px; height: 25px; border-radius: 50%; font-weight: 900; color: #6CA651;">✕</button>
             </div>
-            <div id="modalNote" style="padding: 15px; max-height: 400px; overflow-y: auto;"></div>
+            <div id="modalNote" style="padding: 15px; max-height: 500px; overflow-y: auto;"></div>
           </div>
         </div>
 
@@ -113,8 +112,6 @@ const LaporanKambing = {
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(5px); padding: 20px; }
         .modal-box { background: white; width: 100%; border-radius: 24px; position: relative; animation: modalPop 0.3s ease; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 2px solid #000; }
         @keyframes modalPop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        #modalNote::-webkit-scrollbar, #taskListContent::-webkit-scrollbar { width: 5px; }
-        #modalNote::-webkit-scrollbar-thumb, #taskListContent::-webkit-scrollbar-thumb { background: #6CA651; border-radius: 10px; }
         .pop-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; border: 2.5px solid #000000; }
         .pop-table th { background: #6CA651; padding: 12px 8px; border: 2.5px solid #000000; text-align: center; color: #FFFFFF; font-weight: 900; text-transform: uppercase; font-size: 0.75rem; }
         .pop-table td { padding: 12px 8px; border: 2.5px solid #000000; text-align: center; vertical-align: middle; color: #000000; font-weight: 700; background: #fff; }
@@ -131,7 +128,6 @@ const LaporanKambing = {
       const modalNote = document.getElementById('modalNote');
       const statusModal = document.getElementById('statusModal');
 
-      // 1. POPUP KESEHATAN
       row.querySelector('.btn-health-pop').onclick = (e) => {
         const d = e.currentTarget.dataset;
         if (d.status === 'SEHAT') return alert("Kambing Sehat Semua! ✅");
@@ -145,7 +141,6 @@ const LaporanKambing = {
         statusModal.style.display = 'flex';
       };
 
-      // 2. POPUP KELAYAKAN (LOGIKA BARU DENGAN FOTO)
       row.querySelector('.btn-layak-pop').onclick = (e) => {
         const d = e.currentTarget.dataset;
         const problems = JSON.parse(d.problems || '[]');
@@ -162,7 +157,7 @@ const LaporanKambing = {
                     <td style="font-weight:bold;">Kdg: ${p.kandang}<br>ID: ${p.noKambing}</td>
                     <td style="text-align:left;">
                       <div style="margin-bottom:10px; font-weight:800;">${p.note}</div>
-                      ${p.photo ? `<img src="${p.photo}" style="width:100%; border-radius:8px; border:2.5px solid #000;">` : ''}
+                      ${p.photo ? `<img src="${p.photo}" style="width:100%; border-radius:12px; border:2.5px solid #000; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">` : '<span style="color:#888; font-style:italic;">(Tidak ada foto bukti)</span>'}
                     </td>
                   </tr>`).join('')}
               </tbody>
@@ -171,7 +166,6 @@ const LaporanKambing = {
         statusModal.style.display = 'flex';
       };
 
-      // 3. POPUP KINERJA
       row.querySelector('.btn-task-pop').onclick = (e) => {
         const tasks = JSON.parse(e.currentTarget.dataset.tasks);
         document.getElementById('taskListContent').innerHTML = `
