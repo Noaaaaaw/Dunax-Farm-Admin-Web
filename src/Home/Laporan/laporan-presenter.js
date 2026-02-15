@@ -8,7 +8,7 @@ class LaporanPresenter {
     this.viewDate = new Date(); 
     this.allData = []; 
     this.tempPanenData = []; 
-    this.MAX_KANDANG_PER_SESI = 10;
+    this.MAX_KANDANG_PER_SESI = 9;
     this.MAX_TELUR_PER_HARI = 5; 
   }
 
@@ -28,6 +28,7 @@ class LaporanPresenter {
     const currentHour = new Date().getHours();
     let initialSession = (currentHour >= 12) ? "SORE" : "PAGI";
 
+    // Cek jika pagi sudah selesai 9 deret
     if (initialSession === "PAGI" && this.progress.PAGI >= this.MAX_KANDANG_PER_SESI) {
         initialSession = "SORE";
     }
@@ -87,8 +88,9 @@ class LaporanPresenter {
       const session = this.sessionSelect.value;
       const lastProcessed = this.progress[session];
 
-      if (session === 'PAGI' && lastProcessed >= this.MAX_KANDANG_PER_SESI) {
-        alert("SESI PAGI SELESAI! SILAHKAN PINDAH KE SESI SORE");
+      // LOGIKA: Jika Sesi Pagi sudah sampai deret 9
+      if (session === 'PAGI' && lastProcessed >= 9) {
+        alert("SESI PAGI SELESAI (SUDAH 9 DERET)! SILAHKAN LANJUT KE SESI SORE");
         this.sessionSelect.value = 'SORE';
         this._renderTaskTable('SORE');
         e.target.value = "";
@@ -113,35 +115,37 @@ class LaporanPresenter {
       }
     });
 
+    // LOGIKA SIMPAN PANEN: Notif Over Quota Cuma Muncul Sekali
     document.getElementById('btnSavePanen').onclick = () => {
         const rows = document.querySelectorAll('.panen-row');
         let total = 0;
-        let valid = true;
-        this.tempPanenData = [];
+        let isError = false;
+        let tempContainer = [];
 
-        rows.forEach(row => {
+        for (const row of rows) {
             const no = row.querySelector('.p-no-kandang').value;
             const inputVal = parseFloat(row.querySelector('.p-jumlah').value) || 0;
             const quota = parseFloat(row.querySelector('.p-jumlah').dataset.quota);
 
             if (inputVal > quota) {
                 alert(`Kandang ${no} Over Quota! Maks sisa hari ini: ${quota}`);
-                valid = false;
+                isError = true;
+                break; // BERHENTI DI ERROR PERTAMA
             }
             if (no) { 
-                this.tempPanenData.push({ noKandang: no, jumlah: inputVal }); 
+                tempContainer.push({ noKandang: no, jumlah: inputVal }); 
                 total += inputVal; 
             }
-        });
+        }
 
-        if (!valid) return;
+        if (isError) return; // Jangan lanjut simpan jika ada error
         
+        this.tempPanenData = tempContainer;
         const btnPanen = document.querySelector('.btn-open-panen');
         if (btnPanen) {
             btnPanen.innerText = `PANEN: ${total} BUTIR ✅`;
             btnPanen.style.background = '#1f3326';
 
-            // ✅ AUTO CHECK PANEN
             const panenRow = btnPanen.closest('tr');
             const checkbox = panenRow.querySelector('.task-check');
             if (checkbox) checkbox.checked = total > 0;
@@ -171,7 +175,6 @@ class LaporanPresenter {
     });
   }
 
-  // ✅ LOGIKA AUTO CHECK (STATUS CENTANG OTOMATIS)
   _setupAutoCheck() {
     const container = document.getElementById('taskContainer');
     container.addEventListener('input', (e) => {
@@ -315,7 +318,7 @@ class LaporanPresenter {
             kandang: card.querySelector('.disease-kandang')?.value || '-',
             ayam: card.querySelector('.disease-ayam')?.value || '-',
             penyakit: card.querySelector('.disease-name')?.value || '-',
-            karantina: card.querySelector('.is-quarantine')?.value || 'TIDAK',
+            kantina: card.querySelector('.is-quarantine')?.value || 'TIDAK',
             pemulihan: card.querySelector('.recovery-step')?.value || '-'
         });
     });
@@ -350,15 +353,11 @@ class LaporanPresenter {
     const result = await response.json();
     if (result.status === 'success') {
         alert('Laporan Berhasil Disimpan! ☁️');
-        
-        // ✅ BUG FIX: BERSIHKAN SEMUA DATA SETELAH SUBMIT
         this.form.reset();
-        document.getElementById('problemListContainer').innerHTML = ""; // Bersihkan masalah
-        this.form.querySelector('.alert-row').style.display = 'none'; // Sembunyikan row merah
+        document.getElementById('problemListContainer').innerHTML = ""; 
+        this.form.querySelector('.alert-row').style.display = 'none'; 
         this.stepSesi.style.display = 'none';
         this.tempPanenData = [];
-        
-        // Reset tombol panen
         const btnPanen = document.querySelector('.btn-open-panen');
         if (btnPanen) {
             btnPanen.innerText = "+ INPUT PANEN";
@@ -436,7 +435,6 @@ class LaporanPresenter {
     } catch (err) {}
   }
 
-  // ✅ LOGIKA KELAYAKAN KANDANG (DENGAN BUG FIX MEMBERSIHKAN CONTAINER)
   _setupKelayakanLogic() {
     const selectKelayakan = this.form.querySelector('.status-kandang-select');
     const alertRow = this.form.querySelector('.alert-row');
@@ -448,7 +446,6 @@ class LaporanPresenter {
           alertRow.style.display = 'block';
           if (container.innerHTML === "") this._addProblemRow();
         } else {
-          // ✅ BUG FIX: Hapus inputan masalah kandang kalau balik ke STANDAR
           alertRow.style.display = 'none';
           container.innerHTML = ""; 
         }

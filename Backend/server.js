@@ -538,7 +538,59 @@ const init = async () => {
             return h.response({ status: 'error' }).code(500);
         }
     }
-}
+}, 
+// 29. GET Riwayat Pustaka
+        {
+            method: 'GET',
+            path: '/api/pustaka/history',
+            handler: async () => {
+                try {
+                    const res = await pool.query('SELECT * FROM pustaka ORDER BY id DESC');
+                    return { status: 'success', data: res.rows };
+                } catch (err) { return { status: 'error', message: err.message }; }
+            }
+        },
+        // 30. POST Simpan Pustaka Baru
+        {
+            method: 'POST',
+            path: '/api/pustaka/save',
+            handler: async (request) => {
+                const { nama, kategori, deskripsi, url, foto } = request.payload;
+                try {
+                    await pool.query(
+                        'INSERT INTO pustaka (nama, kategori, deskripsi, url, foto) VALUES ($1, $2, $3, $4, $5)',
+                        [nama, kategori, deskripsi, url, foto]
+                    );
+                    return { status: 'success' };
+                } catch (err) { return { status: 'error', message: err.message }; }
+            }
+        },
+        // 31. POST Update Pustaka
+        {
+            method: 'POST',
+            path: '/api/pustaka/update',
+            handler: async (request) => {
+                const { id, nama, kategori, deskripsi, url, foto } = request.payload;
+                try {
+                    await pool.query(
+                        'UPDATE pustaka SET nama = $1, kategori = $2, deskripsi = $3, url = $4, foto = COALESCE($5, foto) WHERE id = $6',
+                        [nama, kategori, deskripsi, url, foto, id]
+                    );
+                    return { status: 'success' };
+                } catch (err) { return { status: 'error', message: err.message }; }
+            }
+        },
+        // 32. DELETE Hapus Pustaka
+        {
+            method: 'DELETE',
+            path: '/api/pustaka/delete/{id}',
+            handler: async (request) => {
+                try {
+                    await pool.query('DELETE FROM pustaka WHERE id = $1', [request.params.id]);
+                    return { status: 'success' };
+                } catch (err) { return { status: 'error', message: err.message }; }
+            }
+        }
     ]);
     
     await server.start();

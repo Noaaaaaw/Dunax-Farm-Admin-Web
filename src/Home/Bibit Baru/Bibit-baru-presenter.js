@@ -19,7 +19,16 @@ class BibitBaruPresenter {
                 body: JSON.stringify(data)
             });
             return await res.json();
-        } catch (err) { return { status: 'error', message: err.message }; }
+        } catch (err) { return { status: 'error' }; }
+    }
+
+    async deleteAsset(id) {
+        try {
+            const res = await fetch(`${this.baseUrl}/api/asset-alat/delete/${id}`, { 
+                method: 'DELETE' 
+            });
+            return await res.json();
+        } catch (err) { return { status: 'error' }; }
     }
     async updateUnifiedTable(data) {
     try {
@@ -28,13 +37,6 @@ class BibitBaruPresenter {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        return await res.json();
-    } catch (err) { return { status: 'error' }; }
-}
-
-async deleteAsset(id) {
-    try {
-        const res = await fetch(`${this.baseUrl}/api/asset-alat/delete/${id}`, { method: 'DELETE' });
         return await res.json();
     } catch (err) { return { status: 'error' }; }
 }
