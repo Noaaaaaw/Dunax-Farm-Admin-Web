@@ -590,6 +590,77 @@ const init = async () => {
                     return { status: 'success' };
                 } catch (err) { return { status: 'error', message: err.message }; }
             }
+        },
+        {
+            // 33. POST Simpan Laporan Kambing Baru
+            method: 'POST',
+            path: '/api/laporan-kambing/save',
+            handler: async (request, h) => {
+                const { hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas } = request.payload;
+                try {
+                    const query = `
+                        INSERT INTO laporan_operasional_kambing 
+                        (hewan, deret_kandang, sesi, kesehatan_data, kelayakan_data, pekerjaan_data, petugas) 
+                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+                    
+                    const values = [
+                        hewan, 
+                        deret_kandang, 
+                        sesi, 
+                        JSON.stringify(kesehatan_data), 
+                        JSON.stringify(kelayakan_data), 
+                        JSON.stringify(pekerjaan_data), 
+                        petugas
+                    ];
+                    
+                    const result = await pool.query(query, values);
+                    return { status: 'success', data: result.rows[0] };
+                } catch (err) {
+                    console.error(err);
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                }
+            }
+        },
+        {
+            // 34. GET Histori Laporan Kambing (Terbaru di Atas)
+            method: 'GET',
+            path: '/api/laporan-kambing',
+            handler: async (request, h) => {
+                try {
+                    const result = await pool.query('SELECT * FROM laporan_operasional_kambing ORDER BY created_at DESC');
+                    return { status: 'success', data: result.rows };
+                } catch (err) {
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                }
+            }
+        },
+        {
+            // 35. POST Proxy Upload ke Supabase Storage (Agar tidak 404)
+            method: 'POST',
+            path: '/api/storage/upload',
+            options: {
+                payload: {
+                    output: 'data',
+                    parse: true,
+                    multipart: true,
+                    allow: 'multipart/form-data',
+                    maxBytes: 5 * 1024 * 1024 // Batas 5MB
+                }
+            },
+            handler: async (request, h) => {
+                try {
+                    const { image, bucket } = request.payload;
+                    // Logika ini mengasumsikan kamu memproses upload di server
+                    // atau sekadar memberikan instruksi URL Public jika upload langsung dari FE.
+                    // Jika FE sudah upload langsung ke Supabase, route ini bisa digunakan untuk logging.
+                    return { 
+                        status: 'success', 
+                        message: 'Endpoint siap menerima file metadata' 
+                    };
+                } catch (err) {
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                }
+            }
         }
     ]);
     

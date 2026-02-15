@@ -13,6 +13,7 @@ import Login from '../auth/Login/login.js';
 import AuthService from '../auth/auth-services.js';
 import BibitBaru from '../Home/Bibit Baru/Bibit-baru.js';
 import Pustaka from '../Home/Pustaka/pustaka.js';
+import LaporanKambing from '../Home/Laporan/laporan-kambing.js';
 
 const routes = {
   '#/': HomePage,
@@ -29,6 +30,7 @@ const routes = {
   '#/login': Login,
   '#/new-asset': BibitBaru,
   '#/pustaka': Pustaka,
+  '#/laporan-harian-kambing': LaporanKambing
 };
 
 export const resolveRoute = async () => {

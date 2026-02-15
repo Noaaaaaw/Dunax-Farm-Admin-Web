@@ -22,13 +22,23 @@ class LaporanPresenter {
     this.btnSubmit = document.getElementById('btnSubmit');
     this.dateDisplay = document.getElementById('currentDateDisplay');
 
-    await this._loadCategories();
+    // --- LOGIKA OTOMATISASI KATEGORI ---
+    const hash = window.location.hash; // Ambil misal: #/laporan-harian-sapi
+    let animalIdFromUrl = hash.split('-').pop(); // Ambil kata terakhir: 'sapi'
+    
+    // Handle khusus jika URL-nya 'kandang' (untuk Ayam sesuai logika navigasi lu)
+    if (animalIdFromUrl === 'kandang') {
+        animalIdFromUrl = 'ayam';
+    }
+
+    await this._loadCategories(animalIdFromUrl);
+    // -----------------------------------
+
     await this._fetchReportHistory(); 
 
     const currentHour = new Date().getHours();
     let initialSession = (currentHour >= 12) ? "SORE" : "PAGI";
 
-    // Cek jika pagi sudah selesai 9 deret
     if (initialSession === "PAGI" && this.progress.PAGI >= this.MAX_KANDANG_PER_SESI) {
         initialSession = "SORE";
     }
@@ -38,6 +48,46 @@ class LaporanPresenter {
     this._setupEventListeners();
     this._setupKelayakanLogic();
     this._renderTableByDate(); 
+  }
+
+  async _loadCategories(selectedId) {
+    try {
+      const res = await fetch(`${CONFIG.BASE_URL}/commodities`);
+      const r = await res.json();
+      if (r.status === 'success') {
+        const currentAnimal = r.data.find(cat => cat.id.toLowerCase() === selectedId.toLowerCase());
+        
+        if (currentAnimal) {
+  // 1. Set nama hewan dan kunci dropdown
+  this.hewanSelect.innerHTML = `<option value="${currentAnimal.nama}" selected>${currentAnimal.nama.toUpperCase()}</option>`;
+  this.hewanSelect.disabled = true; 
+
+  // 2. Hilangkan simbol panah (Dropdown Arrow)
+  this.hewanSelect.style.appearance = "none";          // Standar modern
+  this.hewanSelect.style.webkitAppearance = "none";    // Untuk Chrome/Safari
+  this.hewanSelect.style.mozAppearance = "none";       // Untuk Firefox
+
+  // 3. Styling agar tampilan elegan dan tidak bisa diklik
+  this.hewanSelect.style.background = "#f0f0f0";       // Warna abu terang tanda terkunci
+  this.hewanSelect.style.cursor = "not-allowed";       // Kursor tanda dilarang
+  this.hewanSelect.style.textAlign = "center";         // Teks rata tengah
+  this.hewanSelect.style.fontWeight = "900";           // Tebalkan teks seperti di gambar
+  this.hewanSelect.style.color = "#555";               // Warna teks agak gelap agar kontras
+  this.hewanSelect.style.paddingRight = "10px";        // Reset padding karena panah sudah hilang
+} else {
+  // Fallback jika tidak ketemu (tetap ada panah karena ini mode milih manual)
+  this.hewanSelect.innerHTML = '<option value="">-- Pilih --</option>' + 
+    r.data.map(cat => `<option value="${cat.nama}">${cat.nama.toUpperCase()}</option>`).join('');
+  
+  // Pastikan style dikembalikan ke default jika masuk ke mode fallback
+  this.hewanSelect.disabled = false;
+  this.hewanSelect.style.appearance = "auto";
+  this.hewanSelect.style.background = "white";
+}
+      }
+    } catch (err) {
+      console.error("Gagal load kategori:", err);
+    }
   }
 
   async _fetchReportHistory() {
@@ -88,7 +138,6 @@ class LaporanPresenter {
       const session = this.sessionSelect.value;
       const lastProcessed = this.progress[session];
 
-      // LOGIKA: Jika Sesi Pagi sudah sampai deret 9
       if (session === 'PAGI' && lastProcessed >= 9) {
         alert("SESI PAGI SELESAI (SUDAH 9 DERET)! SILAHKAN LANJUT KE SESI SORE");
         this.sessionSelect.value = 'SORE';
@@ -115,7 +164,6 @@ class LaporanPresenter {
       }
     });
 
-    // LOGIKA SIMPAN PANEN: Notif Over Quota Cuma Muncul Sekali
     document.getElementById('btnSavePanen').onclick = () => {
         const rows = document.querySelectorAll('.panen-row');
         let total = 0;
@@ -130,7 +178,7 @@ class LaporanPresenter {
             if (inputVal > quota) {
                 alert(`Kandang ${no} Over Quota! Maks sisa hari ini: ${quota}`);
                 isError = true;
-                break; // BERHENTI DI ERROR PERTAMA
+                break; 
             }
             if (no) { 
                 tempContainer.push({ noKandang: no, jumlah: inputVal }); 
@@ -138,7 +186,7 @@ class LaporanPresenter {
             }
         }
 
-        if (isError) return; // Jangan lanjut simpan jika ada error
+        if (isError) return; 
         
         this.tempPanenData = tempContainer;
         const btnPanen = document.querySelector('.btn-open-panen');
@@ -334,7 +382,7 @@ class LaporanPresenter {
     });
 
     const payload = {
-        hewan: this.hewanSelect.value,
+        hewan: this.hewanSelect.value, // Data tetap terambil meski dropdown disabled
         deret: kandang,
         sesi: session,
         kesehatan: { status: healthStatus, detail: healthDetail },
@@ -423,16 +471,6 @@ class LaporanPresenter {
       document.getElementById('taskListContent').innerHTML = `<table style="width:100%; border-collapse:collapse;">${tasks.map(t => `<tr><td>${t.status?'✅':'❌'} ${t.name}</td><td>${t.val} ${t.unit}</td></tr>`).join('')}</table>`;
       document.getElementById('taskModal').style.display = 'flex';
     };
-  }
-
-  async _loadCategories() {
-    try {
-      const res = await fetch(`${CONFIG.BASE_URL}/commodities`);
-      const r = await res.json();
-      if (r.status === 'success') {
-        this.hewanSelect.innerHTML = '<option value="">-- Pilih --</option>' + r.data.map(cat => `<option value="${cat.nama}">${cat.nama.toUpperCase()}</option>`).join('');
-      }
-    } catch (err) {}
   }
 
   _setupKelayakanLogic() {

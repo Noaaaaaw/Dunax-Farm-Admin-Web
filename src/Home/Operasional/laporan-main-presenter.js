@@ -29,7 +29,6 @@ class LaporanMainPresenter {
             </div>
             <div style="flex-grow: 1;">
               <h3 style="margin: 0; color: #1f3326; font-weight: 900; font-size: 1.3rem; text-transform: uppercase;">LAPORAN ${animal.nama}</h3>
-              <p style="margin: 8px 0 0; color: #666; font-size: 0.95rem;">Manajemen harian spesifik ${animal.id}.</p>
             </div>
           </div>
         `).join('');

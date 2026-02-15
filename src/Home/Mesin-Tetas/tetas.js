@@ -52,13 +52,13 @@ const Tetas = {
 
         <div class="table-container" style="background:white; border-radius:20px; padding:25px; border:1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
             <h3 style="margin-bottom:20px; color:#41644A; font-weight:900; text-align: center; text-transform:uppercase;">Monitoring Antrian</h3>
-            <table style="width:100%; border-collapse:collapse; text-align:left;">
+            <table style="width:100%; border-collapse:collapse; text-align:center;">
                 <thead>
-                    <tr style="background:#f8fafc; border-bottom:2px solid #eee;">
-                        <th style="padding:15px; color:#64748b; text-align: center; font-size:0.85rem;">TANGGAL MASUK</th>
-                        <th style="padding:15px; color:#64748b; text-align: center; font-size:0.85rem;">POSISI</th>
-                        <th style="padding:15px; color:#64748b; text-align: center; font-size:0.85rem;">JUMLAH</th>
-                        <th style="padding:15px; color:#64748b; text-align: center; font-size:0.85rem;">UMUR</th>
+                    <tr style="background:#6CA651;">
+                        <th style="padding:15px; color:white; font-size:0.85rem; text-align: center; border: 2px solid #fff;">TANGGAL MASUK</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; text-align: center; border: 2px solid #fff;">POSISI</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; text-align: center; border: 2px solid #fff;">JUMLAH</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; text-align: center; border: 2px solid #fff;">UMUR</th>
                     </tr>
                 </thead>
                 <tbody id="umurTableBody">
@@ -96,21 +96,21 @@ const Tetas = {
             const tglMasuk = new Date(item.mesi_1_tgl);
             const diffDays = Math.floor(Math.abs(new Date() - tglMasuk) / (1000 * 60 * 60 * 24));
             return `
-                <tr style="border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:15px; font-weight:700;">${tglMasuk.toLocaleDateString('id-ID')}</td>
-                    <td style="padding:15px; font-weight:800;">${item.status.replace('_', ' ')}</td>
-                    <td style="padding:15px; font-weight:800; color:#6CA651;">${item.jumlah} Butir</td>
-                    <td style="padding:15px; font-weight:700;">${diffDays} Hari</td>
+                <tr style="background:#f8f9fa;">
+                    <td style="padding:15px; font-weight:700; border: 3px solid #fff;">${tglMasuk.toLocaleDateString('id-ID')}</td>
+                    <td style="padding:15px; font-weight:800; border: 3px solid #fff; text-transform:uppercase;">${item.status.replace('_', ' ')}</td>
+                    <td style="padding:15px; font-weight:800; border: 3px solid #fff; color:#6CA651;">${item.jumlah} Butir</td>
+                    <td style="padding:15px; font-weight:700; border: 3px solid #fff;">${diffDays} Hari</td>
                 </tr>
             `;
         }).join('');
       }
     });
 
-    // Pindah Normal (Sama kayak tombol konfirmasi biasa)
+    // Event Listeners (Bawaan Kode Sebelumnya)
     document.querySelectorAll('.btn-move').forEach(btn => {
         btn.onclick = async (e) => {
-            const { from, to } = e.target.dataset;
+            const { from, to } = e.currentTarget.dataset;
             const res = await presenter.moveMesin({
                 kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
                 from_status: from, to_status: to
@@ -119,26 +119,21 @@ const Tetas = {
         };
     });
 
-    // ⚡ FITUR CHEATING: Langsung Pindah Semua Batch di Mesin Itu
     document.querySelectorAll('.btn-cheat').forEach(btn => {
         btn.onclick = async (e) => {
-            const { from } = e.target.dataset;
+            const { from } = e.currentTarget.dataset;
             if (!confirm(`⚡ CHEAT ACTIVATED: Pindahkan paksa semua telur dari ${from} ke Kotak Panen?`)) return;
-            
             const res = await presenter.moveMesin({
                 kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
-                from_status: from, 
-                to_status: 'SIAP_PANEN'
+                from_status: from, to_status: 'SIAP_PANEN'
             });
             if (res.status === 'success') location.reload();
         };
     });
 
-    // Kirim SEMUA dari Kotak Panen ke SELESAI (Kelola DOC)
     document.getElementById('btnFinalHatch').onclick = async () => {
         const currentVal = parseInt(document.getElementById('val-SIAP_PANEN').innerText.replace(/,/g, ''));
         if (currentVal <= 0) return alert("Kotak Panen masih kosong!");
-
         if (confirm(`Kirim ${currentVal} telur ke Kelola DOC? Data di sini akan dibersihkan.`)) {
             const res = await presenter.moveMesin({
                 kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),

@@ -4,24 +4,26 @@ class PembibitanPresenter {
   constructor({ onDataReady }) {
     this.onDataReady = onDataReady;
     this.baseUrl = CONFIG.BASE_URL;
-    this._lastData = [];
   }
 
   async init() {
     try {
-      // 1. AMBIL DAFTAR KATEGORI DARI API
       const response = await fetch(`${this.baseUrl}/commodities`);
       const result = await response.json();
       
-      if (result.status !== 'success') throw new Error('Data gagal ditarik');
+      if (result.status !== 'success') throw new Error('Gagal memuat data API');
 
-      // Ambil datanya buat dikirim ke UI
-      const categories = result.data;
-      this._lastData = categories; 
-      
+      let categories = result.data;
+
+      // URUTKAN: YANG AKTIF (TRUE) DULUAN
+      categories.sort((a, b) => {
+        if (a.aktif === b.aktif) return 0;
+        return a.aktif ? -1 : 1; 
+      });
+
       if (this.onDataReady) this.onDataReady(categories);
     } catch (err) {
-      console.error("Gagal load kategori pembibitan:", err);
+      console.error("Error Presenter Pembibitan:", err);
       if (this.onDataReady) this.onDataReady([]);
     }
   }

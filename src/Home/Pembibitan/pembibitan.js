@@ -5,34 +5,13 @@ const Pembibitan = {
     return `
       <section class="page" style="display:flex; flex-direction:column; gap:30px; padding:0 20px;">
         
-        <div class="page-header-card" style="
-          background:#ffffff;
-          border-radius:24px;
-          padding:40px 20px;
-          border:1px solid #e0eadd;
-          box-shadow:0 8px 24px rgba(0,0,0,0.04);
-          text-align:center;
-        ">
-          <h1 style="
-            margin:0;
-            font-family:'Luckiest Guy', cursive;
-            font-size:2.8rem;
-            font-weight:normal;
-            color:#6CA651;
-            letter-spacing:3px;
-            text-transform:uppercase;
-          ">
+        <div class="page-header-card" style="background:#ffffff; border-radius:24px; padding:40px 20px; border:1px solid #e0eadd; box-shadow:0 8px 24px rgba(0,0,0,0.04); text-align:center;">
+          <h1 style="margin:0; font-family:'Luckiest Guy', cursive; font-size:2.8rem; color:#6CA651; letter-spacing:3px; text-transform:uppercase;">
             MASTER PEMBIBITAN
           </h1>
         </div>
 
-        <div class="main-content-card" style="
-          background:white;
-          padding:45px;
-          border-radius:35px;
-          border:1px solid #e0eadd;
-          box-shadow:0 15px 35px rgba(0,0,0,0.05);
-        ">
+        <div class="main-content-card" style="background:white; padding:45px; border-radius:35px; border:1px solid #e0eadd; box-shadow:0 15px 35px rgba(0,0,0,0.05);">
           <div id="pembibitanCategoryGrid" class="breed-grid-colorful">
             <div style="padding:50px; text-align:center; grid-column:1/-1; color:#888; font-weight:600;">
               ⏳ Menghubungkan ke server cloud...
@@ -60,6 +39,8 @@ const Pembibitan = {
           border:1px solid rgba(0,0,0,.05);
           box-shadow:0 6px 20px rgba(0,0,0,.06);
           color:white;
+          text-align: center; /* ISI CARD KE TENGAH */
+          position: relative;
         }
 
         .pembibitan-card-solid:hover {
@@ -69,25 +50,32 @@ const Pembibitan = {
 
         .card-top-row {
           display:flex;
-          justify-content:space-between;
+          flex-direction: column;
+          justify-content:center;
           align-items:center;
+          margin-bottom: 10px;
         }
 
         .card-top-row h3 {
           margin:0;
-          font-size:1.4rem;
+          font-size:1.5rem;
           font-weight:900;
           text-transform:uppercase;
+          letter-spacing: 1px;
         }
 
-        .status-dot-white {
-          width:14px;
-          height:14px;
-          border-radius:50%;
-          border:2px solid white;
+        /* DOT STATUS DI POJOK KANAN */
+        .status-indicator {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          width: 15px;
+          height: 15px;
+          border-radius: 50%;
+          border: 2.5px solid white;
+          box-shadow: 0 0 10px rgba(0,0,0,0.2);
         }
 
-        /* ===== GRID TOMBOL 3 ATAS 2 BAWAH ===== */
         .button-group-pembibitan {
           display:grid;
           grid-template-columns: repeat(3, 1fr); 
@@ -113,26 +101,19 @@ const Pembibitan = {
           min-height: 45px;
         }
 
-        /* Container khusus baris bawah biar isi 2 tombol bagi rata */
         .row-bottom-wrap {
           grid-column: span 3;
           display: flex;
           gap: 10px;
         }
 
-        .row-bottom-wrap .btn-kelola-pembibitan {
-          flex: 1;
-        }
-
-        .btn-full-width {
-          grid-column: span 3;
-        }
+        .row-bottom-wrap .btn-kelola-pembibitan { flex: 1; }
+        .btn-full-width { grid-column: span 3; }
 
         .btn-kelola-pembibitan:hover {
           background:white;
           color:#333;
-          transform:scale(1.05);
-          border-color:white;
+          transform:scale(1.03);
         }
 
         @media (max-width:992px) {
@@ -144,13 +125,11 @@ const Pembibitan = {
 
   async afterRender() {
     const gridContainer = document.getElementById('pembibitanCategoryGrid');
-
     const presenter = new PembibitanPresenter({
       onDataReady: (categories) => {
         gridContainer.innerHTML = this._renderGridContent(categories);
       }
     });
-
     await presenter.init();
   },
 
@@ -165,14 +144,14 @@ const Pembibitan = {
       const bgColor = bgColors[i % bgColors.length];
       const id = cat.id.toLowerCase();
       const name = cat.nama.toUpperCase();
-      
       const isAyam = name.includes('AYAM');
 
       return `
         <div class="pembibitan-card-solid" style="background:${bgColor}">
+          <div class="status-indicator" style="background:${cat.aktif ? '#2ecc71' : '#e74c3c'}"></div>
+          
           <div class="card-top-row">
             <h3>${cat.nama}</h3>
-            <div class="status-dot-white" style="background:${cat.aktif ? '#2ecc71' : '#e74c3c'}"></div>
           </div>
 
           <div class="button-group-pembibitan">
@@ -186,7 +165,7 @@ const Pembibitan = {
                 <button class="btn-kelola-pembibitan" onclick="location.hash='#/ayam-${id}'">KELOLA AYAM</button>
               </div>
             ` : `
-              <button class="btn-kelola-pembibitan btn-full-width" onclick="location.hash='#/bibit-${id}'">Kelola Panen</button>
+              <button class="btn-kelola-pembibitan btn-full-width" onclick="location.hash='#/bibit-${id}'">KELOLA PANEN ${cat.nama}</button>
             `}
           </div>
         </div>
