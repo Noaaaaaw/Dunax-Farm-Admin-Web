@@ -65,5 +65,13 @@
     "union": "^0.5.0",
     "url-join": "^4.0.1",
     "whatwg-encoding": "^2.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Noaaaaaw/Dunax-Farm-Admin-Web.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Noaaaaaw/Dunax-Farm-Admin-Web/issues"
+  },
+  "homepage": "https://github.com/Noaaaaaw/Dunax-Farm-Admin-Web#readme"
 }

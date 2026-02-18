@@ -5,7 +5,7 @@ const LaporanKambing = {
 
       <div class="page" style="display: flex; flex-direction: column; gap: 20px; padding: 0 20px;">
         <div class="page-header-card" style="background: #ffffff; border-radius: 24px; padding: 40px 20px; border: 1px solid #e0eadd; box-shadow: 0 8px 24px rgba(0,0,0,0.04); text-align: center;">
-          <h1 style="margin: 0; font-family: 'Luckiest Guy', cursive; font-size: 2.8rem; letter-spacing: 3px; text-transform: uppercase;">LAPORAN OPERASIONAL KAMBING 🐐</h1>
+          <h1 style="margin: 0; font-family: 'Luckiest Guy', cursive; font-size: 2.8rem; letter-spacing: 3px; text-transform: uppercase;">LAPORAN OPERASIONAL KAMBING</h1>
         </div>
 
         <form id="laporanForm" style="display: flex; flex-direction: column; gap: 20px;">
@@ -54,7 +54,7 @@ const LaporanKambing = {
                 
                 <div id="alertRow" class="alert-row" style="display: none; margin-top: 15px; background: #fff5f5; padding: 20px; border-radius: 15px; border: 1px solid #feb2b2;">
                   <div id="problemListContainer"></div> 
-                  <button type="button" id="btnAddProblem" style="width:100%; padding:12px; border-radius:12px; background:#fff; color:#c53030; border:2px dashed #feb2b2; font-weight:900; cursor:pointer;">+ TAMBAH MASALAH KANDANG</button>
+                  <button type="button" id="btnAddProblem" style="width:100%; padding:12px; border-radius:12px; background:#fff; color:#c53030; border:2px dashed #feb2b2; font-weight:900;">+ TAMBAH MASALAH KANDANG</button>
                 </div>
             </div>
 
@@ -88,7 +88,7 @@ const LaporanKambing = {
         </div>
 
         <div id="statusModal" class="modal-overlay">
-          <div class="modal-box" style="max-width: 450px;">
+          <div class="modal-box" style="max-width: 650px;">
             <div style="background: #6CA651; padding: 15px; text-align: center; position: relative; border-bottom: 2px solid #000;">
                 <h3 id="statusModalTitle" style="margin: 0; color: white; font-family: 'Luckiest Guy', cursive; font-weight: normal; font-size: 1.2rem; letter-spacing: 1px;">DETAIL</h3>
                 <button class="close-modal-btn" style="position: absolute; top: 12px; right: 15px; background: white; border: 2px solid #000; font-size: 0.8rem; cursor: pointer; width: 25px; height: 25px; border-radius: 50%; font-weight: 900; color: #6CA651;">✕</button>
@@ -98,7 +98,7 @@ const LaporanKambing = {
         </div>
 
         <div id="taskModal" class="modal-overlay">
-          <div class="modal-box" style="max-width: 380px;">
+          <div class="modal-box" style="max-width: 450px;">
             <div style="background: #6CA651; padding: 15px; text-align: center; position: relative; border-bottom: 2px solid #000;">
                 <h3 style="margin: 0; color: white; font-family: 'Luckiest Guy', cursive; font-weight: normal; font-size: 1.2rem; letter-spacing: 1px;">DAFTAR KINERJA</h3>
                 <button class="close-modal-btn" style="position: absolute; top: 12px; right: 15px; background: white; border: 2px solid #000; font-size: 0.8rem; cursor: pointer; width: 25px; height: 25px; border-radius: 50%; font-weight: 900; color: #6CA651;">✕</button>
@@ -127,20 +127,41 @@ const LaporanKambing = {
       const modalTitle = document.getElementById('statusModalTitle');
       const modalNote = document.getElementById('modalNote');
       const statusModal = document.getElementById('statusModal');
+      const taskModal = document.getElementById('taskModal');
 
+      // 1. MODAL DETAIL KESEHATAN
       row.querySelector('.btn-health-pop').onclick = (e) => {
         const d = e.currentTarget.dataset;
         if (d.status === 'SEHAT') return alert("Kambing Sehat Semua! ✅");
         const detail = JSON.parse(d.detail);
-        modalTitle.innerText = "DETAIL KAMBING SAKIT ⚠️";
+        modalTitle.innerText = "DETAIL KESEHATAN ⚠️";
         modalNote.innerHTML = `
           <table class="pop-table">
-            <thead><tr><th>NO. KDG</th><th>ID KAMBING</th><th>INDIKASI</th></tr></thead>
-            <tbody>${detail.map(x => `<tr><td>${x.kandang}</td><td>${x.ayam}</td><td>${x.penyakit}</td></tr>`).join('')}</tbody>
+            <thead>
+              <tr>
+                <th>KANDANG</th>
+                <th>ID KAMBING</th>
+                <th>INDIKASI</th>
+                <th>KARANTINA</th>
+                <th>PEMULIHAN</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${detail.map(x => `
+                <tr>
+                  <td>${x.kandang}</td>
+                  <td>${x.noKambing}</td>
+                  <td style="text-align:left;">${x.penyakit}</td>
+                  <td style="color:${x.karantina === 'YA' ? 'red' : 'green'}">${x.karantina}</td>
+                  <td style="text-align:left;">${x.recovery || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
           </table>`;
         statusModal.style.display = 'flex';
       };
 
+      // 2. MODAL KELAYAKAN KANDANG
       row.querySelector('.btn-layak-pop').onclick = (e) => {
         const d = e.currentTarget.dataset;
         const problems = JSON.parse(d.problems || '[]');
@@ -150,11 +171,18 @@ const LaporanKambing = {
         } else {
           modalNote.innerHTML = `
             <table class="pop-table">
-              <thead><tr><th>NO/ID</th><th>RINCIAN MASALAH & BUKTI</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>KANDANG</th>
+                  <th>ID KAMBING</th>
+                  <th>RINCIAN MASALAH & BUKTI</th>
+                </tr>
+              </thead>
               <tbody>
                 ${problems.map(p => `
                   <tr>
-                    <td style="font-weight:bold;">Kdg: ${p.kandang}<br>ID: ${p.noKambing}</td>
+                    <td style="font-weight:bold;">${p.kandang}</td>
+                    <td style="font-weight:bold;">${p.noKambing}</td>
                     <td style="text-align:left;">
                       <div style="margin-bottom:10px; font-weight:800;">${p.note}</div>
                       ${p.photo ? `<img src="${p.photo}" style="width:100%; border-radius:12px; border:2.5px solid #000; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: block;">` : '<span style="color:#888; font-style:italic;">(Tidak ada foto bukti)</span>'}
@@ -166,28 +194,46 @@ const LaporanKambing = {
         statusModal.style.display = 'flex';
       };
 
+      // 3. MODAL KINERJA (LIHAT KERJA)
       row.querySelector('.btn-task-pop').onclick = (e) => {
         const tasks = JSON.parse(e.currentTarget.dataset.tasks);
         document.getElementById('taskListContent').innerHTML = `
           <table class="pop-table">
-            <thead><tr><th>TUGAS OPERASIONAL</th><th>HASIL</th></tr></thead>
-            <tbody>${tasks.map(t => `<tr><td style="text-align:left;">${t.status ? '✅' : '❌'} ${t.name}</td><td style="font-weight:900;">${t.val || '-'} ${t.unit || ''}</td></tr>`).join('')}</tbody>
+            <thead>
+              <tr>
+                <th>STATUS</th>
+                <th>TUGAS OPERASIONAL</th>
+                <th>HASIL</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tasks.map(t => {
+                // LOGIKA: Kg hanya tampil jika unit diisi 'Kg' (pakan)
+                const hasilTampil = t.unit === 'Kg' ? `${t.val} Kg` : (t.val || '-');
+                return `
+                  <tr>
+                    <td style="font-size:1.2rem;">${t.status ? '✅' : '❌'}</td>
+                    <td style="text-align:left;">${t.name}</td>
+                    <td style="font-weight:900;">${hasilTampil}</td>
+                  </tr>`;
+              }).join('')}
+            </tbody>
           </table>`;
-        document.getElementById('taskModal').style.display = 'flex';
+        taskModal.style.display = 'flex';
       };
 
+      // TUTUP MODAL
       document.querySelectorAll('.close-modal-btn').forEach(btn => {
         btn.onclick = () => {
           statusModal.style.display = 'none';
-          document.getElementById('taskModal').style.display = 'none';
+          taskModal.style.display = 'none';
         };
       });
 
-      // Tutup modal jika klik di luar box
       window.onclick = (event) => {
-        if (event.target == statusModal || event.target == document.getElementById('taskModal')) {
+        if (event.target == statusModal || event.target == taskModal) {
           statusModal.style.display = 'none';
-          document.getElementById('taskModal').style.display = 'none';
+          taskModal.style.display = 'none';
         }
       };
     };

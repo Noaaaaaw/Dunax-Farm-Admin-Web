@@ -11,16 +11,29 @@ class HomePresenter {
 
   async init() {
     try {
+      // 1. Ambil Data Inventaris/Stok
       const resInv = await fetch(`${CONFIG.BASE_URL}/commodities`);
       const resultInv = await resInv.json();
 
-      const resOp = await fetch(`${CONFIG.BASE_URL}/api/laporan`);
-      const resultOp = await resOp.json();
+      // 2. Ambil Data Laporan Operasional Ayam
+      const resOpAyam = await fetch(`${CONFIG.BASE_URL}/api/laporan`);
+      const resultOpAyam = await resOpAyam.json();
 
-      if (resultInv.status !== 'success' || resultOp.status !== 'success') throw new Error('Respons server gagal');
+      // 3. Ambil Data Laporan Operasional Kambing
+      const resOpKambing = await fetch(`${CONFIG.BASE_URL}/api/laporan-kambing`);
+      const resultOpKambing = await resOpKambing.json();
+
+      // Validasi respons server
+      if (resultInv.status !== 'success' || resultOpAyam.status !== 'success' || resultOpKambing.status !== 'success') {
+        throw new Error('Respons server gagal');
+      }
 
       this.allCommoditiesData = resultInv.data;
-      this.allOperationalData = resultOp.data;
+
+      // 4. Gabungkan data operasional Ayam dan Kambing
+      const dataAyam = resultOpAyam.data || [];
+      const dataKambing = resultOpKambing.data || [];
+      this.allOperationalData = [...dataAyam, ...dataKambing];
 
       this._processInitialStats();
       this._renderFullDashboard();
@@ -208,53 +221,47 @@ class HomePresenter {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     dateDisplay.innerText = this.viewDate.toLocaleDateString('id-ID', options).toUpperCase();
 
-    const filteredData = this.allOperationalData.filter(item => new Date(item.tanggal_jam).toLocaleDateString('id-ID') === selectedDateStr);
+    const filteredData = this.allOperationalData.filter(item => {
+        const itemDate = item.tanggal_jam || item.created_at;
+        return new Date(itemDate).toLocaleDateString('id-ID') === selectedDateStr;
+    });
 
     if (filteredData.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="8" style="padding: 50px; color: #ccc; text-align: center; font-style: italic; font-weight: 700;">Tidak ada aktivitas operasional pada tanggal ini.</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="8" style="padding: 50px; color: #ccc; text-align: center;">Tidak ada aktivitas operasional pada tanggal ini.</td></tr>`;
       return;
     }
 
-    filteredData.sort((a, b) => new Date(b.tanggal_jam) - new Date(a.tanggal_jam));
+    filteredData.sort((a, b) => new Date(b.tanggal_jam || b.created_at) - new Date(a.tanggal_jam || a.created_at));
 
     tableBody.innerHTML = filteredData.map(item => {
       const kesehatan = item.kesehatan_data || { status: 'SEHAT', detail: [] };
       const kelayakan = item.kelayakan_data || { status: 'LAYAK', problems: [] };
       const pekerjaan = item.pekerjaan_data || [];
-      const time = new Date(item.tanggal_jam).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const time = new Date(item.tanggal_jam || item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
       
       const isAman = pekerjaan.length > 0 && pekerjaan.every(p => p.status === true);
       const hColor = kesehatan.status === 'SAKIT' ? {bg:'#fff5f5', txt:'#c53030'} : {bg:'#eef2ed', txt:'#2d4a36'};
-      const lColor = kelayakan.status === 'TIDAK LAYAK' ? {bg:'#fff5f5', txt:'#c53030'} : {bg:'#eef2ed', txt:'#2d4a36'};
+      const lColor = (kelayakan.status === 'TIDAK LAYAK' || kelayakan.status === 'TIDAK_STANDAR') ? {bg:'#fff5f5', txt:'#c53030'} : {bg:'#eef2ed', txt:'#2d4a36'};
 
       return `
         <tr style="border-bottom: 1px solid #eee; text-align: center;">
           <td style="padding: 15px; font-weight: 700;">${time} WIB</td>
           <td style="padding: 15px; font-weight: 1200;">${item.hewan}</td>
-          <td style="padding: 15px;">Deret ${item.deret_kandang}</td>
+          <td style="padding: 15px;">${item.deret_kandang || item.deret}</td>
           <td style="padding: 15px;">${item.sesi}</td>
-          <td style="padding: 15px;"><button class="btn-pop-health" data-status="${kesehatan.status}" data-detail='${JSON.stringify(kesehatan.detail)}' style="border:none; padding:6px 15px; border-radius:10px; font-weight:1200; cursor:pointer; background:${hColor.bg}; color:${hColor.txt};">${kesehatan.status}</button></td>
-         <td style="padding: 15px;">
-  <button class="btn-pop-layak"
-    data-status="${kelayakan.status}"
-    data-problems='${JSON.stringify(kelayakan.problems || [])}'
-    style="border:none; padding:6px 15px; border-radius:10px;
-           font-weight:1200; cursor:pointer;
-           background:${lColor.bg}; color:${lColor.txt};">
-    ${kelayakan.status}
-  </button>
-</td>
-
+          <td style="padding: 15px;"><button class="btn-pop-health" data-hewan="${item.hewan}" data-status="${kesehatan.status}" data-detail='${JSON.stringify(kesehatan.detail)}' style="border:none; padding:6px 15px; border-radius:10px; font-weight:1200; cursor:pointer; background:${hColor.bg}; color:${hColor.txt};">${kesehatan.status}</button></td>
+          <td style="padding: 15px;"><button class="btn-pop-layak" data-status="${kelayakan.status}" data-problems='${JSON.stringify(kelayakan.problems || [])}' style="border:none; padding:6px 15px; border-radius:10px; font-weight:1200; cursor:pointer; background:${lColor.bg}; color:${lColor.txt};">${kelayakan.status}</button></td>
           <td style="padding: 15px; font-weight: 900;">${item.petugas}</td>
           <td style="padding: 15px;">
-            <button class="btn-pop-task" data-tasks='${JSON.stringify(pekerjaan)}' 
-                style="border:none; padding:8px 18px; border-radius:10px; font-weight:1200; color:white; background:${isAman ? '#41644A' : '#e74c3c'}; cursor:pointer;">
-                ${isAman ? 'AMAN' : 'PERIKSA'}
+            <button class="btn-pop-task" data-tasks='${JSON.stringify(pekerjaan)}' style="border:none; padding:8px 18px; border-radius:10px; font-weight:1200; color:white; background:${isAman ? '#41644A' : '#e74c3c'}; cursor:pointer;">
+                LIHAT KERJA
             </button>
           </td>
         </tr>`;
     }).join('');
-    this._bindTableButtons();
+
+    // --- PENTING: PANGGIL INI AGAR TOMBOL BISA DIPENCET ---
+    this._bindTableButtons(); 
   }
 
   _setupNavigationEvents() {
@@ -265,32 +272,40 @@ class HomePresenter {
   }
 
   _bindTableButtons() {
+    // 1. POPUP KESEHATAN (AYAM & KAMBING)
     this.container.querySelectorAll('.btn-pop-health').forEach(btn => {
       btn.onclick = () => {
-        const { status, detail } = btn.dataset;
-        if (status === 'SEHAT') return alert("Hewan Sehat Semua! ✅");
+        const { status, detail, hewan } = btn.dataset;
+        if (status === 'SEHAT') return alert(`${hewan} Sehat Semua! ✅`);
+        
         const details = JSON.parse(detail);
+        const isKambing = hewan.toLowerCase().includes('kambing');
+        
+        // JUDUL DINAMIS SESUAI HEWAN
+        document.getElementById('modalTitleText').innerHTML = `
+          <span style="font-size: 0.7rem; font-weight: 1000; letter-spacing: 1px;">
+            DETAIL ${hewan.toUpperCase()} SAKIT ⚠️
+          </span>`;
+
         document.getElementById('modalNote').innerHTML = `
-          <h3 style="color:#c53030; text-align:center; font-weight:900; margin-bottom:15px;">DETAIL HEWAN SAKIT ⚠️</h3>
-          <div style="overflow-x:auto; border-radius:12px; border:1px solid #feb2b2;">
-            <table style="width:100%; border-collapse:collapse; background:white; font-size:0.8rem;">
-              <thead style="background:#6CA651; color:white;">
+          <div style="overflow-x:auto; border-radius:12px; border:2px solid #000; margin-top:5px;">
+            <table class="pop-table" style="width:100%; border-collapse:collapse;">
+              <thead>
                 <tr>
-                  <th style="padding:10px; border:1px solid #feb2b2;">NOMOR KANDANG</th>
-                  <th style="padding:10px; border:1px solid #feb2b2;">AYAM</th>
-                  <th style="padding:10px; border:1px solid #feb2b2;">GEJALA</th>
-                  <th style="padding:10px; border:1px solid #feb2b2;">OBAT</th>
-                  <th style="padding:10px; border:1px solid #feb2b2;">KARANTINA</th>
+                  <th style="padding:10px; border:2px solid #000; font-size:0.75rem;">NO. KDG</th>
+                  <th style="padding:10px; border:2px solid #000; font-size:0.75rem;">${isKambing ? 'ID KAMBING' : 'AYAM'}</th>
+                  <th style="padding:10px; border:2px solid #000; font-size:0.75rem;">GEJALA</th>
+                  ${isKambing ? '<th style="padding:10px; border:2px solid #000; font-size:0.75rem;">PEMULIHAN</th><th style="padding:10px; border:2px solid #000; font-size:0.75rem;">KARANTINA</th>' : '<th style="padding:10px; border:2px solid #000; font-size:0.75rem;">OBAT</th>'}
                 </tr>
               </thead>
               <tbody style="text-align:center;">
                 ${details.map(d => `
                   <tr>
-                    <td style="padding:10px; border:1px solid #feb2b2; font-weight:900;">${d.kandang}</td>
-                    <td style="padding:10px; border:1px solid #feb2b2;">${d.ayam}</td>
-                    <td style="padding:10px; border:1px solid #feb2b2; text-align:left;">${d.penyakit}</td>
-                    <td style="padding:10px; border:1px solid #feb2b2; text-align:left;">${d.pemulihan}</td>
-                    <td style="padding:10px; border:1px solid #feb2b2; font-weight:bold; color:${d.karantina === 'YA' ? '#c53030' : '#2d4a36'}">${d.karantina}</td>
+                    <td style="padding:10px; border:2px solid #000; font-weight:900;">${d.kandang}</td>
+                    <td style="padding:10px; border:2px solid #000;">${d.noKambing || d.ayam || '-'}</td>
+                    <td style="padding:10px; border:2px solid #000; text-align:left;">${d.penyakit}</td>
+                    <td style="padding:10px; border:2px solid #000; text-align:left;">${d.recovery || d.pemulihan || d.obat || '-'}</td>
+                    ${isKambing ? `<td style="padding:10px; border:2px solid #000; font-weight:bold; color:${d.karantina === 'YA' ? '#c53030' : '#2d4a36'}">${d.karantina || 'TIDAK'}</td>` : ''}
                   </tr>`).join('')}
               </tbody>
             </table>
@@ -299,79 +314,63 @@ class HomePresenter {
       };
     });
 
+    // 2. POPUP KELAYAKAN (JUDUL DIPERBAIKI)
     this.container.querySelectorAll('.btn-pop-layak').forEach(btn => {
-  btn.onclick = () => {
-    const status = btn.dataset.status;
-    const problems = JSON.parse(btn.dataset.problems || '[]');
+      btn.onclick = () => {
+        const { status, problems } = btn.dataset;
+        if (status === 'LAYAK') return alert("Kandang Aman! ✅");
+        
+        const details = JSON.parse(problems);
 
-    if (status === 'LAYAK') {
-      document.getElementById('modalNote').innerHTML = `
-        <h3 style="color:#2d4a36; text-align:center;">✅ KANDANG AMAN</h3>
-        <p style="text-align:center; margin-top:15px;">Tidak ditemukan masalah pada kandang.</p>
-      `;
-      document.getElementById('statusModal').style.display = 'flex';
-      return;
-    }
+        // GANTI JUDUL JADI KELAYAKAN KANDANG
+        document.getElementById('modalTitleText').innerHTML = `
+          <span style="font-size: 0.8rem; font-weight: 1200; letter-spacing: 1px;">
+            DETAIL MASALAH KELAYAKAN ⚠️
+          </span>`;
 
-    // TIDAK LAYAK
-    document.getElementById('modalNote').innerHTML = `
-      <h3 style="color:#c53030; text-align:center; font-weight:1200;">⚠️ TIDAK LAYAK</h3>
+        document.getElementById('modalNote').innerHTML = `
+          <table class="pop-table" style="width:100%; border-collapse:collapse; border:2.5px solid #000;">
+            <thead>
+              <tr>
+                <th style="padding:10px; border:2.5px solid #000;">KDG</th>
+                <th style="padding:10px; border:2.5px solid #000;">RINCIAN MASALAH & BUKTI</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${details.map(p => `
+                <tr>
+                  <td style="padding:10px; border:2.5px solid #000; font-weight:900;">${p.kandang}</td>
+                  <td style="padding:10px; border:2.5px solid #000; text-align:left;">
+                    <div style="margin-bottom:10px; font-weight:800;">${p.note || '-'}</div>
+                    ${p.photo ? `<img src="${p.photo}" style="width:100%; border-radius:12px; border:2.5px solid #000; display:block;">` : ''}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`;
+        document.getElementById('statusModal').style.display = 'flex';
+      };
+    });
 
-      ${
-        problems.length === 0
-          ? `<p style="text-align:center; margin-top:15px; color:#c53030; font-weight:700;">
-               Kandang dinyatakan TIDAK LAYAK, namun detail masalah belum dicatat.
-             </p>`
-          : problems.map(p => `
-              <div style="
-                margin-top:15px;
-                padding:15px;
-                border-radius:12px;
-                border:1.5px solid #feb2b2;
-                background:#fff5f5;
-              ">
-                <strong>KANDANG ${p.kandang}</strong>
-                <p style="margin:8px 0;">${p.note || '-'}</p>
-                ${
-                  p.photo
-                    ? `<img src="${p.photo}"
-                        style="width:100%; max-height:250px; object-fit:cover;
-                               border-radius:10px; margin-top:8px;">`
-                    : ''
-                }
-              </div>
-            `).join('')
-      }
-    `;
-
-    document.getElementById('statusModal').style.display = 'flex';
-  };
-});
-
-    // --- REVISI POPUP DETAIL PEKERJAAN (3 KOLOM: TUGAS, HASIL, STATUS) ---
+    // 3. POPUP KINERJA TETAP 3 KOLOM
     this.container.querySelectorAll('.btn-pop-task').forEach(btn => {
       btn.onclick = () => {
         const tasks = JSON.parse(btn.dataset.tasks);
         document.getElementById('taskListContent').innerHTML = `
-          <div style="overflow-x:auto; border-radius:12px; border:1px solid #eef2ed; margin-top:10px; width: 100%;">
-            <table style="width:100%; border-collapse:collapse; background:white; font-size:0.85rem;">
+          <div style="overflow-x:auto; border-radius:12px; border:2.5px solid #000; margin-top:5px;">
+            <table class="pop-table" style="width:100%; border-collapse:collapse;">
               <thead style="background:#6CA651; color:white;">
                 <tr>
-                  <th style="padding:12px; border:1px solid #eef2ed; text-align:center;">TUGAS</th>
-                  <th style="padding:12px; border:1px solid #eef2ed; text-align:center;">HASIL</th>
-                  <th style="padding:12px; border:1px solid #eef2ed; text-align:center;">STATUS</th>
+                  <th style="padding:12px; border:2.5px solid #000;">STATUS</th>
+                  <th style="padding:12px; border:2.5px solid #000;">TUGAS OPERASIONAL</th>
+                  <th style="padding:12px; border:2.5px solid #000;">HASIL</th>
                 </tr>
               </thead>
               <tbody style="text-align:center;">
                 ${tasks.map(t => `
-                  <tr style="border-bottom: 1px solid #f0f0f0;">
-                    <td style="padding:12px; border:1px solid #eef2ed; text-align:left; font-weight: 600;">${t.name}</td>
-                    <td style="padding:12px; border:1px solid #eef2ed; font-weight:900; color:#41644A;">${t.val || '-'} ${t.unit || ''}</td>
-                    <td style="padding:12px; border:1px solid #eef2ed;">
-                        <span style="font-weight: 800; color:${t.status ? '#2ecc71' : '#e74c3c'}">
-                            ${t.status ? '✅' : '❌'}
-                        </span>
-                    </td>
+                  <tr>
+                    <td style="padding:12px; border:2.5px solid #000; font-size:1.2rem;">${t.status ? '✅' : '❌'}</td>
+                    <td style="padding:12px; border:2.5px solid #000; text-align:left; font-weight: 700;">${t.name}</td>
+                    <td style="padding:12px; border:2.5px solid #000; font-weight:900; color:#41644A;">${t.val || '-'} ${t.unit || ''}</td>
                   </tr>`).join('')}
               </tbody>
             </table>

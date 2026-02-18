@@ -14,17 +14,24 @@ const BibitBaru = {
                 <h2 id="assetFormTitle" style="font-weight: 900; color: #6CA651; margin-bottom: 20px; text-transform: uppercase; font-size: 1rem; text-align: center;">INPUT ASSET TERNAK BARU</h2>
                 <form id="assetBaruForm" style="display: flex; flex-direction: column; gap: 15px; flex: 1;">
                     <input type="hidden" id="editAssetId">
-                    <div class="form-group">
+                    
+                    <div class="form-group" style="position: relative;">
                         <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 5px; font-size: 0.8rem;">PRODUK KOMODITAS</label>
                         <div id="customSelectTrigger" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #eee; font-weight: 800; background:#f9fbf9; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
                             <span id="selectedProductLabel">-- PILIH PRODUK --</span>
                             <span style="color: #6CA651;">▼</span>
                         </div>
-                        <div id="customSelectList" style="display: none; position: absolute; width: 100%; max-height: 200px; background: white; border: 2px solid #6CA651; border-radius: 12px; overflow-y: auto; z-index: 999; top: 100%;">
-                            <div class="optionItem" data-value="DOC">DOC</div><div class="optionItem" data-value="DOD">DOD</div><div class="optionItem" data-value="PULLET AYAM">PULLET AYAM</div><div class="optionItem" data-value="AYAM PETELUR">AYAM PETELUR</div><div class="optionItem" data-value="KAMBING">KAMBING</div><div class="optionItem" data-value="SAPI">SAPI</div>
+                        <div id="customSelectList" style="display: none; position: absolute; width: 100%; max-height: 200px; background: white; border: 2px solid #6CA651; border-radius: 12px; overflow-y: auto; z-index: 999; top: 100%; left: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                            <div class="optionItem" data-value="DOC">DOC</div>
+                            <div class="optionItem" data-value="DOD">DOD</div>
+                            <div class="optionItem" data-value="PULLET AYAM">PULLET AYAM</div>
+                            <div class="optionItem" data-value="AYAM PETELUR">AYAM PETELUR</div>
+                            <div class="optionItem" data-value="KAMBING">KAMBING</div>
+                            <div class="optionItem" data-value="SAPI">SAPI</div>
                         </div>
                         <input type="hidden" id="produkAsset" required>
                     </div>
+
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div class="form-group">
                             <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 5px; font-size: 0.8rem;">JUMLAH EKOR</label>
@@ -89,7 +96,7 @@ const BibitBaru = {
         </div>
         
         <div class="dashboard-card" style="background: white; padding: 35px; border-radius: 35px; box-shadow: 0 15px 45px rgba(0,0,0,0.04);">
-            <h3 style="font-weight: 900; color: #1f3326; text-transform: uppercase; font-size: 1.4rem; text-align: center; margin-bottom: 25px;">RIWAYAT HASIL PENGADAAN</h3>
+            <h3 style="font-weight: 900; color: #1f3326; text-transform: uppercase; font-size: 1.4rem; text-align: center; margin-bottom: 25px;">RIWAYAT ASSET</h3>
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse; text-align: center; border: 3px solid white;">
                     <thead>
@@ -135,6 +142,7 @@ const BibitBaru = {
     const presenter = new BibitBaruPresenter();
     const modalImg = document.getElementById('modalImg');
     
+    // Logika perhitungan umur
     const formatUmurManusiawi = (tglBeli) => {
         if (!tglBeli) return "N/A";
         const tglAwal = new Date(tglBeli);
@@ -154,7 +162,6 @@ const BibitBaru = {
     window.closeAllModals = () => {
         document.getElementById('imageModal').style.display = "none";
         document.body.style.overflow = "auto";
-        window.dispatchEvent(new Event('resize')); 
     };
 
     const uploadToSupabase = async (file) => {
@@ -192,10 +199,8 @@ const BibitBaru = {
         `).join('');
     };
 
-    // LOGIKA EDIT (NARIK SEMUA DATA)
     window.handleEditAction = (item) => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        // Format tanggal yyyy-mm-dd agar bisa dibaca input type="date"
         const tglFormatted = new Date(item.tanggal_beli).toISOString().split('T')[0];
 
         if (item.kategori_id === 'asset_ternak') {
@@ -204,7 +209,7 @@ const BibitBaru = {
             document.getElementById('selectedProductLabel').innerText = item.nama_alat;
             document.getElementById('jumlahAsset').value = item.jumlah;
             document.getElementById('hargaAssetSatuan').value = item.harga;
-            document.getElementById('tglAsset').value = tglFormatted; // FIXED
+            document.getElementById('tglAsset').value = tglFormatted;
             document.getElementById('ketAsset').value = item.keterangan || '';
             document.getElementById('btnSubmitAsset').innerText = "UPDATE ASSET";
             document.getElementById('btnCancelAsset').style.display = "block";
@@ -214,7 +219,7 @@ const BibitBaru = {
             document.getElementById('namaAlat').value = item.nama_alat;
             document.getElementById('jumlahAlat').value = item.jumlah;
             document.getElementById('hargaAlat').value = item.harga;
-            document.getElementById('tglAlat').value = tglFormatted; // FIXED
+            document.getElementById('tglAlat').value = tglFormatted;
             document.getElementById('ketAlat').value = item.keterangan || '';
             document.getElementById('btnSubmitAlat').innerText = "UPDATE ALAT";
             document.getElementById('btnCancelAlat').style.display = "block";
@@ -234,6 +239,7 @@ const BibitBaru = {
         document.getElementById('assetFormTitle').innerText = "INPUT ASSET TERNAK BARU";
         document.getElementById('alatFormTitle').innerText = "INPUT ALAT & BARANG";
         document.getElementById('selectedProductLabel').innerText = "-- PILIH PRODUK --";
+        document.getElementById('customSelectList').style.display = 'none';
     };
 
     document.getElementById('btnCancelAsset').onclick = resetForms;
@@ -302,11 +308,18 @@ const BibitBaru = {
         resetForms(); loadHistory(); btn.disabled = false;
     };
 
+    // Toggle Dropdown
     document.getElementById('customSelectTrigger').onclick = (e) => {
         e.stopPropagation();
         const list = document.getElementById('customSelectList');
         list.style.display = list.style.display === 'none' ? 'block' : 'none';
     };
+
+    // Klik di luar dropdown untuk menutup
+    document.addEventListener('click', () => {
+        document.getElementById('customSelectList').style.display = 'none';
+    });
+
     document.querySelectorAll('.optionItem').forEach(item => {
         item.onclick = (e) => {
             document.getElementById('selectedProductLabel').innerText = e.target.innerText;
