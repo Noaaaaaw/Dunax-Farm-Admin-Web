@@ -47,7 +47,13 @@ const init = async () => {
                         };
                     });
                     return { status: 'success', data: result };
-                } catch (err) { return h.response({ status: 'error' }).code(500); }
+                } catch (err) { 
+    console.error("DATABASE ERROR DETAIL:", err); // Pesan ini akan muncul di terminal VPS
+    return h.response({ 
+        status: 'error', 
+        message: err.message 
+    }).code(500); 
+}
             }
         },
         {
