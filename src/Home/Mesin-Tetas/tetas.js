@@ -11,38 +11,38 @@ const Tetas = {
 
         <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px;">
             ${['MESIN_1', 'MESIN_2', 'MESIN_3'].map((id, index) => `
-            <div class="mesin-card" id="card-${id}" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
-                <button class="btn-cheat" data-from="${id}" title="Cheat: Selesaikan Inkubasi" style="position:absolute; top:10px; right:10px; background:#fef3c7; border:1px solid #f59e0b; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:1rem;">⚡</button>
+            <div class="mesin-card" id="card-${id}" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative; min-height:250px;">
+                <button class="btn-cheat" data-mesin="${id}" style="position:absolute; top:10px; right:10px; border:none; background:none; cursor:pointer; font-size:1.2rem; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.1));">⚡</button>
                 <div>
-                    <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${index + 1}</h3>
+                    <h3 style="margin-bottom:5px; color:#555;">MESIN ${index + 1}</h3>
                     <div id="val-${id}" style="font-size:2.8rem; font-weight:1200; color:#6CA651; margin: 10px 0;">0</div>
-                    <div id="days-${id}" style="font-size:0.7rem; color:#aaa; font-weight:800; margin-bottom:10px;">IDLE</div>
+                    <div id="days-${id}" style="font-size:0.8rem; color:#aaa; font-weight:800; margin-bottom:15px; text-transform:uppercase;">IDLE</div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:10px;">
-                    <button class="btn-start" id="btn-start-${id}" data-mesin="${id}" style="width:100%; padding:12px; border-radius:12px; background:#4b7bec; color:#fff; border:none; cursor:pointer; font-weight:900;">SIMPAN & MULAI</button>
-                    <button class="btn-move" id="btn-panen-${id}" data-from="${id}" disabled style="width:100%; padding:12px; border-radius:12px; background:#ccc; color:#fff; border:none; cursor:not-allowed; font-weight:900;">KONFIRMASI PANEN</button>
+                    <button class="btn-main-action" id="btn-start-${id}" data-mesin="${id}" style="width:100%; padding:12px; border-radius:12px; border:none; color:#fff; font-weight:900; cursor:pointer; transition: 0.3s;"></button>
+                    <button class="btn-panen" id="btn-panen-${id}" data-mesin="${id}" style="display:none; width:100%; padding:12px; border-radius:12px; background:#6CA651; color:#fff; border:none; cursor:pointer; font-weight:900;">KONFIRMASI PANEN</button>
                 </div>
             </div>
             `).join('')}
 
             <div class="mesin-card" style="background:#f0fdf4; padding:20px; border-radius:20px; text-align:center; border:2px solid #16a34a; display:flex; flex-direction:column; justify-content:space-between;">
                 <div>
-                    <h3 style="color:#16a34a; font-size:0.9rem; font-weight:900;">KOTAK PANEN (DOC)</h3>
+                    <h3 style="color:#16a34a;">KOTAK PANEN (DOC)</h3>
                     <div id="val-SIAP_PANEN" style="font-size:2.8rem; font-weight:1200; color:#1f3326; margin: 10px 0;">0</div>
                 </div>
                 <button id="btnFinalHatch" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:#16a34a; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Kirim ke Kelola DOC 🚀</button>
             </div>
         </div>
 
-        <div class="table-container" style="background:white; border-radius:20px; padding:25px; border:1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
-            <h3 style="margin-bottom:20px; color:#41644A; font-weight:900; text-align: center; text-transform:uppercase;">Monitoring Antrian Inkubasi</h3>
+        <div class="table-container" style="background:white; border-radius:20px; padding:25px; border:1px solid #eee;">
+            <h3 style="margin-bottom:20px; text-align:center;">Monitoring Antrian Inkubasi</h3>
             <table style="width:100%; border-collapse:collapse; text-align:center;">
                 <thead>
                     <tr style="background:#6CA651;">
-                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">TANGGAL MULAI</th>
-                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">MESIN</th>
-                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">JUMLAH</th>
-                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">UMUR</th>
+                        <th style="padding:15px; color:white;">TANGGAL MULAI</th>
+                        <th style="padding:15px; color:white;">MESIN</th>
+                        <th style="padding:15px; color:white;">JUMLAH</th>
+                        <th style="padding:15px; color:white;">UMUR</th>
                     </tr>
                 </thead>
                 <tbody id="umurTableBody"></tbody>
@@ -56,149 +56,124 @@ const Tetas = {
     const categoryId = window.location.hash.split('-').slice(1).join('-').toLowerCase();
 
     const presenter = new TetasPresenter({
-      onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
-      onUpdateUI: (data) => {
-        // 1. RESET UI (Kembali ke status Standby)
-        ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
-            document.getElementById(`val-${id}`).innerText = "0";
-            if (id !== 'SIAP_PANEN') {
-                document.getElementById(`days-${id}`).innerText = "IDLE";
-                const btnS = document.getElementById(`btn-start-${id}`);
-                const btnP = document.getElementById(`btn-panen-${id}`);
-                btnS.style.display = "block";
-                btnS.disabled = false;
-                btnS.innerText = "SIMPAN & MULAI";
-                btnS.style.background = "#4b7bec";
-                btnP.disabled = true;
-                btnP.style.background = "#ccc";
-                btnP.style.cursor = "not-allowed";
-            }
-        });
+      onDataReady: (cat) => {
+        document.getElementById('catName').innerText = cat.nama;
+      },
 
+      onUpdateUI: (data) => {
+        const mesinList = ['MESIN_1', 'MESIN_2', 'MESIN_3'];
+        const grouped = {};
+        data.forEach(item => { grouped[item.status] = item; });
+
+        let totalSiapPanen = 0;
         const tableBody = document.getElementById('umurTableBody');
         tableBody.innerHTML = "";
 
-        // 2. Olah Data
-        data.forEach(item => {
-            const targetId = item.status.replace('WAITING_', 'MESIN_');
-            const valEl = document.getElementById(`val-${targetId}`);
-            const daysEl = document.getElementById(`days-${targetId}`);
-            const btnStart = document.getElementById(`btn-start-${targetId}`);
-            const btnPanen = document.getElementById(`btn-panen-${targetId}`);
+        mesinList.forEach(id => {
+          const item = grouped[id];
+          const valEl = document.getElementById(`val-${id}`);
+          const daysEl = document.getElementById(`days-${id}`);
+          const btnMain = document.getElementById(`btn-start-${id}`);
+          const btnP = document.getElementById(`btn-panen-${id}`);
 
-            if (valEl) {
-                const currentVal = parseInt(valEl.innerText.replace(/,/g, '')) || 0;
-                valEl.innerText = (currentVal + parseInt(item.jumlah)).toLocaleString();
-                
-                // JIKA TELUR SUDAH MULAI DIINKUBASI (Ada tanggal 'mesi_1_tgl' di DB)
-                if (item.mesi_1_tgl) {
-                    const tglMasuk = new Date(item.mesi_1_tgl);
-                    const diffDays = Math.floor(Math.abs(new Date() - tglMasuk) / (1000 * 60 * 60 * 24));
-                    
-                    if (daysEl) daysEl.innerText = `${diffDays} / 21 HARI`;
+          // Reset UI Awal
+          btnMain.style.display = "block";
+          btnP.style.display = "none";
 
-                    // Ubah Tombol jadi abu-abu karena sedang proses
-                    if (btnStart) {
-                        btnStart.innerText = "SEDANG PROSES";
-                        btnStart.disabled = true;
-                        btnStart.style.background = "#aaa";
-                    }
+          if (!item) {
+            valEl.innerText = "0";
+            daysEl.innerText = "IDLE";
+            btnMain.innerText = "KOSONG";
+            btnMain.disabled = true;
+            btnMain.style.background = "#ccc";
+            btnMain.style.cursor = "not-allowed";
+          } else {
+            valEl.innerText = item.jumlah.toLocaleString();
 
-                    // Aktifkan tombol Panen jika sudah 21 hari
-                    if (diffDays >= 21) {
-                        if (btnPanen) {
-                            btnPanen.disabled = false;
-                            btnPanen.style.background = "#6CA651";
-                            btnPanen.style.cursor = "pointer";
-                        }
-                        if (btnStart) btnStart.style.display = "none";
-                    }
-
-                    // UPDATE PENTING: Tampilkan di Tabel Monitoring HANYA JIKA SUDAH MULAI
-                    tableBody.innerHTML += `
-                        <tr style="background:#f8f9fa;">
-                            <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${tglMasuk.toLocaleDateString('id-ID')}</td>
-                            <td style="padding:15px; font-weight:800; border: 2px solid #fff;">${targetId}</td>
-                            <td style="padding:15px; font-weight:800; border: 2px solid #fff; color:#6CA651;">${item.jumlah} Butir</td>
-                            <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${diffDays} Hari</td>
-                        </tr>`;
-                } else {
-                    // JIKA TELUR MASIH STANDBY (Belum diklik Simpan & Mulai)
-                    if (daysEl) daysEl.innerText = "STANDBY (BELUM MULAI)";
-                    // Tombol tetap Biru 'SIMPAN & MULAI' (Sudah diatur di reset UI atas)
+            if (!item.mesi_1_tgl) {
+              // STATUS: TAMPUNG (BELUM MULAI)
+              daysEl.innerText = "MENUNGGU";
+              btnMain.innerText = "MULAI PROSES 🚀";
+              btnMain.disabled = false;
+              btnMain.style.background = "#f39c12"; // Oranye
+              btnMain.style.cursor = "pointer";
+              btnMain.onclick = async () => {
+                if(confirm(`Mulai proses inkubasi ${item.jumlah} butir di ${id}?`)) {
+                    const res = await presenter.startTimer(categoryId, id);
+                    if (res.status === 'success') location.reload();
                 }
+              };
+            } else {
+              // STATUS: SEDANG INKUBASI
+              const tglMulai = new Date(item.mesi_1_tgl);
+              const diffDays = Math.floor((Date.now() - tglMulai) / (1000 * 60 * 60 * 24));
+              daysEl.innerText = `${diffDays} / 21 HARI`;
+
+              if (diffDays >= 21) {
+                // SIAP PANEN
+                btnMain.style.display = "none";
+                btnP.style.display = "block";
+                btnP.onclick = async () => {
+                    const netas = prompt("Jumlah berhasil menetas?", item.jumlah);
+                    if (netas === null) return;
+                    const res = await presenter.moveMesin({
+                        kategori_id: categoryId,
+                        from_status: id,
+                        to_status: 'SIAP_PANEN',
+                        jumlah_berhasil: parseInt(netas)
+                    });
+                    if (res.status === 'success') location.reload();
+                };
+              } else {
+                // LAGI PROSES
+                btnMain.innerText = "SEDANG PROSES";
+                btnMain.disabled = true;
+                btnMain.style.background = "#3498db"; // Biru
+                btnMain.style.cursor = "not-allowed";
+              }
+
+              // Tambah ke Tabel Monitoring
+              tableBody.innerHTML += `
+                <tr>
+                    <td style="padding:15px; border-bottom:1px solid #eee;">${tglMulai.toLocaleDateString('id-ID')}</td>
+                    <td style="padding:15px; border-bottom:1px solid #eee;">${id.replace('_', ' ')}</td>
+                    <td style="padding:15px; border-bottom:1px solid #eee;">${item.jumlah} Butir</td>
+                    <td style="padding:15px; border-bottom:1px solid #eee;">${diffDays} Hari</td>
+                </tr>
+              `;
             }
+          }
         });
 
-        // Jika tabel kosong setelah filter
+        // Update Kotak Panen
+        const siapPanenData = data.find(i => i.status === 'SIAP_PANEN');
+        document.getElementById("val-SIAP_PANEN").innerText = siapPanenData ? siapPanenData.jumlah : "0";
+
         if (tableBody.innerHTML === "") {
-            tableBody.innerHTML = `<tr><td colspan="4" style="padding:20px; color:#999; text-align:center;">Belum ada inkubasi yang berjalan.</td></tr>`;
+          tableBody.innerHTML = `<tr><td colspan="4" style="padding:30px; color:#999;">Belum ada proses inkubasi berjalan.</td></tr>`;
         }
       }
     });
 
-    // ACTION: SIMPAN & MULAI (Panggil API /api/mesin-tetas/start)
-    document.querySelectorAll('.btn-start').forEach(btn => {
-        btn.onclick = async (e) => {
-            const mesinId = e.target.dataset.mesin;
-            const displayVal = document.getElementById(`val-${mesinId}`).innerText.replace(/,/g, '');
-            const jumlah = parseInt(displayVal) || 0;
-            
-            if (jumlah <= 0) return alert("Gagal: Tidak ada telur standby!");
-
-            if (confirm(`Mulai inkubasi ${jumlah} butir di ${mesinId.replace('_', ' ')}?`)) {
-                const res = await presenter.startIncubation({ kategori_id: categoryId, status: mesinId });
-                if (res.status === 'success') {
-                    alert("Berhasil! Inkubasi dimulai.");
-                    location.reload();
-                }
-            }
-        };
-    });
-
-    // ACTION: KONFIRMASI PANEN
-    document.querySelectorAll('.btn-move').forEach(btn => {
-        btn.onclick = async (e) => {
-            const { from } = e.currentTarget.dataset;
-            const total = parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, ''));
-            const netas = prompt(`Berapa ekor yang BERHASIL MENETAS?`, total);
-            if (netas === null || netas === "") return;
-            const jmlNetas = parseInt(netas);
-
-            const res = await presenter.moveMesin({
-                kategori_id: categoryId,
-                from_status: from,
-                to_status: 'SIAP_PANEN',
-                jumlah_berhasil: jmlNetas 
-            });
-            if (res.status === 'success') location.reload();
-        };
-    });
-
-    // ACTION: CHEAT (FORCE GREEN)
+    // EVENT CHEAT (PETIR)
     document.querySelectorAll('.btn-cheat').forEach(btn => {
-        btn.onclick = (e) => {
-            const { from } = e.currentTarget.dataset;
-            const btnPanen = document.getElementById(`btn-panen-${from}`);
-            const btnStart = document.getElementById(`btn-start-${from}`);
-            if (btnPanen) {
-                btnPanen.disabled = false;
-                btnPanen.style.background = "#6CA651";
-                btnPanen.style.cursor = "pointer";
-                if (btnStart) btnStart.style.display = "none";
-                alert(`⚡ CHEAT: Mesin ${from} siap panen sekarang!`);
-            }
-        };
+      btn.onclick = async (e) => {
+        const mId = e.currentTarget.dataset.mesin;
+        const res = await presenter.cheatDB(categoryId, mId);
+        if (res.status === 'success') location.reload();
+      };
     });
 
-    // ACTION: KIRIM KE DOC
+    // KIRIM KE DOC
     document.getElementById('btnFinalHatch').onclick = async () => {
-        const val = parseInt(document.getElementById('val-SIAP_PANEN').innerText.replace(/,/g, ''));
-        if (val <= 0) return alert("Kotak Panen kosong!");
-        if (confirm(`Kirim ${val} DOC ke Kelola DOC?`)) {
-            const res = await presenter.moveMesin({ kategori_id: categoryId, from_status: 'SIAP_PANEN', to_status: 'SELESAI' });
-            if (res.status === 'success') location.reload();
-        }
+      const val = parseInt(document.getElementById('val-SIAP_PANEN').innerText) || 0;
+      if (val <= 0) return alert("Kotak Panen kosong!");
+      const res = await presenter.moveMesin({
+        kategori_id: categoryId,
+        from_status: 'SIAP_PANEN',
+        to_status: 'SELESAI'
+      });
+      if (res.status === 'success') location.reload();
     };
 
     await presenter.init();
