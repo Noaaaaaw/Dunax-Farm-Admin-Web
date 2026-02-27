@@ -251,7 +251,7 @@ const init = async () => {
             }
         },
         {
-    // 17. POST Move / Panen Berantai (FIX TOTAL: RESET OTOMATIS PAS PANEN)
+    // 17. POST Move / Panen (FIX TOTAL: RESET MESIN)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
@@ -261,7 +261,7 @@ const init = async () => {
             await client.query('BEGIN');
 
             if (to_status === 'SELESAI') {
-                // LOGIKA PINDAH KE KELOLA DOC: Ambil total dari Kotak Panen
+                // LOGIKA: Kirim dari Kotak Panen ke Inventaris
                 const batchRes = await client.query(
                     `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
                     [kategori_id]
@@ -269,28 +269,28 @@ const init = async () => {
                 const totalPanen = parseInt(batchRes.rows[0].total) || 0;
 
                 if (totalPanen > 0) {
+                    // HAPUS data di mesin_tetas karena sudah jadi stok barang (DOC)
                     await client.query(
-                        `UPDATE mesin_tetas SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                        `DELETE FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
                         [kategori_id]
                     );
+                    // Tambah ke stok komoditas DOC/DOD
                     await client.query(
                         `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
                         [totalPanen, kategori_id]
                     );
                 }
             } else {
-                // LOGIKA KONFIRMASI PANEN (MESIN X -> KOTAK PANEN)
+                // LOGIKA: Panen dari Mesin (Contoh: MESIN_1 ke Kotak Panen)
                 const nBerhasil = parseInt(jumlah_berhasil) || 0;
 
-                // 1. ARCHIVE SEMUA DATA LAMA di mesin tersebut (Biar mesin jadi 0 lagi)
+                // 1. HAPUS SEMUA ANTRIAN DI MESIN ASAL (Reset Mesin jadi 0)
                 await client.query(
-                    `UPDATE mesin_tetas 
-                     SET status = 'ARCHIVE', siap_panen_tgl = CURRENT_TIMESTAMP 
-                     WHERE kategori_id = $1 AND status = $2`,
+                    `DELETE FROM mesin_tetas WHERE kategori_id = $1 AND status = $2`,
                     [kategori_id, from_status]
                 );
 
-                // 2. Masukkan baris baru khusus untuk jumlah yang menetas ke status SIAP_PANEN
+                // 2. MASUKKAN HASIL BARU KE KOTAK PANEN
                 if (nBerhasil > 0) {
                     await client.query(
                         `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl, siap_panen_tgl) 

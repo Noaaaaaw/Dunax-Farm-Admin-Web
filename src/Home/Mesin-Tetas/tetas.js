@@ -59,7 +59,7 @@ const Tetas = {
     const presenter = new TetasPresenter({
       onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
-        // 1. RESET SEMUA KARTU KE DEFAULT (IDLE)
+        // 1. RESET SEMUA KARTU (Penting buat restart status)
         ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
             document.getElementById(`val-${id}`).innerText = "0";
             if (id !== 'SIAP_PANEN') {
@@ -79,8 +79,8 @@ const Tetas = {
         const tableBody = document.getElementById('umurTableBody');
         tableBody.innerHTML = "";
 
-        // 2. Filter data yang benar-benar aktif (Bukan ARCHIVE/SELESAI)
-        const activeData = data.filter(item => !['SELESAI', 'ARCHIVE'].includes(item.status));
+        // 2. FILTER DATA: Abaikan status ARCHIVE biar nggak numpuk
+        const activeData = data.filter(item => item.status !== 'ARCHIVE' && item.status !== 'SELESAI');
 
         if (activeData.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="4" style="padding:20px; color:#999;">Belum ada antrian aktif.</td></tr>`;
@@ -99,12 +99,11 @@ const Tetas = {
                 if (item.status.includes('MESIN') && item.mesi_1_tgl) {
                     const tglMasuk = new Date(item.mesi_1_tgl);
                     const diffDays = Math.floor(Math.abs(new Date() - tglMasuk) / (1000 * 60 * 60 * 24));
-                    
-                    daysEl.innerText = `${diffDays} / 21 HARI`;
+                    if (daysEl) daysEl.innerText = `${diffDays} / 21 HARI`;
 
                     if (diffDays >= 21) {
                         btnPanen.disabled = false;
-                        btnPanen.style.background = "#6CA651"; // Hijau
+                        btnPanen.style.background = "#6CA651";
                         btnPanen.style.cursor = "pointer";
                         btnStart.style.display = "none";
                     } else {
@@ -113,6 +112,7 @@ const Tetas = {
                         btnStart.style.background = "#aaa";
                     }
 
+                    // Isi Tabel
                     const row = `
                         <tr style="background:#f8f9fa;">
                             <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${tglMasuk.toLocaleDateString('id-ID')}</td>
@@ -127,13 +127,14 @@ const Tetas = {
       }
     });
 
-    // ACTIONS
+    // ACTION: SIMPAN & MULAI
     document.querySelectorAll('.btn-start').forEach(btn => {
         btn.onclick = async (e) => {
             const mesinId = e.target.dataset.mesin;
             const displayVal = document.getElementById(`val-${mesinId}`).innerText.replace(/,/g, '');
             const jumlah = parseInt(displayVal) || 0;
             if (jumlah <= 0) return alert("Gagal: Tidak ada telur!");
+            
             if (confirm(`Mulai inkubasi ${jumlah} butir di ${mesinId.replace('_', ' ')}?`)) {
                 const res = await presenter.startIncubation({ kategori_id: categoryId, status: mesinId, jumlah: jumlah });
                 if (res.status === 'success') location.reload();
@@ -141,6 +142,7 @@ const Tetas = {
         };
     });
 
+    // ACTION: KONFIRMASI PANEN
     document.querySelectorAll('.btn-move').forEach(btn => {
         btn.onclick = async (e) => {
             const { from } = e.currentTarget.dataset;
@@ -148,7 +150,6 @@ const Tetas = {
             const netas = prompt(`Berapa ekor yang BERHASIL MENETAS?`, total);
             if (netas === null || netas === "") return;
             const jmlNetas = parseInt(netas);
-            if (isNaN(jmlNetas) || jmlNetas < 0 || jmlNetas > total) return alert("Gagal: Input tidak valid!");
 
             const res = await presenter.moveMesin({
                 kategori_id: categoryId,
@@ -160,6 +161,7 @@ const Tetas = {
         };
     });
 
+    // ACTION: CHEAT (FORCE GREEN)
     document.querySelectorAll('.btn-cheat').forEach(btn => {
         btn.onclick = (e) => {
             const { from } = e.currentTarget.dataset;
@@ -169,12 +171,13 @@ const Tetas = {
                 btnPanen.disabled = false;
                 btnPanen.style.background = "#6CA651";
                 btnPanen.style.cursor = "pointer";
-                if (btnStart) btnStart.style.display = "none";
-                alert(`⚡ CHEAT: Mesin ${from} siap panen sekarang!`);
+                btnStart.style.display = "none";
+                alert(`⚡ CHEAT: ${from} siap panen sekarang!`);
             }
         };
     });
 
+    // ACTION: KIRIM KE DOC
     document.getElementById('btnFinalHatch').onclick = async () => {
         const val = parseInt(document.getElementById('val-SIAP_PANEN').innerText.replace(/,/g, ''));
         if (val <= 0) return alert("Kotak Panen kosong!");
