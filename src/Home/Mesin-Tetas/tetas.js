@@ -19,7 +19,7 @@ const Tetas = {
                     <div id="days-${id}" style="font-size:0.7rem; color:#aaa; font-weight:800; margin-bottom:10px;">IDLE</div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:10px;">
-                    <button class="btn-start" data-mesin="${id}" style="width:100%; padding:12px; border-radius:12px; background:#4b7bec; color:#fff; border:none; cursor:pointer; font-weight:900;">SIMPAN & MULAI</button>
+                    <button class="btn-start" id="btn-start-${id}" data-mesin="${id}" style="width:100%; padding:12px; border-radius:12px; background:#4b7bec; color:#fff; border:none; cursor:pointer; font-weight:900;">SIMPAN & MULAI</button>
                     <button class="btn-move" id="btn-panen-${id}" data-from="${id}" disabled style="width:100%; padding:12px; border-radius:12px; background:#ccc; color:#fff; border:none; cursor:not-allowed; font-weight:900;">KONFIRMASI PANEN</button>
                 </div>
             </div>
@@ -34,6 +34,21 @@ const Tetas = {
                 <button id="btnFinalHatch" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:#16a34a; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Kirim ke Kelola DOC 🚀</button>
             </div>
         </div>
+
+        <div class="table-container" style="background:white; border-radius:20px; padding:25px; border:1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+            <h3 style="margin-bottom:20px; color:#41644A; font-weight:900; text-align: center; text-transform:uppercase;">Monitoring Antrian Inkubasi</h3>
+            <table style="width:100%; border-collapse:collapse; text-align:center;">
+                <thead>
+                    <tr style="background:#6CA651;">
+                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">TANGGAL MULAI</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">MESIN</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">JUMLAH</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">UMUR</th>
+                    </tr>
+                </thead>
+                <tbody id="umurTableBody"></tbody>
+            </table>
+        </div>
       </section>
     `;
   },
@@ -42,98 +57,98 @@ const Tetas = {
     const categoryId = window.location.hash.split('-').slice(1).join('-').toLowerCase();
 
     const presenter = new TetasPresenter({
-      onDataReady: (cat) => { 
-        document.getElementById('catName').innerText = cat.nama; 
-      },
+      onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
-        // Reset UI
+        // 1. RESET SEMUA KARTU KE DEFAULT (IDLE)
         ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
-            const el = document.getElementById(`val-${id}`);
-            if(el) el.innerText = "0";
+            document.getElementById(`val-${id}`).innerText = "0";
+            if (id !== 'SIAP_PANEN') {
+                document.getElementById(`days-${id}`).innerText = "IDLE";
+                const btnS = document.getElementById(`btn-start-${id}`);
+                const btnP = document.getElementById(`btn-panen-${id}`);
+                btnS.style.display = "block";
+                btnS.disabled = false;
+                btnS.innerText = "SIMPAN & MULAI";
+                btnS.style.background = "#4b7bec";
+                btnP.disabled = true;
+                btnP.style.background = "#ccc";
+                btnP.style.cursor = "not-allowed";
+            }
         });
 
-        data.forEach(item => {
+        const tableBody = document.getElementById('umurTableBody');
+        tableBody.innerHTML = "";
+
+        // 2. Filter data yang benar-benar aktif (Bukan ARCHIVE/SELESAI)
+        const activeData = data.filter(item => !['SELESAI', 'ARCHIVE'].includes(item.status));
+
+        if (activeData.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" style="padding:20px; color:#999;">Belum ada antrian aktif.</td></tr>`;
+        }
+
+        activeData.forEach(item => {
             const valEl = document.getElementById(`val-${item.status}`);
             const daysEl = document.getElementById(`days-${item.status}`);
             const btnPanen = document.getElementById(`btn-panen-${item.status}`);
-            const btnStart = document.querySelector(`.btn-start[data-mesin="${item.status}"]`);
+            const btnStart = document.getElementById(`btn-start-${item.status}`);
 
             if (valEl) {
-                // UPDATE: Tampilkan angka telur dari database (misal: 110)
-                valEl.innerText = item.jumlah.toLocaleString();
+                const currentVal = parseInt(valEl.innerText.replace(/,/g, '')) || 0;
+                valEl.innerText = (currentVal + parseInt(item.jumlah)).toLocaleString();
                 
-                if (item.status.includes('MESIN')) {
-                    // Cek Tanggal Masuk (untuk hitung mundur 21 hari)
-                    if (item.mesi_1_tgl) {
-                        const tglMasuk = new Date(item.mesi_1_tgl);
-                        const diffDays = Math.floor(Math.abs(new Date() - tglMasuk) / (1000 * 60 * 60 * 24));
-                        
-                        if (daysEl) daysEl.innerText = `${diffDays} / 21 HARI`;
+                if (item.status.includes('MESIN') && item.mesi_1_tgl) {
+                    const tglMasuk = new Date(item.mesi_1_tgl);
+                    const diffDays = Math.floor(Math.abs(new Date() - tglMasuk) / (1000 * 60 * 60 * 24));
+                    
+                    daysEl.innerText = `${diffDays} / 21 HARI`;
 
-                        // Jika sudah 21 hari atau lebih
-                        if (diffDays >= 21) {
-                            if (btnPanen) {
-                                btnPanen.disabled = false;
-                                btnPanen.style.background = "#6CA651";
-                                btnPanen.style.cursor = "pointer";
-                            }
-                            if (btnStart) btnStart.style.display = "none"; // Sembunyikan tombol simpan
-                        } else {
-                            // Jika sedang inkubasi (belum 21 hari)
-                            if (btnStart) btnStart.innerText = "SEDANG PROSES";
-                            if (btnStart) btnStart.disabled = true;
-                            if (btnStart) btnStart.style.background = "#aaa";
-                        }
+                    if (diffDays >= 21) {
+                        btnPanen.disabled = false;
+                        btnPanen.style.background = "#6CA651"; // Hijau
+                        btnPanen.style.cursor = "pointer";
+                        btnStart.style.display = "none";
                     } else {
-                        // Jika mesi_1_tgl masih null (Berarti telur baru hasil sortiran)
-                        if (daysEl) daysEl.innerText = "SIAP DIMULAI";
+                        btnStart.innerText = "SEDANG PROSES";
+                        btnStart.disabled = true;
+                        btnStart.style.background = "#aaa";
                     }
+
+                    const row = `
+                        <tr style="background:#f8f9fa;">
+                            <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${tglMasuk.toLocaleDateString('id-ID')}</td>
+                            <td style="padding:15px; font-weight:800; border: 2px solid #fff; text-transform:uppercase;">${item.status.replace('_', ' ')}</td>
+                            <td style="padding:15px; font-weight:800; border: 2px solid #fff; color:#6CA651;">${item.jumlah} Butir</td>
+                            <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${diffDays} Hari</td>
+                        </tr>`;
+                    tableBody.innerHTML += row;
                 }
             }
         });
       }
     });
 
-    // ACTION: SIMPAN (OTOMATIS AMBIL ANGKA DARI KARTU)
+    // ACTIONS
     document.querySelectorAll('.btn-start').forEach(btn => {
         btn.onclick = async (e) => {
             const mesinId = e.target.dataset.mesin;
             const displayVal = document.getElementById(`val-${mesinId}`).innerText.replace(/,/g, '');
-            const jumlahOtomatis = parseInt(displayVal) || 0;
-
-            if (jumlahOtomatis <= 0) {
-                return alert("Gagal: Tidak ada stok telur untuk diproses!");
-            }
-
-            if (confirm(`Gunakan ${jumlahOtomatis} butir telur untuk memulai inkubasi 21 hari di ${mesinId.replace('_', ' ')}?`)) {
-                const res = await presenter.startIncubation({
-                    kategori_id: categoryId,
-                    status: mesinId,
-                    jumlah: jumlahOtomatis
-                });
-                
-                if (res.status === 'success') {
-                    alert("Berhasil! Hitungan 21 hari telah dimulai.");
-                    location.reload();
-                }
+            const jumlah = parseInt(displayVal) || 0;
+            if (jumlah <= 0) return alert("Gagal: Tidak ada telur!");
+            if (confirm(`Mulai inkubasi ${jumlah} butir di ${mesinId.replace('_', ' ')}?`)) {
+                const res = await presenter.startIncubation({ kategori_id: categoryId, status: mesinId, jumlah: jumlah });
+                if (res.status === 'success') location.reload();
             }
         };
     });
 
-    // ACTION: KONFIRMASI PANEN (INPUT HASIL TETAS)
     document.querySelectorAll('.btn-move').forEach(btn => {
         btn.onclick = async (e) => {
             const { from } = e.currentTarget.dataset;
-            const totalAwal = parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, ''));
-            
-            const netas = prompt(`HASIL PANEN ${from.replace('_', ' ')}\nTotal Telur: ${totalAwal}\nBerapa yang BERHASIL MENETAS?`, totalAwal);
-            
-            if (netas === null || netas === "") return; 
+            const total = parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, ''));
+            const netas = prompt(`Berapa ekor yang BERHASIL MENETAS?`, total);
+            if (netas === null || netas === "") return;
             const jmlNetas = parseInt(netas);
-
-            if (isNaN(jmlNetas) || jmlNetas < 0 || jmlNetas > totalAwal) {
-                return alert("Input jumlah tidak valid!");
-            }
+            if (isNaN(jmlNetas) || jmlNetas < 0 || jmlNetas > total) return alert("Gagal: Input tidak valid!");
 
             const res = await presenter.moveMesin({
                 kategori_id: categoryId,
@@ -141,35 +156,30 @@ const Tetas = {
                 to_status: 'SIAP_PANEN',
                 jumlah_berhasil: jmlNetas 
             });
-            
             if (res.status === 'success') location.reload();
         };
     });
 
-    // ACTION: CHEAT
     document.querySelectorAll('.btn-cheat').forEach(btn => {
         btn.onclick = (e) => {
             const { from } = e.currentTarget.dataset;
             const btnPanen = document.getElementById(`btn-panen-${from}`);
+            const btnStart = document.getElementById(`btn-start-${from}`);
             if (btnPanen) {
                 btnPanen.disabled = false;
-                btnPanen.style.background = "#F59E0B";
+                btnPanen.style.background = "#6CA651";
                 btnPanen.style.cursor = "pointer";
-                alert(`⚡ CHEAT: ${from} siap panen sekarang!`);
+                if (btnStart) btnStart.style.display = "none";
+                alert(`⚡ CHEAT: Mesin ${from} siap panen sekarang!`);
             }
         };
     });
 
-    // ACTION: KIRIM KE DOC
     document.getElementById('btnFinalHatch').onclick = async () => {
         const val = parseInt(document.getElementById('val-SIAP_PANEN').innerText.replace(/,/g, ''));
         if (val <= 0) return alert("Kotak Panen kosong!");
         if (confirm(`Kirim ${val} DOC ke Kelola DOC?`)) {
-            const res = await presenter.moveMesin({
-                kategori_id: categoryId,
-                from_status: 'SIAP_PANEN',
-                to_status: 'SELESAI'
-            });
+            const res = await presenter.moveMesin({ kategori_id: categoryId, from_status: 'SIAP_PANEN', to_status: 'SELESAI' });
             if (res.status === 'success') location.reload();
         }
     };

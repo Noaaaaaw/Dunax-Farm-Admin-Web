@@ -250,8 +250,8 @@ const init = async () => {
                 return { status: 'success', data: res.rows };
             }
         },
-       {
-    // 17. POST Move / Panen Berantai (FIX TOTAL: HABISKAN MESIN ASAL)
+        {
+    // 17. POST Move / Panen Berantai (FIX TOTAL: RESET OTOMATIS PAS PANEN)
     method: 'POST',
     path: '/api/mesin-tetas/move',
     handler: async (request, h) => {
@@ -261,7 +261,7 @@ const init = async () => {
             await client.query('BEGIN');
 
             if (to_status === 'SELESAI') {
-                // LOGIKA KIRIM KE DOC: Ambil semua yang ada di Kotak Panen
+                // LOGIKA PINDAH KE KELOLA DOC: Ambil total dari Kotak Panen
                 const batchRes = await client.query(
                     `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
                     [kategori_id]
@@ -279,19 +279,18 @@ const init = async () => {
                     );
                 }
             } else {
-                // LOGIKA PANEN DARI MESIN (MESIN_1 -> SIAP_PANEN)
+                // LOGIKA KONFIRMASI PANEN (MESIN X -> KOTAK PANEN)
                 const nBerhasil = parseInt(jumlah_berhasil) || 0;
 
-                // 1. Matikan/Kosongkan semua telur lama di mesin tersebut (Set status SELESAI_GAGAL atau hapus)
-                // Kita pindahkan statusnya agar tidak muncul lagi di kartu mesin
+                // 1. ARCHIVE SEMUA DATA LAMA di mesin tersebut (Biar mesin jadi 0 lagi)
                 await client.query(
                     `UPDATE mesin_tetas 
-                     SET status = 'PANEN_DIOLAH', siap_panen_tgl = CURRENT_TIMESTAMP 
+                     SET status = 'ARCHIVE', siap_panen_tgl = CURRENT_TIMESTAMP 
                      WHERE kategori_id = $1 AND status = $2`,
                     [kategori_id, from_status]
                 );
 
-                // 2. Masukkan HANYA jumlah yang berhasil (netas) ke Kotak Panen sebagai baris baru
+                // 2. Masukkan baris baru khusus untuk jumlah yang menetas ke status SIAP_PANEN
                 if (nBerhasil > 0) {
                     await client.query(
                         `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl, siap_panen_tgl) 
@@ -305,7 +304,6 @@ const init = async () => {
             return { status: 'success' };
         } catch (err) { 
             await client.query('ROLLBACK'); 
-            console.error("Move Error:", err.message);
             return h.response({ status: 'error', message: err.message }).code(500); 
         } finally { 
             client.release(); 
