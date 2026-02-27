@@ -28,6 +28,16 @@ class TetasPresenter {
     }
   }
 
+  // Method ini akan dipanggil tombol SIMPAN untuk mencatat tanggal mulai hari ini
+  async startIncubation(payload) {
+    const res = await fetch(`${this.baseUrl}/api/mesin-tetas/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  }
+
   async moveMesin(payload) {
     const res = await fetch(`${this.baseUrl}/api/mesin-tetas/move`, {
       method: 'POST',

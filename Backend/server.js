@@ -251,44 +251,67 @@ const init = async () => {
             }
         },
        {
-            // 17. POST Move / Panen Berantai (FIX PANEN & CHEATING)
-            method: 'POST',
-            path: '/api/mesin-tetas/move',
-            handler: async (request, h) => {
-                const { kategori_id, from_status, to_status } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    if (to_status === 'SELESAI') {
-                        const batchRes = await client.query(
-                            `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
-                            [kategori_id]
-                        );
-                        const totalPanen = parseInt(batchRes.rows[0].total) || 0;
+    // 17. POST Move / Panen Berantai (FIX TOTAL: HABISKAN MESIN ASAL)
+    method: 'POST',
+    path: '/api/mesin-tetas/move',
+    handler: async (request, h) => {
+        const { kategori_id, from_status, to_status, jumlah_berhasil } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
 
-                        if (totalPanen > 0) {
-                            await client.query(
-                                `UPDATE mesin_tetas SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
-                                [kategori_id]
-                            );
-                            await client.query(
-                                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
-                                [totalPanen, kategori_id]
-                            );
-                        }
-                    } else {
-                        await client.query(
-                            `UPDATE mesin_tetas SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
-                             WHERE id = (SELECT id FROM mesin_tetas WHERE kategori_id = $1 AND status = $2 ORDER BY mesi_1_tgl ASC LIMIT 1)`,
-                            [kategori_id, from_status]
-                        );
-                    }
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
-                finally { client.release(); }
+            if (to_status === 'SELESAI') {
+                // LOGIKA KIRIM KE DOC: Ambil semua yang ada di Kotak Panen
+                const batchRes = await client.query(
+                    `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                    [kategori_id]
+                );
+                const totalPanen = parseInt(batchRes.rows[0].total) || 0;
+
+                if (totalPanen > 0) {
+                    await client.query(
+                        `UPDATE mesin_tetas SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                        [kategori_id]
+                    );
+                    await client.query(
+                        `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
+                        [totalPanen, kategori_id]
+                    );
+                }
+            } else {
+                // LOGIKA PANEN DARI MESIN (MESIN_1 -> SIAP_PANEN)
+                const nBerhasil = parseInt(jumlah_berhasil) || 0;
+
+                // 1. Matikan/Kosongkan semua telur lama di mesin tersebut (Set status SELESAI_GAGAL atau hapus)
+                // Kita pindahkan statusnya agar tidak muncul lagi di kartu mesin
+                await client.query(
+                    `UPDATE mesin_tetas 
+                     SET status = 'PANEN_DIOLAH', siap_panen_tgl = CURRENT_TIMESTAMP 
+                     WHERE kategori_id = $1 AND status = $2`,
+                    [kategori_id, from_status]
+                );
+
+                // 2. Masukkan HANYA jumlah yang berhasil (netas) ke Kotak Panen sebagai baris baru
+                if (nBerhasil > 0) {
+                    await client.query(
+                        `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl, siap_panen_tgl) 
+                         VALUES ($1, $2, 'SIAP_PANEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                        [kategori_id, nBerhasil]
+                    );
+                }
             }
-        },
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) { 
+            await client.query('ROLLBACK'); 
+            console.error("Move Error:", err.message);
+            return h.response({ status: 'error', message: err.message }).code(500); 
+        } finally { 
+            client.release(); 
+        }
+    }
+},
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',
