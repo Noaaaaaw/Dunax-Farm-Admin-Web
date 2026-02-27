@@ -47,13 +47,7 @@ const init = async () => {
                         };
                     });
                     return { status: 'success', data: result };
-                } catch (err) { 
-    console.error("DATABASE ERROR DETAIL:", err); // Pesan ini akan muncul di terminal VPS
-    return h.response({ 
-        status: 'error', 
-        message: err.message 
-    }).code(500); 
-}
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
             }
         },
         {
@@ -185,8 +179,8 @@ const init = async () => {
                 return { status: 'success', data: result.rows };
             }
         },
-        // 15. POST Proses Pembibitan (MASUK KE PENAMPUNGAN STANDBY)
         {
+            // 15. POST Proses Pembibitan (DARI PANEN -> MASUK MINGGU 1 MESIN TETAS)
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
@@ -195,73 +189,96 @@ const init = async () => {
                 try {
                     await client.query('BEGIN');
                     const nMasukMesin = parseInt(berhasil) || 0; 
+                    const nGagalJual = parseInt(gagal) || 0;
+                    const nKonsumsiKg = parseFloat(sisa_ke_konsumsi) || 0; 
+                    const nKampung = parseInt(sisa_ke_ayam_kampung) || 0;
+                    
                     if (nMasukMesin > 0) {
-                        // FIX: Status awal WAITING_1 dan mesi_1_tgl NULL (Biar Umur gak jalan otomatis)
                         await client.query(
-                            `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl) 
-                             VALUES ($1, $2, 'WAITING_1', NULL)`, [kategori_id, nMasukMesin]
+                            `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl) VALUES ($1, $2, 'MESIN_1', CURRENT_TIMESTAMP)`,
+                            [kategori_id, nMasukMesin]
                         );
                     }
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [parseInt(gagal), kategori_id]);
+                    
+                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagalJual, kategori_id]);
+                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsiKg, kategori_id]);
+                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [nKampung, kategori_id]);
+
+                    const totalButirProcessed = nMasukMesin + nGagalJual + Math.round(nKonsumsiKg * 17) + nKampung;
+                    await client.query(
+                        `INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) 
+                         VALUES ($1, $2, $3, $4, $5)`, 
+                        [kategori_id, totalButirProcessed, nMasukMesin, nGagalJual, (nKonsumsiKg + nKampung)]
+                    );
+
                     await client.query('COMMIT');
                     return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
-                finally { client.release(); }
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                } finally { client.release(); }
             }
         },
-        // 16. API START INCUBATION (AKTIFKAN UMUR SETELAH KLIK TOMBOL)
         {
-            method: 'POST',
-            path: '/api/mesin-tetas/start',
-            handler: async (request) => {
-                const { kategori_id, status } = request.payload;
-                // Update WAITING jadi MESIN dan SET TANGGAL MULAI DETIK INI
-                await pool.query(
-                    `UPDATE mesin_tetas SET status = $1, mesi_1_tgl = CURRENT_TIMESTAMP 
-                     WHERE kategori_id = $2 AND status = 'WAITING_1' AND mesi_1_tgl IS NULL`,
-                    [status, kategori_id]
-                );
-                return { status: 'success' };
-            }
-        },
-        // API GET STATUS (Untuk Monitoring)
+    // API UNTUK NARIK SEMUA DATA ANTRIAN (UNTUK TABEL UMUR & KARTU)
+    method: 'GET',
+    path: '/api/mesin-tetas/status/{kategori_id}',
+    handler: async (request) => {
+        const kategori_id = request.params.kategori_id.toLowerCase(); 
+        const res = await pool.query(
+            `SELECT id, jumlah, status, mesi_1_tgl 
+             FROM mesin_tetas 
+             WHERE kategori_id = $1 AND status != 'SELESAI' 
+             ORDER BY mesi_1_tgl ASC`, // Urutkan dari yang paling lama
+            [kategori_id]
+        );
+        return { status: 'success', data: res.rows };
+    }
+},
         {
+            // 16. GET Histori Pembibitan (Audit Trail)
             method: 'GET',
-            path: '/api/mesin-tetas/status/{kategori_id}',
-            handler: async (request) => {
-                const res = await pool.query(
-                    `SELECT id, jumlah, status, mesi_1_tgl FROM mesin_tetas 
-                     WHERE kategori_id = $1 AND status != 'SELESAI' ORDER BY id ASC`, 
-                    [request.params.kategori_id.toLowerCase()]
-                );
+            path: '/api/pembibitan/history',
+            handler: async () => {
+                const res = await pool.query('SELECT * FROM hatchery_process ORDER BY tanggal_proses DESC');
                 return { status: 'success', data: res.rows };
             }
         },
-        // 17. POST Move / Panen (DELETE DATA BIAR RESET)
-        {
+       {
+            // 17. POST Move / Panen Berantai (FIX PANEN & CHEATING)
             method: 'POST',
             path: '/api/mesin-tetas/move',
             handler: async (request, h) => {
-                const { kategori_id, from_status, to_status, jumlah_berhasil } = request.payload;
+                const { kategori_id, from_status, to_status } = request.payload;
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
                     if (to_status === 'SELESAI') {
-                        const batchRes = await client.query(`SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, [kategori_id]);
-                        const total = parseInt(batchRes.rows[0].total) || 0;
-                        await client.query(`DELETE FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, [kategori_id]);
-                        await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`, [total, kategori_id]);
-                    } else {
-                        await client.query(`DELETE FROM mesin_tetas WHERE kategori_id = $1 AND status = $2`, [kategori_id, from_status]);
-                        if (parseInt(jumlah_berhasil) > 0) {
+                        const batchRes = await client.query(
+                            `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                            [kategori_id]
+                        );
+                        const totalPanen = parseInt(batchRes.rows[0].total) || 0;
+
+                        if (totalPanen > 0) {
                             await client.query(
-                                `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl, siap_panen_tgl) 
-                                 VALUES ($1, $2, 'SIAP_PANEN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                                [kategori_id, parseInt(jumlah_berhasil)]
+                                `UPDATE mesin_tetas SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                                [kategori_id]
+                            );
+                            await client.query(
+                                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
+                                [totalPanen, kategori_id]
                             );
                         }
+                    } else {
+                        await client.query(
+                            `UPDATE mesin_tetas SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
+                             WHERE id = (SELECT id FROM mesin_tetas WHERE kategori_id = $1 AND status = $2 ORDER BY mesi_1_tgl ASC LIMIT 1)`,
+                            [kategori_id, from_status]
+                        );
                     }
-                    await client.query('COMMIT'); return { status: 'success' };
+                    await client.query('COMMIT');
+                    return { status: 'success' };
                 } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
                 finally { client.release(); }
             }
