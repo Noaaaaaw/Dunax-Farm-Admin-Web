@@ -10,171 +10,180 @@ const Tetas = {
         </div>
 
         <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px;">
-            ${['MESIN_1', 'MESIN_2', 'MESIN_3'].map((id, index) => `
-            <div class="mesin-card" id="card-${id}" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative; min-height:250px;">
-                <button class="btn-cheat" data-mesin="${id}" style="position:absolute; top:10px; right:10px; border:none; background:none; cursor:pointer; font-size:1.2rem; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.1));">⚡</button>
+            ${[1, 2, 3].map(i => `
+            <div class="mesin-card" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
+                <button class="btn-cheat" data-from="MESIN_${i}" title="Cheat: Langsung Panen" style="position:absolute; top:10px; right:10px; background:#fef3c7; border:1px solid #f59e0b; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:1rem;">⚡</button>
                 <div>
-                    <h3 style="margin-bottom:5px; color:#555;">MESIN ${index + 1}</h3>
-                    <div id="val-${id}" style="font-size:2.8rem; font-weight:1200; color:#6CA651; margin: 10px 0;">0</div>
-                    <div id="days-${id}" style="font-size:0.8rem; color:#aaa; font-weight:800; margin-bottom:15px; text-transform:uppercase;">IDLE</div>
+                    <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${i}</h3>
+                    <div id="val-MESIN_${i}" style="font-size:2.8rem; font-weight:1200; color:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; margin: 10px 0;">0</div>
+                    <div style="font-size:0.7rem; color:#aaa; font-weight:800;">BUTIR TELUR</div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                    <button class="btn-main-action" id="btn-start-${id}" data-mesin="${id}" style="width:100%; padding:12px; border-radius:12px; border:none; color:#fff; font-weight:900; cursor:pointer; transition: 0.3s;"></button>
-                    <button class="btn-panen" id="btn-panen-${id}" data-mesin="${id}" style="display:none; width:100%; padding:12px; border-radius:12px; background:#6CA651; color:#fff; border:none; cursor:pointer; font-weight:900;">KONFIRMASI PANEN</button>
-                </div>
+                <button class="btn-move-trigger" data-from="MESIN_${i}" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; color:#fff; border:none; cursor:pointer; font-weight:900;">KONFIRMASI PANEN</button>
             </div>
             `).join('')}
 
             <div class="mesin-card" style="background:#f0fdf4; padding:20px; border-radius:20px; text-align:center; border:2px solid #16a34a; display:flex; flex-direction:column; justify-content:space-between;">
                 <div>
-                    <h3 style="color:#16a34a;">KOTAK PANEN (DOC)</h3>
+                    <h3 style="color:#16a34a; font-size:0.9rem; font-weight:900;">KOTAK PANEN</h3>
                     <div id="val-SIAP_PANEN" style="font-size:2.8rem; font-weight:1200; color:#1f3326; margin: 10px 0;">0</div>
+                    <div style="font-size:0.7rem; color:#16a34a; font-weight:800;">TOTAL SIAP PINDAH</div>
                 </div>
                 <button id="btnFinalHatch" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:#16a34a; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Kirim ke Kelola DOC 🚀</button>
             </div>
         </div>
 
-        <div class="table-container" style="background:white; border-radius:20px; padding:25px; border:1px solid #eee;">
-            <h3 style="margin-bottom:20px; text-align:center;">Monitoring Antrian Inkubasi</h3>
+        <div class="table-container" style="background:white; border-radius:20px; padding:25px; border:1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+            <h3 style="margin-bottom:20px; color:#41644A; font-weight:900; text-align: center; text-transform:uppercase;">Monitoring Antrian</h3>
             <table style="width:100%; border-collapse:collapse; text-align:center;">
                 <thead>
                     <tr style="background:#6CA651;">
-                        <th style="padding:15px; color:white;">TANGGAL MULAI</th>
-                        <th style="padding:15px; color:white;">MESIN</th>
-                        <th style="padding:15px; color:white;">JUMLAH</th>
-                        <th style="padding:15px; color:white;">UMUR</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; text-align: center; border: 2px solid #fff;">TANGGAL MASUK</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; text-align: center; border: 2px solid #fff;">POSISI</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; text-align: center; border: 2px solid #fff;">JUMLAH</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; text-align: center; border: 2px solid #fff;">UMUR</th>
                     </tr>
                 </thead>
-                <tbody id="umurTableBody"></tbody>
+                <tbody id="umurTableBody">
+                    <tr><td colspan="4" style="text-align:center; padding:20px; color:#ccc;">Memuat data...</td></tr>
+                </tbody>
             </table>
+        </div>
+
+        <div id="modalSortir" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
+            <div style="background:white; padding:30px; border-radius:24px; width:90%; max-width:400px; text-align:center; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+                <div style="font-size: 3rem; margin-bottom: 10px;">🐣</div>
+                <h2 style="color:#6CA651; font-family:'Luckiest Guy'; margin-bottom:5px; letter-spacing:1px;">SORTIR HASIL</h2>
+                <p id="modalSourceText" style="font-weight:800; color:#aaa; text-transform:uppercase; font-size:0.8rem; margin-bottom:15px;"></p>
+                
+                <div style="background:#f8f9fa; padding:15px; border-radius:15px; border:1px dashed #ccc; margin-bottom:20px;">
+                    <span style="color:#666; font-size:0.9rem;">Total Telur:</span>
+                    <span id="modalTotalQty" style="font-weight:900; color:#333; font-size:1.2rem; margin-left:5px;">0</span>
+                </div>
+
+                <div style="text-align:left; gap:15px; display:flex; flex-direction:column;">
+                    <div>
+                        <label style="display:block; font-weight:800; margin-bottom:5px; color:#16a34a; font-size:0.8rem;">BERHASIL (HIDUP):</label>
+                        <input type="number" id="inputBerhasil" style="width:100%; padding:15px; border-radius:12px; border:2px solid #eee; font-size:1.2rem; font-weight:900; outline:none;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:800; margin-bottom:5px; color:#e74c3c; font-size:0.8rem;">GAGAL (MATI/ZONK):</label>
+                        <input type="number" id="inputGagal" style="width:100%; padding:15px; border-radius:12px; border:2px solid #eee; font-size:1.2rem; font-weight:900; outline:none;">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:12px; margin-top:25px;">
+                    <button id="btnCancelSortir" style="flex:1; padding:18px; border-radius:15px; background:#f3f4f6; border:none; cursor:pointer; font-weight:800; color:#6b7280;">BATAL</button>
+                    <button id="btnConfirmSortir" style="flex:1; padding:18px; border-radius:15px; background:#6CA651; color:white; border:none; cursor:pointer; font-weight:800;">KONFIRMASI</button>
+                </div>
+            </div>
         </div>
       </section>
     `;
   },
 
   async afterRender() {
-    const categoryId = window.location.hash.split('-').slice(1).join('-').toLowerCase();
-
     const presenter = new TetasPresenter({
-      onDataReady: (cat) => {
-        document.getElementById('catName').innerText = cat.nama;
-      },
-
+      onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
-        const mesinList = ['MESIN_1', 'MESIN_2', 'MESIN_3'];
-        const grouped = {};
-        data.forEach(item => { grouped[item.status] = item; });
-
-        let totalSiapPanen = 0;
-        const tableBody = document.getElementById('umurTableBody');
-        tableBody.innerHTML = "";
-
-        mesinList.forEach(id => {
-          const item = grouped[id];
-          const valEl = document.getElementById(`val-${id}`);
-          const daysEl = document.getElementById(`days-${id}`);
-          const btnMain = document.getElementById(`btn-start-${id}`);
-          const btnP = document.getElementById(`btn-panen-${id}`);
-
-          // Reset UI Awal
-          btnMain.style.display = "block";
-          btnP.style.display = "none";
-
-          if (!item) {
-            valEl.innerText = "0";
-            daysEl.innerText = "IDLE";
-            btnMain.innerText = "KOSONG";
-            btnMain.disabled = true;
-            btnMain.style.background = "#ccc";
-            btnMain.style.cursor = "not-allowed";
-          } else {
-            valEl.innerText = item.jumlah.toLocaleString();
-
-            if (!item.mesi_1_tgl) {
-              // STATUS: TAMPUNG (BELUM MULAI)
-              daysEl.innerText = "MENUNGGU";
-              btnMain.innerText = "MULAI PROSES 🚀";
-              btnMain.disabled = false;
-              btnMain.style.background = "#f39c12"; // Oranye
-              btnMain.style.cursor = "pointer";
-              btnMain.onclick = async () => {
-                if(confirm(`Mulai proses inkubasi ${item.jumlah} butir di ${id}?`)) {
-                    const res = await presenter.startTimer(categoryId, id);
-                    if (res.status === 'success') location.reload();
-                }
-              };
-            } else {
-              // STATUS: SEDANG INKUBASI
-              const tglMulai = new Date(item.mesi_1_tgl);
-              const diffDays = Math.floor((Date.now() - tglMulai) / (1000 * 60 * 60 * 24));
-              daysEl.innerText = `${diffDays} / 21 HARI`;
-
-              if (diffDays >= 21) {
-                // SIAP PANEN
-                btnMain.style.display = "none";
-                btnP.style.display = "block";
-                btnP.onclick = async () => {
-                    const netas = prompt("Jumlah berhasil menetas?", item.jumlah);
-                    if (netas === null) return;
-                    const res = await presenter.moveMesin({
-                        kategori_id: categoryId,
-                        from_status: id,
-                        to_status: 'SIAP_PANEN',
-                        jumlah_berhasil: parseInt(netas)
-                    });
-                    if (res.status === 'success') location.reload();
-                };
-              } else {
-                // LAGI PROSES
-                btnMain.innerText = "SEDANG PROSES";
-                btnMain.disabled = true;
-                btnMain.style.background = "#3498db"; // Biru
-                btnMain.style.cursor = "not-allowed";
-              }
-
-              // Tambah ke Tabel Monitoring
-              tableBody.innerHTML += `
-                <tr>
-                    <td style="padding:15px; border-bottom:1px solid #eee;">${tglMulai.toLocaleDateString('id-ID')}</td>
-                    <td style="padding:15px; border-bottom:1px solid #eee;">${id.replace('_', ' ')}</td>
-                    <td style="padding:15px; border-bottom:1px solid #eee;">${item.jumlah} Butir</td>
-                    <td style="padding:15px; border-bottom:1px solid #eee;">${diffDays} Hari</td>
-                </tr>
-              `;
+        ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
+            document.getElementById(`val-${id}`).innerText = "0";
+        });
+        data.forEach(item => {
+            const el = document.getElementById(`val-${item.status}`);
+            if (el) {
+                const current = parseInt(el.innerText.replace(/,/g, ''));
+                el.innerText = (current + parseInt(item.jumlah)).toLocaleString();
             }
-          }
         });
 
-        // Update Kotak Panen
-        const siapPanenData = data.find(i => i.status === 'SIAP_PANEN');
-        document.getElementById("val-SIAP_PANEN").innerText = siapPanenData ? siapPanenData.jumlah : "0";
-
-        if (tableBody.innerHTML === "") {
-          tableBody.innerHTML = `<tr><td colspan="4" style="padding:30px; color:#999;">Belum ada proses inkubasi berjalan.</td></tr>`;
-        }
+        const tableBody = document.getElementById('umurTableBody');
+        tableBody.innerHTML = data.length === 0 
+            ? `<tr><td colspan="4" style="text-align:center; padding:40px; color:#aaa; font-weight:700;">BELUM ADA DATA.</td></tr>`
+            : data.map(item => {
+                const tglMasuk = new Date(item.mesi_1_tgl);
+                const diffDays = Math.floor(Math.abs(new Date() - tglMasuk) / (1000 * 60 * 60 * 24));
+                return `
+                    <tr style="background:#f8f9fa;">
+                        <td style="padding:15px; font-weight:700; border: 3px solid #fff;">${tglMasuk.toLocaleDateString('id-ID')}</td>
+                        <td style="padding:15px; font-weight:800; border: 3px solid #fff; text-transform:uppercase;">${item.status.replace('_', ' ')}</td>
+                        <td style="padding:15px; font-weight:800; border: 3px solid #fff; color:#6CA651;">${item.jumlah} Butir</td>
+                        <td style="padding:15px; font-weight:700; border: 3px solid #fff;">${diffDays} Hari</td>
+                    </tr>
+                `;
+            }).join('');
       }
     });
 
-    // EVENT CHEAT (PETIR)
-    document.querySelectorAll('.btn-cheat').forEach(btn => {
-      btn.onclick = async (e) => {
-        const mId = e.currentTarget.dataset.mesin;
-        const res = await presenter.cheatDB(categoryId, mId);
-        if (res.status === 'success') location.reload();
+    const modal = document.getElementById('modalSortir');
+    let currentAction = { from: '', to: '', total: 0 };
+
+    // Fungsi Pembantu untuk Buka Modal Sortir
+    const openSortirModal = (from, to, total) => {
+      currentAction = { from, to, total };
+      document.getElementById('modalSourceText').innerText = `DARI: ${from.replace('_', ' ')}`;
+      document.getElementById('modalTotalQty').innerText = `${total} BUTIR`;
+      document.getElementById('inputBerhasil').value = total; // Default: semua berhasil
+      document.getElementById('inputGagal').value = 0;
+      modal.style.display = 'flex';
+    };
+
+    // 1. Event Listener: Tombol Konfirmasi Panen (Mesin 1, 2, 3)
+    document.querySelectorAll('.btn-move-trigger').forEach(btn => {
+      btn.onclick = (e) => {
+        const from = e.currentTarget.dataset.from;
+        const total = parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, ''));
+        if (total <= 0) return alert("Mesin kosong!");
+        openSortirModal(from, 'SIAP_PANEN', total);
       };
     });
 
-    // KIRIM KE DOC
-    document.getElementById('btnFinalHatch').onclick = async () => {
-      const val = parseInt(document.getElementById('val-SIAP_PANEN').innerText) || 0;
-      if (val <= 0) return alert("Kotak Panen kosong!");
-      const res = await presenter.moveMesin({
-        kategori_id: categoryId,
-        from_status: 'SIAP_PANEN',
-        to_status: 'SELESAI'
-      });
-      if (res.status === 'success') location.reload();
+    // 2. Event Listener: Tombol Final (Kotak Panen ke DOC)
+    document.getElementById('btnFinalHatch').onclick = () => {
+      const total = parseInt(document.getElementById('val-SIAP_PANEN').innerText.replace(/,/g, ''));
+      if (total <= 0) return alert("Kotak Panen kosong!");
+      openSortirModal('SIAP_PANEN', 'SELESAI', total);
     };
+
+    // 3. Logika Konfirmasi di dalam Modal Sortir
+    document.getElementById('btnConfirmSortir').onclick = async () => {
+      const berhasil = parseInt(document.getElementById('inputBerhasil').value) || 0;
+      const gagal = parseInt(document.getElementById('inputGagal').value) || 0;
+
+      if (berhasil + gagal !== currentAction.total) {
+        return alert(`Jumlah tidak sinkron! Total input (${berhasil + gagal}) harus sesuai dengan total telur (${currentAction.total}).`);
+      }
+
+      const res = await presenter.moveMesin({
+        kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
+        from_status: currentAction.from,
+        to_status: currentAction.to,
+        jumlah_berhasil: berhasil // Mengirimkan jumlah yang lolos sortir ke backend
+      });
+
+      if (res.status === 'success') {
+        modal.style.display = 'none';
+        location.reload();
+      }
+    };
+
+    // 4. Batal Sortir
+    document.getElementById('btnCancelSortir').onclick = () => {
+      modal.style.display = 'none';
+    };
+
+    // 5. Cheat Button (Tetap menggunakan confirm standar karena untuk debug/paksa)
+    document.querySelectorAll('.btn-cheat').forEach(btn => {
+        btn.onclick = async (e) => {
+            const { from } = e.currentTarget.dataset;
+            if (!confirm(`⚡ CHEAT: Pindahkan paksa SEMUA telur dari ${from} ke Kotak Panen?`)) return;
+            const res = await presenter.moveMesin({
+                kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
+                from_status: from, to_status: 'SIAP_PANEN',
+                jumlah_berhasil: parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, ''))
+            });
+            if (res.status === 'success') location.reload();
+        };
+    });
 
     await presenter.init();
   }
