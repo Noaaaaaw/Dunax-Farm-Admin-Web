@@ -17,7 +17,7 @@ const Tetas = {
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${i}</h3>
                     <div id="val-MESIN_${i}" style="font-size:2.8rem; font-weight:1200; color:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; margin: 10px 0;">0</div>
                     
-                    <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#888; font-weight:900; margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:10px; min-height:35px; display:flex; align-items:center; justify-content:center;">
+                    <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#888; font-weight:900; margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:10px; min-height:35px; display:flex; align-items:center; justify-content:center; text-transform:uppercase;">
                         IDLE
                     </div>
                 </div>
@@ -115,10 +115,12 @@ const Tetas = {
 
                     if (valEl) valEl.innerText = item.jumlah;
 
-                    // LOGIKA HITUNG HARI (KARENA TIPE DATA SUDAH DATE YYYY-MM-DD)
+                    // LOGIKA HITUNG HARI (KARENA TIPE DATA DATABASE SEKARANG DATE YYYY-MM-DD Tanpa Jam)
                     if (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL' && item.mulai_proses_tgl !== 'null') {
-                        // Hilangkan gangguan jam dengan setHours ke 0
-                        const tglMulai = new Date(item.mulai_proses_tgl);
+                        
+                        // Parse tanggal dari database (Force local time agar tidak geser sehari)
+                        const parts = item.mulai_proses_tgl.split('-');
+                        const tglMulai = new Date(parts[0], parts[1] - 1, parts[2]);
                         tglMulai.setHours(0,0,0,0);
                         
                         const hariIni = new Date();
@@ -171,7 +173,7 @@ const Tetas = {
         const tableBody = document.getElementById('umurTableBody');
         if (tableBody) {
             tableBody.innerHTML = data.map(item => {
-                const tglStr = (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL' && item.mulai_proses_tgl !== 'null') ? item.mulai_proses_tgl : item.mesi_1_tgl;
+                const tglStr = (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL') ? item.mulai_proses_tgl : item.mesi_1_tgl;
                 const tgl = new Date(tglStr);
                 const diffMs = new Date().getTime() - tgl.getTime();
                 const umur = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -186,7 +188,7 @@ const Tetas = {
       }
     });
 
-    // Event Handler Mulai Proses
+    // EVENT MULAI PROSES
     document.querySelectorAll('.btn-start-process').forEach(btn => {
       btn.onclick = async (e) => {
         const status = e.currentTarget.dataset.status;
@@ -202,7 +204,7 @@ const Tetas = {
       };
     });
 
-    // Event Handler Konfirmasi Panen (Move)
+    // EVENT MOVE / PANEN
     document.querySelectorAll('.btn-move-trigger').forEach(btn => {
       btn.onclick = (e) => {
         const from = e.currentTarget.dataset.from;
@@ -217,7 +219,7 @@ const Tetas = {
     document.getElementById('btnConfirmSortir').onclick = async () => {
       const b = parseInt(document.getElementById('inputBerhasil').value) || 0;
       const g = parseInt(document.getElementById('inputGagal').value) || 0;
-      if (b + g !== currentAction.total) return alert("Jumlah sortir harus sama dengan total!");
+      if (b + g !== currentAction.total) return alert("Jumlah sortir tidak sinkron!");
       const res = await presenter.moveMesin({
         kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
         from_status: currentAction.from,
