@@ -326,14 +326,14 @@ const init = async () => {
     }
 },
 {
-    // 18. POST Start Process (TIMER DIMULAI)
+    // 18. POST Start Process (PAKAI TANGGAL MURNI)
     method: 'POST',
     path: '/api/mesin-tetas/start-process',
     handler: async (request, h) => {
         const { kategori_id, status } = request.payload;
         try {
             await pool.query(
-                `UPDATE mesin_tetas SET mulai_proses_tgl = CURRENT_TIMESTAMP 
+                `UPDATE mesin_tetas SET mulai_proses_tgl = CURRENT_DATE 
                  WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NULL`,
                 [kategori_id, status]
             );
