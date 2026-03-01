@@ -326,20 +326,64 @@ const init = async () => {
     }
 },
 {
-    // 18. POST Start Process (PAKAI TANGGAL MURNI)
+    // POST Start Process - LOGIKA DINAMIS NYARI SLOT KOSONG
     method: 'POST',
     path: '/api/mesin-tetas/start-process',
     handler: async (request, h) => {
-        const { kategori_id, status } = request.payload;
+        const { kategori_id } = request.payload;
+        const client = await pool.connect();
+
         try {
-            await pool.query(
-                `UPDATE mesin_tetas SET mulai_proses_tgl = CURRENT_DATE 
-                 WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NULL`,
-                [kategori_id, status]
-            );
-            return { status: 'success' };
+            await client.query('BEGIN');
+
+            // 1. Cari tahu mesin mana yang LAGI JALAN
+            const busyMesinsRes = await client.query(`
+                SELECT status FROM mesin_tetas 
+                WHERE kategori_id = $1 AND mesi_1_tgl IS NOT NULL
+            `, [kategori_id]);
+            
+            const busyList = busyMesinsRes.rows.map(r => r.status);
+            
+            // 2. Tentukan slot TARGET (Cek 1, lalu 2, lalu 3)
+            let slotTarget = null;
+            if (!busyList.includes('MESIN_1')) slotTarget = 'MESIN_1';
+            else if (!busyList.includes('MESIN_2')) slotTarget = 'MESIN_2';
+            else if (!busyList.includes('MESIN_3')) slotTarget = 'MESIN_3';
+
+            if (!slotTarget) {
+                throw new Error('Semua mesin lagi penuh bro! Tunggu panen dulu.');
+            }
+
+            // 3. Ambil 1 antrean telur paling lama yang BELUM jalan
+            const nextInLine = await client.query(`
+                SELECT id FROM mesin_tetas 
+                WHERE kategori_id = $1 AND mesi_1_tgl IS NULL 
+                ORDER BY id ASC LIMIT 1
+            `, [kategori_id]);
+
+            if (nextInLine.rows.length === 0) {
+                throw new Error('Gak ada telur standby yang bisa diproses.');
+            }
+
+            // 4. UPDATE: Pasang tanggal mulai DAN ubah statusnya ke mesin yang kosong tadi
+            await client.query(`
+                UPDATE mesin_tetas 
+                SET mesi_1_tgl = CURRENT_TIMESTAMP,
+                    status = $1 
+                WHERE id = $2
+            `, [slotTarget, nextInLine.rows[0].id]);
+
+            await client.query('COMMIT');
+            return { 
+                status: 'success', 
+                mesin_target: slotTarget.replace('_', ' ') 
+            };
+
         } catch (err) {
-            return h.response({ status: 'error', message: err.message }).code(500);
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(400);
+        } finally {
+            client.release();
         }
     }
 },
