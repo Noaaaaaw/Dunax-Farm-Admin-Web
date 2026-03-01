@@ -77,21 +77,14 @@ const Tetas = {
         const colors = { MESIN_1: '#6CA651', MESIN_2: '#d68910', MESIN_3: '#e74c3c' };
         const totals = { MESIN_1: 0, MESIN_2: 0, MESIN_3: 0, SIAP_PANEN: 0 };
         
-        // Fungsi untuk parse tanggal agar format PostgreSQL terbaca di browser
-        const fixDate = (str) => {
-            if (!str || str === 'BATAL') return null;
-            // Ganti spasi dengan 'T' agar jadi format ISO yang valid
-            return new Date(str.replace(' ', 'T'));
-        };
-
-        // Reset UI Standar
+        // RESET UI KARTU (PENTING!)
         [1,2,3].forEach(i => {
             const s = `MESIN_${i}`;
             document.getElementById(`val-${s}`).innerText = "0";
-            const timerLabel = document.getElementById(`timer-${s}`);
-            timerLabel.innerText = "IDLE";
-            timerLabel.style.background = "#f5f5f5";
-            timerLabel.style.color = "#888";
+            const tEl = document.getElementById(`timer-${s}`);
+            tEl.innerText = "IDLE";
+            tEl.style.background = "#f5f5f5";
+            tEl.style.color = "#888";
             const bs = document.getElementById(`btnStart-${s}`);
             bs.style.display = "block";
             bs.disabled = false;
@@ -111,15 +104,19 @@ const Tetas = {
               const btnStart = document.getElementById(`btnStart-${item.status}`);
               const timerLabel = document.getElementById(`timer-${item.status}`);
 
-              const tglMulai = fixDate(item.mulai_proses_tgl);
+              // LOGIKA PARSING TANGGAL SUPABASE (DIBALIKIN KE ISO FORMAT)
+              let tglMulai = null;
+              if (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL') {
+                  tglMulai = new Date(item.mulai_proses_tgl.replace(' ', 'T'));
+              }
 
-              if (tglMulai) {
+              if (tglMulai && !isNaN(tglMulai.getTime())) {
                 const sekarang = new Date();
                 const diffMs = sekarang - tglMulai;
                 const umurHari = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
                 if (umurHari < 21) {
-                  // SEDANG INKUBASI
+                  // SEDANG PROSES
                   timerLabel.innerText = `⏳ ${umurHari} / 21 HARI`;
                   timerLabel.style.background = "#fff8e1";
                   timerLabel.style.color = "#f59e0b";
@@ -133,7 +130,6 @@ const Tetas = {
                   timerLabel.innerText = `✅ SIAP PANEN!`;
                   timerLabel.style.background = "#f0fdf4";
                   timerLabel.style.color = "#16a34a";
-                  
                   btnStart.style.display = 'none';
                   btnMove.disabled = false;
                   btnMove.style.background = colors[item.status];
@@ -144,16 +140,20 @@ const Tetas = {
           }
         });
 
-        // Update Kartu & Tabel
+        // UPDATE ANGKA TOTAL
         document.getElementById('val-SIAP_PANEN').innerText = totals['SIAP_PANEN'];
-        [1,2,3].forEach(i => document.getElementById(`val-MESIN_${i}`).innerText = totals[`MESIN_${i}`]);
+        [1,2,3].forEach(i => {
+            const el = document.getElementById(`val-MESIN_${i}`);
+            if (el) el.innerText = totals[`MESIN_${i}`];
+        });
 
+        // UPDATE TABEL
         const tableBody = document.getElementById('umurTableBody');
         tableBody.innerHTML = data.map(item => {
-            const tgl = fixDate(item.mulai_proses_tgl) || fixDate(item.mesi_1_tgl);
-            const umur = tgl ? Math.floor((new Date() - tgl) / (1000 * 60 * 60 * 24)) : 0;
+            const tgl = (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL') ? new Date(item.mulai_proses_tgl.replace(' ', 'T')) : new Date(item.mesi_1_tgl.replace(' ', 'T'));
+            const umur = Math.floor((new Date() - tgl) / (1000 * 60 * 60 * 24));
             return `<tr style="background:#f8f9fa;">
-                <td style="padding:15px; border:1px solid #eee;">${tgl ? tgl.toLocaleDateString('id-ID') : '-'}</td>
+                <td style="padding:15px; border:1px solid #eee;">${tgl.toLocaleDateString('id-ID')}</td>
                 <td style="padding:15px; border:1px solid #eee; font-weight:bold;">${item.status}</td>
                 <td style="padding:15px; border:1px solid #eee; color:#6CA651; font-weight:bold;">${item.jumlah} Butir</td>
                 <td style="padding:15px; border:1px solid #eee;">${umur} Hari</td>
@@ -162,13 +162,12 @@ const Tetas = {
       }
     });
 
-    // Handler Tombol Mulai (Sudah include reload)
     document.querySelectorAll('.btn-start-process').forEach(btn => {
       btn.onclick = async (e) => {
         const status = e.currentTarget.dataset.status;
         const total = parseInt(document.getElementById(`val-${status}`).innerText);
         if (total <= 0) return alert("Mesin kosong!");
-        if (confirm(`Konfirmasi: Mulai proses inkubasi 21 hari untuk ${status}?`)) {
+        if (confirm(`Mulai proses 21 hari untuk ${status}?`)) {
           const res = await presenter.startProcess({
             kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
             status: status
@@ -178,7 +177,7 @@ const Tetas = {
       };
     });
 
-    // Logic Panen Tetap Sama
+    // ... Handler Move & Sortir Modal tetap sama ...
     document.querySelectorAll('.btn-move-trigger').forEach(btn => {
       btn.onclick = (e) => {
         const from = e.currentTarget.dataset.from;
