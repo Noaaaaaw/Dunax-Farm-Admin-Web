@@ -326,33 +326,41 @@ const init = async () => {
     }
 },
 {
-            // POST Start Process - LOGIKA LOCK 21 HARI
-            method: 'POST',
-            path: '/api/mesin-tetas/start-process',
-            handler: async (request, h) => {
-                const { kategori_id, status } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    // Lock record tertua yang belum mulai proses di mesin tersebut
-                    const res = await client.query(
-                        `UPDATE mesin_tetas SET mulai_proses_tgl = CURRENT_DATE 
-                         WHERE id = (
-                            SELECT id FROM mesin_tetas 
-                            WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NULL 
-                            ORDER BY id ASC LIMIT 1
-                         )`,
-                        [kategori_id, status]
-                    );
-                    if (res.rowCount === 0) throw new Error('Gak ada antrean telur di mesin ini!');
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    return h.response({ status: 'error', message: err.message }).code(400);
-                } finally { client.release(); }
+    // POST Start Process - LOGIKA LOCK 21 HARI (FIXED)
+    method: 'POST',
+    path: '/api/mesin-tetas/start-process',
+    handler: async (request, h) => {
+        const { kategori_id, status } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Kita cari record tertua yang BELUM jalan (mulai_proses_tgl IS NULL)
+            // Dan statusnya cocok (bisa MESIN_1 atau WAITING_1)
+            const res = await client.query(
+                `UPDATE mesin_tetas SET mulai_proses_tgl = CURRENT_DATE 
+                 WHERE id = (
+                    SELECT id FROM mesin_tetas 
+                    WHERE kategori_id = $1 
+                    AND (status = $2 OR status = REPLACE($2, 'MESIN_', 'WAITING_'))
+                    AND mulai_proses_tgl IS NULL 
+                    ORDER BY id ASC LIMIT 1
+                 ) RETURNING status`,
+                [kategori_id, status]
+            );
+
+            if (res.rowCount === 0) {
+                throw new Error('Gak ada antrean telur standby di mesin ini!');
             }
-        },
+
+            await client.query('COMMIT');
+            return { status: 'success', mesin_target: res.rows[0].status };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(400);
+        } finally { client.release(); }
+    }
+},
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',
