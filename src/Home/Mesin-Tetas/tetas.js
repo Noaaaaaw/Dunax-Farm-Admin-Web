@@ -85,15 +85,22 @@ const Tetas = {
     const presenter = new TetasPresenter({
       onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
-        ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
-            document.getElementById(`val-${id}`).innerText = "0";
+        const statusList = ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'];
+        statusList.forEach(status => {
+            const el = document.getElementById(`val-${status}`);
+            if (el) el.innerText = "0";
         });
+
+        const totals = { MESIN_1: 0, MESIN_2: 0, MESIN_3: 0, SIAP_PANEN: 0 };
         data.forEach(item => {
-            const el = document.getElementById(`val-${item.status}`);
-            if (el) {
-                const current = parseInt(el.innerText.replace(/,/g, ''));
-                el.innerText = (current + parseInt(item.jumlah)).toLocaleString();
+            if (totals[item.status] !== undefined) {
+                totals[item.status] += parseInt(item.jumlah);
             }
+        });
+
+        Object.keys(totals).forEach(status => {
+            const el = document.getElementById(`val-${status}`);
+            if (el) el.innerText = totals[status].toLocaleString();
         });
 
         const tableBody = document.getElementById('umurTableBody');
@@ -115,19 +122,37 @@ const Tetas = {
     });
 
     const modal = document.getElementById('modalSortir');
+    const inputBerhasil = document.getElementById('inputBerhasil');
+    const inputGagal = document.getElementById('inputGagal');
     let currentAction = { from: '', to: '', total: 0 };
 
-    // Fungsi Pembantu untuk Buka Modal Sortir
+    const syncInputs = (trigger) => {
+        const total = currentAction.total;
+        if (trigger === 'berhasil') {
+            let val = parseInt(inputBerhasil.value) || 0;
+            if (val > total) { val = total; inputBerhasil.value = total; }
+            if (val < 0) { val = 0; inputBerhasil.value = 0; }
+            inputGagal.value = total - val;
+        } else {
+            let val = parseInt(inputGagal.value) || 0;
+            if (val > total) { val = total; inputGagal.value = total; }
+            if (val < 0) { val = 0; inputGagal.value = 0; }
+            inputBerhasil.value = total - val;
+        }
+    };
+
+    inputBerhasil.addEventListener('input', () => syncInputs('berhasil'));
+    inputGagal.addEventListener('input', () => syncInputs('gagal'));
+
     const openSortirModal = (from, to, total) => {
       currentAction = { from, to, total };
       document.getElementById('modalSourceText').innerText = `DARI: ${from.replace('_', ' ')}`;
       document.getElementById('modalTotalQty').innerText = `${total} BUTIR`;
-      document.getElementById('inputBerhasil').value = total; // Default: semua berhasil
-      document.getElementById('inputGagal').value = 0;
+      inputBerhasil.value = total; 
+      inputGagal.value = 0;
       modal.style.display = 'flex';
     };
 
-    // 1. Event Listener: Tombol Konfirmasi Panen (Mesin 1, 2, 3)
     document.querySelectorAll('.btn-move-trigger').forEach(btn => {
       btn.onclick = (e) => {
         const from = e.currentTarget.dataset.from;
@@ -137,27 +162,27 @@ const Tetas = {
       };
     });
 
-    // 2. Event Listener: Tombol Final (Kotak Panen ke DOC)
     document.getElementById('btnFinalHatch').onclick = () => {
       const total = parseInt(document.getElementById('val-SIAP_PANEN').innerText.replace(/,/g, ''));
       if (total <= 0) return alert("Kotak Panen kosong!");
       openSortirModal('SIAP_PANEN', 'SELESAI', total);
     };
 
-    // 3. Logika Konfirmasi di dalam Modal Sortir
     document.getElementById('btnConfirmSortir').onclick = async () => {
-      const berhasil = parseInt(document.getElementById('inputBerhasil').value) || 0;
-      const gagal = parseInt(document.getElementById('inputGagal').value) || 0;
+      const berhasil = parseInt(inputBerhasil.value) || 0;
+      const gagal = parseInt(inputGagal.value) || 0;
 
       if (berhasil + gagal !== currentAction.total) {
-        return alert(`Jumlah tidak sinkron! Total input (${berhasil + gagal}) harus sesuai dengan total telur (${currentAction.total}).`);
+        return alert(`Jumlah tidak sinkron! Total (${berhasil+gagal}) harus sesuai dengan total telur (${currentAction.total}).`);
       }
 
+      // 🔥 PASTIKAN VARIABEL INI TERKIRIM SEMUA! 🔥
       const res = await presenter.moveMesin({
         kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
         from_status: currentAction.from,
         to_status: currentAction.to,
-        jumlah_berhasil: berhasil // Mengirimkan jumlah yang lolos sortir ke backend
+        jumlah_berhasil: berhasil,
+        jumlah_gagal: gagal // <--- INI YANG TADI KAMU HAPUS!
       });
 
       if (res.status === 'success') {
@@ -166,12 +191,8 @@ const Tetas = {
       }
     };
 
-    // 4. Batal Sortir
-    document.getElementById('btnCancelSortir').onclick = () => {
-      modal.style.display = 'none';
-    };
+    document.getElementById('btnCancelSortir').onclick = () => { modal.style.display = 'none'; };
 
-    // 5. Cheat Button (Tetap menggunakan confirm standar karena untuk debug/paksa)
     document.querySelectorAll('.btn-cheat').forEach(btn => {
         btn.onclick = async (e) => {
             const { from } = e.currentTarget.dataset;
@@ -179,7 +200,8 @@ const Tetas = {
             const res = await presenter.moveMesin({
                 kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
                 from_status: from, to_status: 'SIAP_PANEN',
-                jumlah_berhasil: parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, ''))
+                jumlah_berhasil: parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, '')),
+                jumlah_gagal: 0 // <--- INI JUGA WAJIB ADA
             });
             if (res.status === 'success') location.reload();
         };
