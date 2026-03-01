@@ -77,26 +77,26 @@ const Tetas = {
         const colors = { MESIN_1: '#6CA651', MESIN_2: '#d68910', MESIN_3: '#e74c3c' };
         const totals = { MESIN_1: 0, MESIN_2: 0, MESIN_3: 0, SIAP_PANEN: 0 };
         
-        // Reset UI ke kondisi default IDLE
+        // RESET SEMUA UI KE DEFAULT IDLE
         [1,2,3].forEach(i => {
             const s = `MESIN_${i}`;
             const valEl = document.getElementById(`val-${s}`);
-            if(valEl) valEl.innerText = "0";
+            if (valEl) valEl.innerText = "0";
             const tEl = document.getElementById(`timer-${s}`);
-            if(tEl) {
+            if (tEl) {
                 tEl.innerText = "IDLE";
                 tEl.style.background = "#f5f5f5";
                 tEl.style.color = "#888";
             }
             const bs = document.getElementById(`btnStart-${s}`);
-            if(bs) {
+            if (bs) {
                 bs.style.display = "block";
                 bs.disabled = false;
-                bs.innerText = "🚀 Simpan & Mulai";
                 bs.style.background = "#4A90E2";
+                bs.innerText = "🚀 Simpan & Mulai";
             }
             const bm = document.getElementById(`btnMove-${s}`);
-            if(bm) {
+            if (bm) {
                 bm.disabled = true;
                 bm.style.background = "#ccc";
                 bm.innerText = "Konfirmasi Panen";
@@ -115,42 +115,43 @@ const Tetas = {
 
                     if (valEl) valEl.innerText = item.jumlah;
 
-                    // LOGIKA HITUNG HARI (KARENA TIPE DATA DATABASE SEKARANG DATE YYYY-MM-DD)
+                    // LOGIKA HITUNG HARI (KARENA TIPE DATA SUDAH DATE YYYY-MM-DD)
                     if (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL' && item.mulai_proses_tgl !== 'null') {
+                        // Hilangkan gangguan jam dengan setHours ke 0
                         const tglMulai = new Date(item.mulai_proses_tgl);
                         tglMulai.setHours(0,0,0,0);
                         
                         const hariIni = new Date();
                         hariIni.setHours(0,0,0,0);
                         
-                        const selisihMs = hariIni - tglMulai;
+                        const selisihMs = hariIni.getTime() - tglMulai.getTime();
                         const umurHari = Math.floor(selisihMs / (1000 * 60 * 60 * 24));
 
                         if (umurHari < 21) {
                             // SEDANG PROSES (LOCK BUTTON)
-                            if(timerLabel) {
+                            if (timerLabel) {
                                 timerLabel.innerText = `⏳ ${umurHari} / 21 HARI`;
                                 timerLabel.style.background = "#fff8e1";
                                 timerLabel.style.color = "#f59e0b";
                             }
-                            if(btnStart) {
+                            if (btnStart) {
                                 btnStart.innerText = "SEDANG INKUBASI";
                                 btnStart.disabled = true;
                                 btnStart.style.background = "#aaa";
                             }
-                            if(btnMove) {
+                            if (btnMove) {
                                 btnMove.disabled = true;
                                 btnMove.innerText = "TERKUNCI (BELUM 21 HARI)";
                             }
                         } else {
                             // SIAP PANEN (OPEN LOCK)
-                            if(timerLabel) {
+                            if (timerLabel) {
                                 timerLabel.innerText = `✅ SIAP PANEN!`;
                                 timerLabel.style.background = "#f0fdf4";
                                 timerLabel.style.color = "#16a34a";
                             }
-                            if(btnStart) btnStart.style.display = 'none';
-                            if(btnMove) {
+                            if (btnStart) btnStart.style.display = 'none';
+                            if (btnMove) {
                                 btnMove.disabled = false;
                                 btnMove.style.background = colors[item.status];
                                 btnMove.style.cursor = "pointer";
@@ -162,16 +163,17 @@ const Tetas = {
             }
         });
 
-        // Update Kartu Kotak Panen & Tabel
+        // Update Kotak Panen
         const siapPanenEl = document.getElementById('val-SIAP_PANEN');
-        if(siapPanenEl) siapPanenEl.innerText = totals['SIAP_PANEN'];
+        if (siapPanenEl) siapPanenEl.innerText = totals['SIAP_PANEN'];
 
+        // Update Tabel Antrian
         const tableBody = document.getElementById('umurTableBody');
-        if(tableBody) {
+        if (tableBody) {
             tableBody.innerHTML = data.map(item => {
                 const tglStr = (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL' && item.mulai_proses_tgl !== 'null') ? item.mulai_proses_tgl : item.mesi_1_tgl;
                 const tgl = new Date(tglStr);
-                const diffMs = new Date() - tgl;
+                const diffMs = new Date().getTime() - tgl.getTime();
                 const umur = Math.floor(diffMs / (1000 * 60 * 60 * 24));
                 return `<tr style="background:#f8f9fa;">
                     <td style="padding:15px; border:1px solid #eee;">${tgl.toLocaleDateString('id-ID')}</td>
@@ -184,6 +186,7 @@ const Tetas = {
       }
     });
 
+    // Event Handler Mulai Proses
     document.querySelectorAll('.btn-start-process').forEach(btn => {
       btn.onclick = async (e) => {
         const status = e.currentTarget.dataset.status;
@@ -199,7 +202,7 @@ const Tetas = {
       };
     });
 
-    // Handler untuk Konfirmasi Panen, Sortir, dan Cancel tetap sama
+    // Event Handler Konfirmasi Panen (Move)
     document.querySelectorAll('.btn-move-trigger').forEach(btn => {
       btn.onclick = (e) => {
         const from = e.currentTarget.dataset.from;
