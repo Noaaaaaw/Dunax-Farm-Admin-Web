@@ -15,10 +15,13 @@ const Tetas = {
                 <button class="btn-cheat" data-from="MESIN_${i}" title="Cheat: Langsung Panen" style="position:absolute; top:10px; right:10px; background:#fef3c7; border:1px solid #f59e0b; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:1rem;">⚡</button>
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${i}</h3>
-                    <div id="val-MESIN_${i}" style="font-size:2.8rem; font-weight:1200; color:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; margin: 10px 0;">0</div>
+                    <div id="val-MESIN_${i}" style="font-size:2.8rem; font-weight:1200; color:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; margin: 5px 0;">0</div>
                     
-                    <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#888; font-weight:900; margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:10px; min-height:35px; display:flex; align-items:center; justify-content:center; text-transform:uppercase;">
-                        IDLE
+                    <div id="status-container-MESIN_${i}" style="margin-bottom:15px;">
+                        <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#888; font-weight:900; margin-bottom:5px; text-transform:uppercase;">IDLE</div>
+                        <div style="width:100%; height:8px; background:#eee; border-radius:10px; overflow:hidden;">
+                            <div id="progress-MESIN_${i}" style="width:0%; height:100%; background:#6CA651; transition: width 0.5s ease;"></div>
+                        </div>
                     </div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:8px;">
@@ -52,20 +55,6 @@ const Tetas = {
                 <tbody id="umurTableBody"></tbody>
             </table>
         </div>
-
-        <div id="modalSortir" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
-            <div style="background:white; padding:30px; border-radius:24px; width:90%; max-width:400px; text-align:center;">
-                <h2 style="color:#6CA651; font-family:'Luckiest Guy';">SORTIR HASIL</h2>
-                <div style="margin: 20px 0; text-align:left;">
-                    <label style="font-weight:bold; color:#16a34a;">BERHASIL (HIDUP):</label>
-                    <input type="number" id="inputBerhasil" style="width:100%; padding:12px; margin:10px 0; border:2px solid #eee; border-radius:8px;">
-                    <label style="font-weight:bold; color:#e74c3c;">GAGAL (MATI/ZONK):</label>
-                    <input type="number" id="inputGagal" style="width:100%; padding:12px; margin:10px 0; border:2px solid #eee; border-radius:8px;">
-                </div>
-                <button id="btnConfirmSortir" style="width:100%; padding:15px; background:#6CA651; color:white; border:none; border-radius:10px; font-weight:800;">KONFIRMASI</button>
-                <button id="btnCancelSortir" style="margin-top:15px; background:none; border:none; color:#aaa; font-weight:bold; cursor:pointer;">BATAL</button>
-            </div>
-        </div>
       </section>
     `;
   },
@@ -77,7 +66,7 @@ const Tetas = {
         const colors = { MESIN_1: '#6CA651', MESIN_2: '#d68910', MESIN_3: '#e74c3c' };
         const totals = { MESIN_1: 0, MESIN_2: 0, MESIN_3: 0, SIAP_PANEN: 0 };
         
-        // RESET SEMUA UI KE DEFAULT IDLE
+        // RESET UI KARTU
         [1,2,3].forEach(i => {
             const s = `MESIN_${i}`;
             const valEl = document.getElementById(`val-${s}`);
@@ -85,21 +74,21 @@ const Tetas = {
             const tEl = document.getElementById(`timer-${s}`);
             if (tEl) {
                 tEl.innerText = "IDLE";
-                tEl.style.background = "#f5f5f5";
                 tEl.style.color = "#888";
             }
+            const prog = document.getElementById(`progress-${s}`);
+            if (prog) prog.style.width = "0%";
             const bs = document.getElementById(`btnStart-${s}`);
             if (bs) {
                 bs.style.display = "block";
                 bs.disabled = false;
-                bs.style.background = "#4A90E2";
                 bs.innerText = "🚀 Simpan & Mulai";
+                bs.style.background = "#4A90E2";
             }
             const bm = document.getElementById(`btnMove-${s}`);
             if (bm) {
                 bm.disabled = true;
                 bm.style.background = "#ccc";
-                bm.innerText = "Konfirmasi Panen";
             }
         });
 
@@ -111,11 +100,12 @@ const Tetas = {
                     const btnMove = document.getElementById(`btnMove-${item.status}`);
                     const btnStart = document.getElementById(`btnStart-${item.status}`);
                     const timerLabel = document.getElementById(`timer-${item.status}`);
+                    const progress = document.getElementById(`progress-${item.status}`);
                     const valEl = document.getElementById(`val-${item.status}`);
 
                     if (valEl) valEl.innerText = item.jumlah;
 
-                    // LOGIKA HITUNG HARI (KARENA TIPE DATA DATABASE SEKARANG DATE YYYY-MM-DD Tanpa Jam)
+                    // LOGIKA HITUNG HARI (KARENA TIPE DATA DATABASE SEKARANG DATE YYYY-MM-DD)
                     if (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL' && item.mulai_proses_tgl !== 'null') {
                         
                         // Parse tanggal dari database (Force local time agar tidak geser sehari)
@@ -128,36 +118,34 @@ const Tetas = {
                         
                         const selisihMs = hariIni.getTime() - tglMulai.getTime();
                         const umurHari = Math.floor(selisihMs / (1000 * 60 * 60 * 24));
+                        const persen = Math.min(Math.round((umurHari / 21) * 100), 100);
 
                         if (umurHari < 21) {
-                            // SEDANG PROSES (LOCK BUTTON)
+                            // STATUS INKUBASI: MONITORING SISA HARI
                             if (timerLabel) {
-                                timerLabel.innerText = `⏳ ${umurHari} / 21 HARI`;
-                                timerLabel.style.background = "#fff8e1";
-                                timerLabel.style.color = "#f59e0b";
+                                timerLabel.innerHTML = `⏳ HARI KE-${umurHari} <span style="color:#aaa; font-weight:400;">(SISA ${21 - umurHari} HARI)</span>`;
+                            }
+                            if (progress) {
+                                progress.style.width = `${persen}%`;
+                                progress.style.background = "#f59e0b";
                             }
                             if (btnStart) {
-                                btnStart.innerText = "SEDANG INKUBASI";
+                                btnStart.innerText = "SEDANG PROSES";
                                 btnStart.disabled = true;
                                 btnStart.style.background = "#aaa";
                             }
-                            if (btnMove) {
-                                btnMove.disabled = true;
-                                btnMove.innerText = "TERKUNCI (BELUM 21 HARI)";
-                            }
                         } else {
-                            // SIAP PANEN (OPEN LOCK)
-                            if (timerLabel) {
-                                timerLabel.innerText = `✅ SIAP PANEN!`;
-                                timerLabel.style.background = "#f0fdf4";
-                                timerLabel.style.color = "#16a34a";
+                            // SIAP PANEN
+                            if (timerLabel) timerLabel.innerText = `✅ TARGET TERCAPAI!`;
+                            if (progress) {
+                                progress.style.width = `100%`;
+                                progress.style.background = "#16a34a";
                             }
                             if (btnStart) btnStart.style.display = 'none';
                             if (btnMove) {
                                 btnMove.disabled = false;
                                 btnMove.style.background = colors[item.status];
                                 btnMove.style.cursor = "pointer";
-                                btnMove.innerText = "KONFIRMASI PANEN";
                             }
                         }
                     }
@@ -165,11 +153,9 @@ const Tetas = {
             }
         });
 
-        // Update Kotak Panen
         const siapPanenEl = document.getElementById('val-SIAP_PANEN');
         if (siapPanenEl) siapPanenEl.innerText = totals['SIAP_PANEN'];
 
-        // Update Tabel Antrian
         const tableBody = document.getElementById('umurTableBody');
         if (tableBody) {
             tableBody.innerHTML = data.map(item => {
@@ -188,7 +174,6 @@ const Tetas = {
       }
     });
 
-    // EVENT MULAI PROSES
     document.querySelectorAll('.btn-start-process').forEach(btn => {
       btn.onclick = async (e) => {
         const status = e.currentTarget.dataset.status;
@@ -204,35 +189,6 @@ const Tetas = {
       };
     });
 
-    // EVENT MOVE / PANEN
-    document.querySelectorAll('.btn-move-trigger').forEach(btn => {
-      btn.onclick = (e) => {
-        const from = e.currentTarget.dataset.from;
-        const total = parseInt(document.getElementById(`val-${from}`).innerText);
-        currentAction = { from, to: 'SIAP_PANEN', total };
-        document.getElementById('modalSortir').style.display = 'flex';
-        document.getElementById('inputBerhasil').value = total;
-        document.getElementById('inputGagal').value = 0;
-      };
-    });
-
-    document.getElementById('btnConfirmSortir').onclick = async () => {
-      const b = parseInt(document.getElementById('inputBerhasil').value) || 0;
-      const g = parseInt(document.getElementById('inputGagal').value) || 0;
-      if (b + g !== currentAction.total) return alert("Jumlah sortir tidak sinkron!");
-      const res = await presenter.moveMesin({
-        kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
-        from_status: currentAction.from,
-        to_status: currentAction.to,
-        jumlah_berhasil: b,
-        jumlah_gagal: g
-      });
-      if (res.status === 'success') location.reload();
-    };
-
-    document.getElementById('btnCancelSortir').onclick = () => { document.getElementById('modalSortir').style.display = 'none'; };
-
-    let currentAction = {};
     await presenter.init();
   }
 };
