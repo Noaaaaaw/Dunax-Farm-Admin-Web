@@ -17,7 +17,7 @@ const Tetas = {
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${i}</h3>
                     <div id="val-MESIN_${i}" style="font-size:2.8rem; font-weight:1200; color:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; margin: 10px 0;">0</div>
                     
-                    <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#888; font-weight:900; margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:10px; min-height:35px; display:flex; align-items:center; justify-content:center;">
+                    <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#888; font-weight:900; margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:10px; min-height:35px; display:flex; align-items:center; justify-content:center; text-transform:uppercase;">
                         IDLE
                     </div>
                 </div>
@@ -77,21 +77,21 @@ const Tetas = {
         const colors = { MESIN_1: '#6CA651', MESIN_2: '#d68910', MESIN_3: '#e74c3c' };
         const totals = { MESIN_1: 0, MESIN_2: 0, MESIN_3: 0, SIAP_PANEN: 0 };
         
-        // Fungsi pembantu untuk konversi waktu PostgreSQL ke JavaScript Date
+        // Helper Sakti buat benerin format tanggal Supabase biar dibaca browser sebagai objek Date
         const fixDate = (dateStr) => {
             if (!dateStr || dateStr === 'BATAL' || dateStr === 'null') return null;
-            // Ganti spasi menjadi 'T' agar formatnya ISO standard
+            // PostgreSQL pake spasi, kita ganti 'T' biar jadi standar ISO
             return new Date(dateStr.replace(' ', 'T'));
         };
 
-        // RESET UI SEMUA MESIN KE KONDISI AWAL
+        // Reset UI Standar
         [1,2,3].forEach(i => {
             const s = `MESIN_${i}`;
             document.getElementById(`val-${s}`).innerText = "0";
-            const timerLabel = document.getElementById(`timer-${s}`);
-            timerLabel.innerText = "IDLE";
-            timerLabel.style.background = "#f5f5f5";
-            timerLabel.style.color = "#888";
+            const tEl = document.getElementById(`timer-${s}`);
+            tEl.innerText = "IDLE";
+            tEl.style.background = "#f5f5f5";
+            tEl.style.color = "#888";
             const bs = document.getElementById(`btnStart-${s}`);
             bs.style.display = "block";
             bs.disabled = false;
@@ -111,7 +111,7 @@ const Tetas = {
               const btnStart = document.getElementById(`btnStart-${item.status}`);
               const timerLabel = document.getElementById(`timer-${item.status}`);
 
-              // PARSING TANGGAL PAKAI FIXER
+              // PAKAI FIXER DISINI
               const tglMulai = fixDate(item.mulai_proses_tgl);
 
               if (tglMulai && !isNaN(tglMulai.getTime())) {
@@ -120,7 +120,7 @@ const Tetas = {
                 const umurHari = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
                 if (umurHari < 21) {
-                  // STATUS: SEDANG PROSES INKUBASI
+                  // STATUS INKUBASI: TAMPILKAN 0 / 21 HARI
                   timerLabel.innerText = `⏳ ${umurHari} / 21 HARI`;
                   timerLabel.style.background = "#fff8e1";
                   timerLabel.style.color = "#f59e0b";
@@ -130,7 +130,7 @@ const Tetas = {
                   btnStart.style.background = "#aaa";
                   btnMove.disabled = true;
                 } else {
-                  // STATUS: SIAP PANEN (Sudah >= 21 Hari)
+                  // SIAP PANEN
                   timerLabel.innerText = `✅ SIAP PANEN!`;
                   timerLabel.style.background = "#f0fdf4";
                   timerLabel.style.color = "#16a34a";
@@ -145,14 +145,10 @@ const Tetas = {
           }
         });
 
-        // UPDATE ANGKA PADA KARTU
+        // Update Kartu & Tabel
         document.getElementById('val-SIAP_PANEN').innerText = totals['SIAP_PANEN'];
-        [1,2,3].forEach(i => {
-            const el = document.getElementById(`val-MESIN_${i}`);
-            if (el) el.innerText = totals[`MESIN_${i}`].toLocaleString();
-        });
+        [1,2,3].forEach(i => document.getElementById(`val-MESIN_${i}`).innerText = totals[`MESIN_${i}`].toLocaleString());
 
-        // UPDATE DATA TABEL
         const tableBody = document.getElementById('umurTableBody');
         tableBody.innerHTML = data.map(item => {
             const tgl = fixDate(item.mulai_proses_tgl) || fixDate(item.mesi_1_tgl);
@@ -167,7 +163,7 @@ const Tetas = {
       }
     });
 
-    // EVENT: MULAI PROSES
+    // EVENT HANDLERS
     document.querySelectorAll('.btn-start-process').forEach(btn => {
       btn.onclick = async (e) => {
         const status = e.currentTarget.dataset.status;
@@ -186,7 +182,6 @@ const Tetas = {
       };
     });
 
-    // EVENT: KONFIRMASI PANEN (MOVE)
     document.querySelectorAll('.btn-move-trigger').forEach(btn => {
       btn.onclick = (e) => {
         const from = e.currentTarget.dataset.from;
@@ -201,8 +196,7 @@ const Tetas = {
     document.getElementById('btnConfirmSortir').onclick = async () => {
       const b = parseInt(document.getElementById('inputBerhasil').value) || 0;
       const g = parseInt(document.getElementById('inputGagal').value) || 0;
-      if (b + g !== currentAction.total) return alert("Jumlah sortir harus sama dengan total telur!");
-      
+      if (b + g !== currentAction.total) return alert("Jumlah sortir tidak sinkron!");
       const res = await presenter.moveMesin({
         kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
         from_status: currentAction.from,
