@@ -326,13 +326,12 @@ const init = async () => {
     }
 },
 {
-    // 18. POST Start Process (Timer 21 Hari)
+    // 18. POST Start Process (TIMER DIMULAI)
     method: 'POST',
     path: '/api/mesin-tetas/start-process',
     handler: async (request, h) => {
         const { kategori_id, status } = request.payload;
         try {
-            // Update kolom mulai_proses_tgl untuk baris paling lama di mesin tersebut
             await pool.query(
                 `UPDATE mesin_tetas SET mulai_proses_tgl = CURRENT_TIMESTAMP 
                  WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NULL`,
