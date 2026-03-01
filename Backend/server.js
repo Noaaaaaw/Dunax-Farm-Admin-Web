@@ -325,6 +325,25 @@ const init = async () => {
         } finally { client.release(); }
     }
 },
+{
+    // 18. POST Start Process (Timer 21 Hari)
+    method: 'POST',
+    path: '/api/mesin-tetas/start-process',
+    handler: async (request, h) => {
+        const { kategori_id, status } = request.payload;
+        try {
+            // Update kolom mulai_proses_tgl untuk baris paling lama di mesin tersebut
+            await pool.query(
+                `UPDATE mesin_tetas SET mulai_proses_tgl = CURRENT_TIMESTAMP 
+                 WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NULL`,
+                [kategori_id, status]
+            );
+            return { status: 'success' };
+        } catch (err) {
+            return h.response({ status: 'error', message: err.message }).code(500);
+        }
+    }
+},
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',
