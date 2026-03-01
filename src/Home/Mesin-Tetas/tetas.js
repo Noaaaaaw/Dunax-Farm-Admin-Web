@@ -12,7 +12,7 @@ const Tetas = {
         <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px;">
             ${['MESIN_1', 'MESIN_2', 'MESIN_3'].map((id, index) => `
             <div class="mesin-card" id="card-${id}" style="background:#fff; padding:20px; border-radius:20px; text-align:center; border:2px solid #eee; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
-                <button class="btn-cheat" data-from="${id}" style="position:absolute; top:10px; right:10px; background:#fef3c7; border:1px solid #f59e0b; border-radius:50%; width:30px; height:30px; cursor:pointer;">⚡</button>
+                <button class="btn-cheat" data-from="${id}" title="Cheat" style="position:absolute; top:10px; right:10px; background:#fef3c7; border:1px solid #f59e0b; border-radius:50%; width:30px; height:30px; cursor:pointer;">⚡</button>
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${index + 1}</h3>
                     <div id="val-${id}" style="font-size:2.8rem; font-weight:1200; color:#6CA651; margin: 10px 0;">0</div>
@@ -57,9 +57,10 @@ const Tetas = {
     const presenter = new TetasPresenter({
       onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
-        // 1. Reset UI
+        // 1. RESET UI KE STANDBY
         ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
-            document.getElementById(`val-${id}`).innerText = "0";
+            const valEl = document.getElementById(`val-${id}`);
+            if (valEl) valEl.innerText = "0";
             if (id !== 'SIAP_PANEN') {
                 document.getElementById(`days-${id}`).innerText = "IDLE";
                 const btnS = document.getElementById(`btn-start-${id}`);
@@ -76,70 +77,78 @@ const Tetas = {
         const tableBody = document.getElementById('umurTableBody');
         tableBody.innerHTML = "";
 
-        // 2. Mapping Data ke UI
+        // 2. RENDER DATA BERDASARKAN STATUS LOCK
         data.forEach(item => {
-            if (item.mesi_1_tgl) {
-                // Record yang SUDAH JALAN
-                const targetId = item.status; // status di DB sudah 'MESIN_1', 'MESIN_2', dst
-                const valEl = document.getElementById(`val-${targetId}`);
-                const daysEl = document.getElementById(`days-${targetId}`);
-                const btnStart = document.getElementById(`btn-start-${targetId}`);
-                const btnPanen = document.getElementById(`btn-panen-${targetId}`);
+            const targetId = item.status;
+            const valEl = document.getElementById(`val-${targetId}`);
+            const daysEl = document.getElementById(`days-${targetId}`);
+            const btnStart = document.getElementById(`btn-start-${targetId}`);
+            const btnPanen = document.getElementById(`btn-panen-${targetId}`);
 
-                if (valEl) {
-                    valEl.innerText = parseInt(item.jumlah).toLocaleString();
-                    const tglMasuk = new Date(item.mesi_1_tgl);
-                    const diffDays = Math.floor(Math.abs(new Date() - tglMasuk) / (1000 * 60 * 60 * 24));
-                    
-                    daysEl.innerText = `${diffDays} / 21 HARI`;
-                    btnStart.innerText = "SEDANG PROSES";
-                    btnStart.disabled = true;
-                    btnStart.style.background = "#aaa";
+            if (valEl) {
+                valEl.innerText = parseInt(item.jumlah).toLocaleString();
+                
+                // Kunci UI HANYA JIKA kolom mulai_proses_tgl ada isinya
+                if (item.mulai_proses_tgl) {
+                    const tglMulai = new Date(item.mulai_proses_tgl);
+                    const diffDays = Math.floor(Math.abs(new Date() - tglMulai) / (1000 * 60 * 60 * 24));
+                    if (daysEl) daysEl.innerText = `${diffDays} / 21 HARI`;
+
+                    if (btnStart) {
+                        btnStart.innerText = "SEDANG PROSES";
+                        btnStart.disabled = true;
+                        btnStart.style.background = "#aaa";
+                    }
 
                     if (diffDays >= 21) {
-                        btnPanen.disabled = false;
-                        btnPanen.style.background = "#6CA651";
-                        btnStart.style.display = "none";
+                        if (btnPanen) {
+                            btnPanen.disabled = false;
+                            btnPanen.style.background = "#6CA651";
+                            btnPanen.style.cursor = "pointer";
+                        }
+                        if (btnStart) btnStart.style.display = "none";
                     }
 
                     tableBody.innerHTML += `
                         <tr style="background:#f8f9fa;">
-                            <td style="padding:15px; font-weight:700;">${tglMasuk.toLocaleDateString('id-ID')}</td>
-                            <td style="padding:15px; font-weight:800;">${targetId}</td>
+                            <td style="padding:15px; font-weight:700;">${tglMulai.toLocaleDateString('id-ID')}</td>
+                            <td style="padding:15px; font-weight:800;">${targetId.replace('_', ' ')}</td>
                             <td style="padding:15px; font-weight:800; color:#6CA651;">${item.jumlah} Butir</td>
                             <td style="padding:15px; font-weight:700;">${diffDays} Hari</td>
                         </tr>`;
+                } else {
+                    if (daysEl) daysEl.innerText = "STANDBY (SIAP PROSES)";
                 }
-            } else {
-                // Record yang BELUM JALAN (Standby) - Numpuk di box Mesin 1
-                const valMesin1 = document.getElementById('val-MESIN_1');
-                const currentVal = parseInt(valMesin1.innerText) || 0;
-                valMesin1.innerText = (currentVal + parseInt(item.jumlah)).toLocaleString();
             }
         });
       }
     });
 
-    // Action: Simpan & Mulai
+    // ACTION: SIMPAN & MULAI (Menjalankan Lock)
     document.querySelectorAll('.btn-start').forEach(btn => {
-        btn.onclick = async () => {
-            if (confirm("Mulai proses inkubasi untuk antrean telur berikutnya?")) {
+        btn.onclick = async (e) => {
+            const mesinId = e.target.dataset.mesin;
+            const jumlah = parseInt(document.getElementById(`val-${mesinId}`).innerText) || 0;
+            if (jumlah <= 0) return alert("Antrean kosong!");
+
+            if (confirm(`Mulai proses inkubasi 21 hari di ${mesinId.replace('_', ' ')}?`)) {
                 const res = await presenter.startProcess({ kategori_id: categoryId });
                 if (res.status === 'success') {
-                    alert(`Mantap! Telur masuk ke ${res.mesin_target}`);
+                    alert(`Berhasil! Inkubasi dikunci di ${res.mesin_target}`);
                     location.reload();
-                } else { alert(res.message); }
+                }
             }
         };
     });
 
-    // Action: Panen (sama kayak sebelumnya)
+    // ACTION: KONFIRMASI PANEN
     document.querySelectorAll('.btn-move').forEach(btn => {
         btn.onclick = async (e) => {
             const { from } = e.currentTarget.dataset;
             const total = parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, ''));
             const netas = prompt(`Berapa ekor yang BERHASIL MENETAS?`, total);
             if (!netas) return;
+
             const res = await presenter.moveMesin({
                 kategori_id: categoryId,
                 from_status: from,
