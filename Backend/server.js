@@ -258,7 +258,7 @@ const init = async () => {
             const qtyGagal = parseInt(jumlah_gagal) || 0;
 
             if (to_status === 'SELESAI') {
-                // KOTAK PANEN -> STOK DOC/DOD (Tabel Komoditas)
+                // KOTAK PANEN -> STOK KOMODITAS (DOC/DOD)
                 const totalRes = await client.query(
                     `SELECT COALESCE(SUM(jumlah), 0) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
                     [kategori_id]
@@ -266,8 +266,10 @@ const init = async () => {
                 
                 if (qtyBerhasil > parseInt(totalRes.rows[0].total)) throw new Error('Jumlah melebihi stok di kotak panen');
 
+                // Hapus record di kotak panen untuk kategori ini
                 await client.query(`DELETE FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`, [kategori_id]);
 
+                // Update stok di tabel komoditas
                 if (qtyBerhasil > 0) {
                     await client.query(
                         `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
@@ -275,10 +277,9 @@ const init = async () => {
                     );
                 }
             } else {
-                // PROSES PANEN: MESIN_X -> SIAP_PANEN
-                // Kita cari record yang SUDAH MULAI PROSES (mulai_proses_tgl NOT NULL)
+                // PROSES PANEN: MESIN -> SIAP_PANEN
                 const mesinRes = await client.query(
-                    `SELECT id FROM mesin_tetas WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NOT NULL ORDER BY mulai_proses_tgl ASC LIMIT 1`,
+                    `SELECT id, jumlah FROM mesin_tetas WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NOT NULL ORDER BY mulai_proses_tgl ASC LIMIT 1`,
                     [kategori_id, from_status]
                 );
                 
@@ -286,10 +287,10 @@ const init = async () => {
                 
                 const mesinId = mesinRes.rows[0].id;
 
-                // 1. Hapus data dari slot mesin asal
+                // 1. Hapus/Selesaikan record di mesin
                 await client.query(`DELETE FROM mesin_tetas WHERE id = $1`, [mesinId]);
 
-                // 2. Masukkan (Upsert) ke status SIAP_PANEN
+                // 2. Upsert ke SIAP_PANEN
                 const existSiap = await client.query(
                     `SELECT id FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN' LIMIT 1`, [kategori_id]
                 );
@@ -324,31 +325,30 @@ const init = async () => {
     method: 'POST',
     path: '/api/mesin-tetas/start-process',
     handler: async (request, h) => {
-        const { kategori_id, status } = request.payload; // status: 'MESIN_1'
+        const { kategori_id, status } = request.payload; // misal status: 'MESIN_1'
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
 
-            // 1. Cari antrean telur tertua yang BELUM diproses di slot ini
-            // Kita dukung status 'MESIN_X' (dari UI) atau 'WAITING_X' (jika ada input manual)
+            // Kita cari record WAITING yang sesuai dengan slot mesinnya
             const res = await client.query(
                 `UPDATE mesin_tetas 
                  SET mulai_proses_tgl = CURRENT_DATE,
-                     status = $2 -- Pastikan status fix jadi MESIN_X saat diproses
+                     status = $2 -- Ubah WAITING_X jadi MESIN_X
                  WHERE id = (
                     SELECT id FROM mesin_tetas 
                     WHERE kategori_id = $1 
                     AND (status = $2 OR status = REPLACE($2, 'MESIN_', 'WAITING_'))
                     AND mulai_proses_tgl IS NULL 
                     ORDER BY id ASC LIMIT 1
-                 ) RETURNING id`,
+                 ) RETURNING id, status`,
                 [kategori_id, status]
             );
 
-            if (res.rowCount === 0) throw new Error('Gagal: Gak ada antrean telur standby!');
+            if (res.rowCount === 0) throw new Error('Gak ada antrean telur standby!');
 
             await client.query('COMMIT');
-            return { status: 'success' };
+            return { status: 'success', data: res.rows[0] };
         } catch (err) {
             await client.query('ROLLBACK');
             return h.response({ status: 'error', message: err.message }).code(400);
