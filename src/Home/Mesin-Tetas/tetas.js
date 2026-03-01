@@ -17,7 +17,7 @@ const Tetas = {
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${i}</h3>
                     <div id="val-MESIN_${i}" style="font-size:2.8rem; font-weight:1200; color:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; margin: 10px 0;">0</div>
                     
-                    <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#888; font-weight:900; margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:10px; min-height:35px; display:flex; align-items:center; justify-content:center; text-transform:uppercase;">
+                    <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#888; font-weight:900; margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:10px; min-height:35px; display:flex; align-items:center; justify-content:center;">
                         IDLE
                     </div>
                 </div>
@@ -77,14 +77,7 @@ const Tetas = {
         const colors = { MESIN_1: '#6CA651', MESIN_2: '#d68910', MESIN_3: '#e74c3c' };
         const totals = { MESIN_1: 0, MESIN_2: 0, MESIN_3: 0, SIAP_PANEN: 0 };
         
-        // Helper Sakti buat benerin format tanggal Supabase biar dibaca browser sebagai objek Date
-        const fixDate = (dateStr) => {
-            if (!dateStr || dateStr === 'BATAL' || dateStr === 'null') return null;
-            // PostgreSQL pake spasi, kita ganti 'T' biar jadi standar ISO
-            return new Date(dateStr.replace(' ', 'T'));
-        };
-
-        // Reset UI Standar
+        // RESET UI KARTU
         [1,2,3].forEach(i => {
             const s = `MESIN_${i}`;
             document.getElementById(`val-${s}`).innerText = "0";
@@ -111,16 +104,22 @@ const Tetas = {
               const btnStart = document.getElementById(`btnStart-${item.status}`);
               const timerLabel = document.getElementById(`timer-${item.status}`);
 
-              // PAKAI FIXER DISINI
-              const tglMulai = fixDate(item.mulai_proses_tgl);
+              // FIX PEMBACAAN TANGGAL SUPABASE
+              let tglMulai = null;
+              if (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL') {
+                  tglMulai = new Date(item.mulai_proses_tgl.replace(' ', 'T'));
+              }
 
               if (tglMulai && !isNaN(tglMulai.getTime())) {
                 const sekarang = new Date();
+                const tglPanen = new Date(tglMulai.getTime() + (21 * 24 * 60 * 60 * 1000));
+                
+                // Hitung Selisih Hari
                 const diffMs = sekarang - tglMulai;
                 const umurHari = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
                 if (umurHari < 21) {
-                  // STATUS INKUBASI: TAMPILKAN 0 / 21 HARI
+                  // STATUS INKUBASI
                   timerLabel.innerText = `⏳ ${umurHari} / 21 HARI`;
                   timerLabel.style.background = "#fff8e1";
                   timerLabel.style.color = "#f59e0b";
@@ -134,7 +133,6 @@ const Tetas = {
                   timerLabel.innerText = `✅ SIAP PANEN!`;
                   timerLabel.style.background = "#f0fdf4";
                   timerLabel.style.color = "#16a34a";
-                  
                   btnStart.style.display = 'none';
                   btnMove.disabled = false;
                   btnMove.style.background = colors[item.status];
@@ -151,10 +149,12 @@ const Tetas = {
 
         const tableBody = document.getElementById('umurTableBody');
         tableBody.innerHTML = data.map(item => {
-            const tgl = fixDate(item.mulai_proses_tgl) || fixDate(item.mesi_1_tgl);
-            const umur = tgl ? Math.floor((new Date() - tgl) / (1000 * 60 * 60 * 24)) : 0;
+            const tglStr = (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL') ? item.mulai_proses_tgl : item.mesi_1_tgl;
+            const tgl = new Date(tglStr.replace(' ', 'T'));
+            const diffMs = new Date() - tgl;
+            const umur = Math.floor(diffMs / (1000 * 60 * 60 * 24));
             return `<tr style="background:#f8f9fa;">
-                <td style="padding:15px; border:1px solid #eee;">${tgl ? tgl.toLocaleDateString('id-ID') : '-'}</td>
+                <td style="padding:15px; border:1px solid #eee;">${tgl.toLocaleDateString('id-ID')}</td>
                 <td style="padding:15px; border:1px solid #eee; font-weight:bold;">${item.status}</td>
                 <td style="padding:15px; border:1px solid #eee; color:#6CA651; font-weight:bold;">${item.jumlah} Butir</td>
                 <td style="padding:15px; border:1px solid #eee;">${umur} Hari</td>
@@ -163,21 +163,17 @@ const Tetas = {
       }
     });
 
-    // EVENT HANDLERS
     document.querySelectorAll('.btn-start-process').forEach(btn => {
       btn.onclick = async (e) => {
         const status = e.currentTarget.dataset.status;
         const total = parseInt(document.getElementById(`val-${status}`).innerText);
         if (total <= 0) return alert("Mesin kosong!");
-        if (confirm(`Konfirmasi: Mulai proses inkubasi 21 hari untuk ${status}?`)) {
+        if (confirm(`Konfirmasi: Simpan dan mulai proses 21 hari untuk ${status}?`)) {
           const res = await presenter.startProcess({
             kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
             status: status
           });
-          if (res.status === 'success') {
-              alert("Proses Berhasil Dimulai! 🚀");
-              location.reload(); 
-          }
+          if (res.status === 'success') location.reload();
         }
       };
     });
