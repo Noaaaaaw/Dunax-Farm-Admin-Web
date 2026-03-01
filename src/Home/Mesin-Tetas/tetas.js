@@ -39,10 +39,10 @@ const Tetas = {
             <table style="width:100%; border-collapse:collapse; text-align:center;">
                 <thead>
                     <tr style="background:#6CA651;">
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">TANGGAL MULAI</th>
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">MESIN</th>
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">JUMLAH</th>
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">UMUR</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">TANGGAL MULAI</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">MESIN</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">JUMLAH</th>
+                        <th style="padding:15px; color:white; font-size:0.85rem; border: 2px solid #fff;">UMUR</th>
                     </tr>
                 </thead>
                 <tbody id="umurTableBody"></tbody>
@@ -57,7 +57,7 @@ const Tetas = {
     const presenter = new TetasPresenter({
       onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
-        // 1. RESET UI KE STANDBY
+        // 1. RESET UI KE STANDBY (IDLE)
         ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
             const valEl = document.getElementById(`val-${id}`);
             if (valEl) valEl.innerText = "0";
@@ -77,29 +77,33 @@ const Tetas = {
         const tableBody = document.getElementById('umurTableBody');
         tableBody.innerHTML = "";
 
-        // 2. RENDER DATA BERDASARKAN STATUS LOCK
+        // 2. MAPPING DATA DARI DB
         data.forEach(item => {
-            const targetId = item.status;
+            const targetId = item.status; 
             const valEl = document.getElementById(`val-${targetId}`);
             const daysEl = document.getElementById(`days-${targetId}`);
             const btnStart = document.getElementById(`btn-start-${targetId}`);
             const btnPanen = document.getElementById(`btn-panen-${targetId}`);
 
             if (valEl) {
+                // Tampilkan jumlah di box
                 valEl.innerText = parseInt(item.jumlah).toLocaleString();
                 
-                // Kunci UI HANYA JIKA kolom mulai_proses_tgl ada isinya
+                // LOGIKA UTAMA: Cek mulai_proses_tgl (Lock 21 Hari)
                 if (item.mulai_proses_tgl) {
                     const tglMulai = new Date(item.mulai_proses_tgl);
                     const diffDays = Math.floor(Math.abs(new Date() - tglMulai) / (1000 * 60 * 60 * 24));
+                    
                     if (daysEl) daysEl.innerText = `${diffDays} / 21 HARI`;
 
+                    // Ganti tombol jadi SEDANG PROSES (Lock)
                     if (btnStart) {
                         btnStart.innerText = "SEDANG PROSES";
                         btnStart.disabled = true;
                         btnStart.style.background = "#aaa";
                     }
 
+                    // Aktifkan panen jika >= 21 hari
                     if (diffDays >= 21) {
                         if (btnPanen) {
                             btnPanen.disabled = false;
@@ -109,6 +113,7 @@ const Tetas = {
                         if (btnStart) btnStart.style.display = "none";
                     }
 
+                    // Monitoring Table
                     tableBody.innerHTML += `
                         <tr style="background:#f8f9fa;">
                             <td style="padding:15px; font-weight:700;">${tglMulai.toLocaleDateString('id-ID')}</td>
@@ -117,25 +122,28 @@ const Tetas = {
                             <td style="padding:15px; font-weight:700;">${diffDays} Hari</td>
                         </tr>`;
                 } else {
-                    if (daysEl) daysEl.innerText = "STANDBY (SIAP PROSES)";
+                    // Jika mulai_proses_tgl NULL, tampilkan STANDBY
+                    if (daysEl) daysEl.innerText = "STANDBY (BELUM MULAI)";
                 }
             }
         });
       }
     });
 
-    // ACTION: SIMPAN & MULAI (Menjalankan Lock)
+    // ACTION: SIMPAN & MULAI (Menjalankan Logic Lock)
     document.querySelectorAll('.btn-start').forEach(btn => {
         btn.onclick = async (e) => {
             const mesinId = e.target.dataset.mesin;
-            const jumlah = parseInt(document.getElementById(`val-${mesinId}`).innerText) || 0;
-            if (jumlah <= 0) return alert("Antrean kosong!");
+            const currentVal = parseInt(document.getElementById(`val-${mesinId}`).innerText);
+            if (currentVal <= 0) return alert("Antrean di mesin ini kosong!");
 
             if (confirm(`Mulai proses inkubasi 21 hari di ${mesinId.replace('_', ' ')}?`)) {
-                const res = await presenter.startProcess({ kategori_id: categoryId });
+                const res = await presenter.startProcess({ kategori_id: categoryId, status: mesinId });
                 if (res.status === 'success') {
-                    alert(`Berhasil! Inkubasi dikunci di ${res.mesin_target}`);
+                    alert(`Berhasil! Inkubasi dikunci selama 21 hari.`);
                     location.reload();
+                } else {
+                    alert("Gagal: " + res.message);
                 }
             }
         };

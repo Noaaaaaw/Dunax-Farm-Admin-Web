@@ -326,59 +326,33 @@ const init = async () => {
     }
 },
 {
-    // POST Start Process - LOGIKA DINAMIS PINDAH SLOT
-    method: 'POST',
-    path: '/api/mesin-tetas/start-process',
-    handler: async (request, h) => {
-        const { kategori_id } = request.payload;
-        const client = await pool.connect();
-
-        try {
-            await client.query('BEGIN');
-
-            // 1. Cek mesin mana yang beneran IDLE (mesi_1_tgl nya NULL)
-            // Kita cek status record yang SUDAH JALAN
-            const busyListRes = await client.query(`
-                SELECT status FROM mesin_tetas 
-                WHERE kategori_id = $1 AND mesi_1_tgl IS NOT NULL
-            `, [kategori_id]);
-            
-            const busyList = busyListRes.rows.map(r => r.status);
-            
-            // Tentukan slot target yang kosong
-            let slotTarget = null;
-            if (!busyList.includes('MESIN_1')) slotTarget = 'MESIN_1';
-            else if (!busyList.includes('MESIN_2')) slotTarget = 'MESIN_2';
-            else if (!busyList.includes('MESIN_3')) slotTarget = 'MESIN_3';
-
-            if (!slotTarget) throw new Error('Semua mesin penuh!');
-
-            // 2. Ambil antrean tertua yang BELUM jalan
-            const nextQueue = await client.query(`
-                SELECT id FROM mesin_tetas 
-                WHERE kategori_id = $1 AND mesi_1_tgl IS NULL 
-                ORDER BY id ASC LIMIT 1
-            `, [kategori_id]);
-
-            if (nextQueue.rows.length === 0) throw new Error('Gak ada antrean telur!');
-
-            // 3. UPDATE: Isi tanggal mulai DAN ganti statusnya ke slot kosong tadi
-            await client.query(`
-                UPDATE mesin_tetas 
-                SET mesi_1_tgl = CURRENT_TIMESTAMP,
-                    status = $1 
-                WHERE id = $2
-            `, [slotTarget, nextQueue.rows[0].id]);
-
-            await client.query('COMMIT');
-            return { status: 'success', mesin_target: slotTarget };
-
-        } catch (err) {
-            await client.query('ROLLBACK');
-            return h.response({ status: 'error', message: err.message }).code(400);
-        } finally { client.release(); }
-    }
-},
+            // POST Start Process - LOGIKA LOCK 21 HARI
+            method: 'POST',
+            path: '/api/mesin-tetas/start-process',
+            handler: async (request, h) => {
+                const { kategori_id, status } = request.payload;
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    // Lock record tertua yang belum mulai proses di mesin tersebut
+                    const res = await client.query(
+                        `UPDATE mesin_tetas SET mulai_proses_tgl = CURRENT_DATE 
+                         WHERE id = (
+                            SELECT id FROM mesin_tetas 
+                            WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NULL 
+                            ORDER BY id ASC LIMIT 1
+                         )`,
+                        [kategori_id, status]
+                    );
+                    if (res.rowCount === 0) throw new Error('Gak ada antrean telur di mesin ini!');
+                    await client.query('COMMIT');
+                    return { status: 'success' };
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    return h.response({ status: 'error', message: err.message }).code(400);
+                } finally { client.release(); }
+            }
+        },
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',
