@@ -379,33 +379,6 @@ const init = async () => {
         } finally { client.release(); }
     }
 },
-{
-    // POST Start Process - LOGIKA LOCK 21 HARI
-    method: 'POST',
-    path: '/api/mesin-tetas/start-process',
-    handler: async (request, h) => {
-        const { kategori_id, status } = request.payload;
-        const client = await pool.connect();
-
-        try {
-            await client.query('BEGIN');
-
-            // Kita lock baris yang sesuai status mesinnya dan belum ada tanggal mulainya
-            await client.query(`
-                UPDATE mesin_tetas 
-                SET mulai_proses_tgl = CURRENT_DATE 
-                WHERE kategori_id = $1 AND status = $2 AND mulai_proses_tgl IS NULL
-            `, [kategori_id, status]);
-
-            await client.query('COMMIT');
-            return { status: 'success' };
-
-        } catch (err) {
-            await client.query('ROLLBACK');
-            return h.response({ status: 'error', message: err.message }).code(400);
-        } finally { client.release(); }
-    }
-},
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',
