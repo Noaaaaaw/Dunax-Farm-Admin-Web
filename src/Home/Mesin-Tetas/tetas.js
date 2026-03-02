@@ -57,76 +57,54 @@ const Tetas = {
     const presenter = new TetasPresenter({
       onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
-        // 1. RESET SEMUA UI KE AWAL (PENTING BIAR GAK NUMPUK ANGKA)
-        ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'].forEach(id => {
-            const valEl = document.getElementById(`val-${id}`);
-            if (valEl) valEl.innerText = "0";
-            if (id !== 'SIAP_PANEN') {
-                document.getElementById(`days-${id}`).innerText = "IDLE";
-                const btnS = document.getElementById(`btn-start-${id}`);
-                const btnP = document.getElementById(`btn-panen-${id}`);
-                btnS.style.display = "block";
-                btnS.disabled = false;
-                btnS.innerText = "SIMPAN & MULAI";
-                btnS.style.background = "#4b7bec";
-                btnP.disabled = true;
-                btnP.style.background = "#ccc";
-            }
-        });
+    const colors = { MESIN_1: '#6CA651', MESIN_2: '#d68910', MESIN_3: '#e74c3c' };
+    const totals = { MESIN_1: 0, MESIN_2: 0, MESIN_3: 0, SIAP_PANEN: 0 };
+    
+    // Reset UI ke IDLE
+    ['MESIN_1', 'MESIN_2', 'MESIN_3'].forEach(id => {
+        document.getElementById(`val-${id}`).innerText = "0";
+        document.getElementById(`days-${id}`).innerText = "IDLE (KOSONG)";
+        document.getElementById(`card-${id}`).style.border = "2px solid #eee";
+        document.getElementById(`card-${id}`).style.opacity = "1";
+    });
 
-        const tableBody = document.getElementById('umurTableBody');
-        tableBody.innerHTML = "";
-
-        // 2. MAPPING DATA BERDASARKAN STATUS LOCK (mulai_proses_tgl)
-        data.forEach(item => {
-            const targetId = item.status.replace('WAITING_', 'MESIN_'); 
-            const valEl = document.getElementById(`val-${targetId}`);
+    data.forEach(item => {
+        if (totals[item.status] !== undefined) {
+            totals[item.status] += parseInt(item.jumlah);
+            const targetId = item.status;
             const daysEl = document.getElementById(`days-${targetId}`);
-            const btnStart = document.getElementById(`btn-start-${targetId}`);
-            const btnPanen = document.getElementById(`btn-panen-${targetId}`);
+            const btnS = document.getElementById(`btn-start-${targetId}`);
+            const card = document.getElementById(`card-${targetId}`);
 
-            if (valEl) {
-                // Update Angka di Box
-                const currentVal = parseInt(valEl.innerText) || 0;
-                valEl.innerText = (currentVal + parseInt(item.jumlah)).toLocaleString();
+            document.getElementById(`val-${targetId}`).innerText = totals[targetId];
+
+            // 🔒 JIKA MESIN SEDANG INKUBASI (KUNCI TOTAL)
+            if (item.mulai_proses_tgl && item.mulai_proses_tgl !== 'BATAL') {
+                const tglMulai = new Date(item.mulai_proses_tgl);
+                const diffDays = Math.floor((new Date() - tglMulai) / (1000 * 60 * 60 * 24));
                 
-                // JIKA mulal_proses_tgl ADA ISINYA -> LOCK STATUS KE "SEDANG PROSES"
-                if (item.mulai_proses_tgl) {
-                    const tglMulai = new Date(item.mulai_proses_tgl);
-                    const diffDays = Math.floor(Math.abs(new Date() - tglMulai) / (1000 * 60 * 60 * 24));
-                    
-                    if (daysEl) daysEl.innerText = `${diffDays} / 21 HARI`;
-
-                    if (btnStart) {
-                        btnStart.innerText = "SEDANG PROSES";
-                        btnStart.disabled = true;
-                        btnStart.style.background = "#aaa";
-                    }
-
-                    if (diffDays >= 21) {
-                        if (btnPanen) {
-                            btnPanen.disabled = false;
-                            btnPanen.style.background = "#6CA651";
-                            btnPanen.style.cursor = "pointer";
-                        }
-                        if (btnStart) btnStart.style.display = "none";
-                    }
-
-                    // Tampilkan di Tabel Monitoring
-                    tableBody.innerHTML += `
-                        <tr style="background:#f8f9fa;">
-                            <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${tglMulai.toLocaleDateString('id-ID')}</td>
-                            <td style="padding:15px; font-weight:800; border: 2px solid #fff;">${targetId.replace('_', ' ')}</td>
-                            <td style="padding:15px; font-weight:800; border: 2px solid #fff; color:#6CA651;">${item.jumlah} Butir</td>
-                            <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${diffDays} Hari</td>
-                        </tr>`;
-                } else {
-                    // JIKA mulai_proses_tgl MASIH NULL -> STATUS TETAP STANDBY
-                    if (daysEl) daysEl.innerText = "STANDBY (BELUM MULAI)";
+                if (daysEl) {
+                    daysEl.innerText = `⏳ INKUBASI: ${diffDays} / 21 HARI`;
+                    daysEl.style.color = "#f59e0b";
                 }
+                
+                if (btnS) {
+                    btnS.innerText = "PROSES DIKUNCI";
+                    btnS.disabled = true;
+                    btnS.style.background = "#aaa";
+                }
+                
+                // Visualisasi Mesin Terkunci
+                card.style.border = "2px solid #f59e0b";
+                card.style.background = "#fffdf5";
+            } else if (totals[targetId] > 0) {
+                // 📥 MESIN LAGI NAMPUNG (BELUM DI-START)
+                daysEl.innerText = "MENAMPUNG ANTREAN...";
+                daysEl.style.color = "#4b7bec";
             }
-        });
-      }
+        }
+    });
+}
     });
 
     // ACTION: KLIK SIMPAN & MULAI (MENJALANKAN LOCK)
