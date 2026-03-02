@@ -232,7 +232,30 @@ const init = async () => {
              ORDER BY mesi_1_tgl ASC`, // Urutkan dari yang paling lama
             [kategori_id]
         );
+        // Di dalam Route 15, ganti query pencarian mesin:
+const mesinCheck = await client.query(
+    `SELECT status FROM mesin_tetas 
+     WHERE kategori_id = $1 
+     AND mulai_inkubasi_tgl IS NULL -- CARI YANG BELUM DIKUNCI
+     ORDER BY status ASC`, [kategori_id]
+);
         return { status: 'success', data: res.rows };
+    }
+},
+{
+    method: 'POST',
+    path: '/api/mesin-tetas/lock',
+    handler: async (request, h) => {
+        const { id } = request.payload;
+        try {
+            await pool.query(
+                `UPDATE mesin_tetas SET mulai_inkubasi_tgl = CURRENT_TIMESTAMP WHERE id = $1`, 
+                [id]
+            );
+            return { status: 'success' };
+        } catch (err) {
+            return h.response({ status: 'error' }).code(500);
+        }
     }
 },
         {
