@@ -220,25 +220,18 @@ const init = async () => {
             }
         },
         {
-    // API UNTUK NARIK SEMUA DATA ANTRIAN (UNTUK TABEL UMUR & KARTU)
+    // API UNTUK NARIK SEMUA DATA ANTRIAN
     method: 'GET',
     path: '/api/mesin-tetas/status/{kategori_id}',
     handler: async (request) => {
         const kategori_id = request.params.kategori_id.toLowerCase(); 
         const res = await pool.query(
-            `SELECT id, jumlah, status, mesi_1_tgl 
+            `SELECT id, jumlah, status, mesi_1_tgl, mulai_inkubasi_tgl -- TAMBAHKAN KOLOM INI
              FROM mesin_tetas 
              WHERE kategori_id = $1 AND status != 'SELESAI' 
-             ORDER BY mesi_1_tgl ASC`, // Urutkan dari yang paling lama
+             ORDER BY mesi_1_tgl ASC`,
             [kategori_id]
         );
-        // Di dalam Route 15, ganti query pencarian mesin:
-const mesinCheck = await client.query(
-    `SELECT status FROM mesin_tetas 
-     WHERE kategori_id = $1 
-     AND mulai_inkubasi_tgl IS NULL -- CARI YANG BELUM DIKUNCI
-     ORDER BY status ASC`, [kategori_id]
-);
         return { status: 'success', data: res.rows };
     }
 },
