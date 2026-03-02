@@ -180,45 +180,81 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan (DARI PANEN -> MASUK MINGGU 1 MESIN TETAS)
-            method: 'POST',
-            path: '/api/pembibitan/process',
-            handler: async (request, h) => {
-                const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, sisa_ke_ayam_kampung } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    const nMasukMesin = parseInt(berhasil) || 0; 
-                    const nGagalJual = parseInt(gagal) || 0;
-                    const nKonsumsiKg = parseFloat(sisa_ke_konsumsi) || 0; 
-                    const nKampung = parseInt(sisa_ke_ayam_kampung) || 0;
-                    
-                    if (nMasukMesin > 0) {
-                        await client.query(
-                            `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl) VALUES ($1, $2, 'MESIN_1', CURRENT_TIMESTAMP)`,
-                            [kategori_id, nMasukMesin]
-                        );
-                    }
-                    
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagalJual, kategori_id]);
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsiKg, kategori_id]);
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [nKampung, kategori_id]);
+    // 15. POST Proses Pembibitan (DENGAN LOGIKA AUTO-SHIFT MESIN)
+    method: 'POST',
+    path: '/api/pembibitan/process',
+    handler: async (request, h) => {
+        const { kategori_id, berhasil, gagal, sisa_ke_konsumsi, sisa_ke_ayam_kampung } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const nMasukMesin = parseInt(berhasil) || 0;
+            const nGagalJual = parseInt(gagal) || 0;
+            const nKonsumsiKg = parseFloat(sisa_ke_konsumsi) || 0;
+            const nKampung = parseInt(sisa_ke_ayam_kampung) || 0;
 
-                    const totalButirProcessed = nMasukMesin + nGagalJual + Math.round(nKonsumsiKg * 17) + nKampung;
+            if (nMasukMesin > 0) {
+                // 🚀 LOGIKA CARI MESIN YANG TERSEDIA (BELUM DI-LOCK)
+                const checkRes = await client.query(
+                    `SELECT status FROM mesin_tetas 
+                     WHERE kategori_id = $1 AND mulai_inkubasi_tgl IS NOT NULL AND status != 'SELESAI'`,
+                    [kategori_id]
+                );
+                
+                const lockedStatus = checkRes.rows.map(r => r.status);
+                let targetStatus = null;
+
+                // Cek urutan dari 1 sampai 3
+                if (!lockedStatus.includes('MESIN_1')) targetStatus = 'MESIN_1';
+                else if (!lockedStatus.includes('MESIN_2')) targetStatus = 'MESIN_2';
+                else if (!lockedStatus.includes('MESIN_3')) targetStatus = 'MESIN_3';
+
+                if (!targetStatus) throw new Error("Semua mesin (1-3) sedang dalam proses inkubasi (Locked)!");
+
+                // Cek apakah di targetStatus sudah ada telur yang "waiting" (belum di-lock)
+                const existingWaiting = await client.query(
+                    `SELECT id FROM mesin_tetas WHERE kategori_id = $1 AND status = $2 AND mulai_inkubasi_tgl IS NULL`,
+                    [kategori_id, targetStatus]
+                );
+
+                if (existingWaiting.rows.length > 0) {
+                    // Update tambahkan telur ke mesin yang sudah ada isinya tapi belum di-lock
                     await client.query(
-                        `INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) 
-                         VALUES ($1, $2, $3, $4, $5)`, 
-                        [kategori_id, totalButirProcessed, nMasukMesin, nGagalJual, (nKonsumsiKg + nKampung)]
+                        `UPDATE mesin_tetas SET jumlah = jumlah + $1 WHERE id = $2`,
+                        [nMasukMesin, existingWaiting.rows[0].id]
                     );
-
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    return h.response({ status: 'error', message: err.message }).code(500);
-                } finally { client.release(); }
+                } else {
+                    // Masukkan ke mesin baru
+                    await client.query(
+                        `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
+                        [kategori_id, nMasukMesin, targetStatus]
+                    );
+                }
             }
-        },
+
+            // Update stok komoditas lainnya
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagalJual, kategori_id]);
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsiKg, kategori_id]);
+            await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [nKampung, kategori_id]);
+
+            // Catat history
+            const totalButirProcessed = nMasukMesin + nGagalJual + Math.round(nKonsumsiKg * 17) + nKampung;
+            await client.query(
+                `INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi, tanggal_proses) 
+                 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+                [kategori_id, totalButirProcessed, nMasukMesin, nGagalJual, (nKonsumsiKg + nKampung)]
+            );
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally {
+            client.release();
+        }
+    }
+},
         {
     // API UNTUK NARIK SEMUA DATA ANTRIAN
     method: 'GET',
