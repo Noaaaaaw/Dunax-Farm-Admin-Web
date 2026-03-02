@@ -27,6 +27,15 @@ class TetasPresenter {
       console.error("Tetas Presenter Error:", err); 
     }
   }
+  
+  async startProcess(payload) {
+    const res = await fetch(`${this.baseUrl}/api/mesin-tetas/start-process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+}
 
   async moveMesin(payload) {
     const res = await fetch(`${this.baseUrl}/api/mesin-tetas/move`, {

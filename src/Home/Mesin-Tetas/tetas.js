@@ -16,9 +16,12 @@ const Tetas = {
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${i}</h3>
                     <div id="val-MESIN_${i}" style="font-size:2.8rem; font-weight:1200; color:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; margin: 10px 0;">0</div>
-                    <div style="font-size:0.7rem; color:#aaa; font-weight:800;">BUTIR TELUR</div>
+                    <div id="timer-MESIN_${i}" style="font-size:0.75rem; color:#f59e0b; font-weight:800; margin-bottom:10px;">STANDBY</div>
                 </div>
-                <button class="btn-move-trigger" data-from="MESIN_${i}" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; color:#fff; border:none; cursor:pointer; font-weight:900;">KONFIRMASI PANEN</button>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button class="btn-start-process" id="btnStart-MESIN_${i}" data-status="MESIN_${i}" style="width:100%; padding:10px; border-radius:10px; background:#1f3326; color:#fff; border:none; cursor:pointer; font-weight:700; font-size:0.8rem;">🚀 MULAI PROSES</button>
+                    <button class="btn-move-trigger" id="btnMove-MESIN_${i}" data-from="MESIN_${i}" style="width:100%; padding:15px; border-radius:12px; background:#ccc; color:#fff; border:none; cursor:not-allowed; font-weight:900;" disabled>KONFIRMASI PANEN</button>
+                </div>
             </div>
             `).join('')}
 
@@ -54,12 +57,10 @@ const Tetas = {
                 <div style="font-size: 3rem; margin-bottom: 10px;">🐣</div>
                 <h2 style="color:#6CA651; font-family:'Luckiest Guy'; margin-bottom:5px; letter-spacing:1px;">SORTIR HASIL</h2>
                 <p id="modalSourceText" style="font-weight:800; color:#aaa; text-transform:uppercase; font-size:0.8rem; margin-bottom:15px;"></p>
-                
                 <div style="background:#f8f9fa; padding:15px; border-radius:15px; border:1px dashed #ccc; margin-bottom:20px;">
                     <span style="color:#666; font-size:0.9rem;">Total Telur:</span>
                     <span id="modalTotalQty" style="font-weight:900; color:#333; font-size:1.2rem; margin-left:5px;">0</span>
                 </div>
-
                 <div style="text-align:left; gap:15px; display:flex; flex-direction:column;">
                     <div>
                         <label style="display:block; font-weight:800; margin-bottom:5px; color:#16a34a; font-size:0.8rem;">BERHASIL (HIDUP):</label>
@@ -70,7 +71,6 @@ const Tetas = {
                         <input type="number" id="inputGagal" style="width:100%; padding:15px; border-radius:12px; border:2px solid #eee; font-size:1.2rem; font-weight:900; outline:none;">
                     </div>
                 </div>
-
                 <div style="display:flex; gap:12px; margin-top:25px;">
                     <button id="btnCancelSortir" style="flex:1; padding:18px; border-radius:15px; background:#f3f4f6; border:none; cursor:pointer; font-weight:800; color:#6b7280;">BATAL</button>
                     <button id="btnConfirmSortir" style="flex:1; padding:18px; border-radius:15px; background:#6CA651; color:white; border:none; cursor:pointer; font-weight:800;">KONFIRMASI</button>
@@ -86,18 +86,54 @@ const Tetas = {
       onDataReady: (cat) => { document.getElementById('catName').innerText = cat.nama; },
       onUpdateUI: (data) => {
         const statusList = ['MESIN_1', 'MESIN_2', 'MESIN_3', 'SIAP_PANEN'];
+        const colors = { MESIN_1: '#6CA651', MESIN_2: '#d68910', MESIN_3: '#e74c3c' };
+        
+        // Reset UI
         statusList.forEach(status => {
             const el = document.getElementById(`val-${status}`);
             if (el) el.innerText = "0";
         });
 
         const totals = { MESIN_1: 0, MESIN_2: 0, MESIN_3: 0, SIAP_PANEN: 0 };
+        
         data.forEach(item => {
             if (totals[item.status] !== undefined) {
                 totals[item.status] += parseInt(item.jumlah);
+
+                // LOGIKA TOMBOL & TIMER (Hanya untuk MESIN)
+                if (item.status.startsWith('MESIN_')) {
+                    const btnMove = document.getElementById(`btnMove-${item.status}`);
+                    const btnStart = document.getElementById(`btnStart-${item.status}`);
+                    const timerLabel = document.getElementById(`timer-${item.status}`);
+
+                    if (item.mulai_proses_tgl) {
+                        const tglMulai = new Date(item.mulai_proses_tgl);
+                        const tglPanen = new Date(tglMulai.getTime() + (21 * 24 * 60 * 60 * 1000));
+                        const sisaHari = Math.ceil((tglPanen - new Date()) / (1000 * 60 * 60 * 24));
+
+                        btnStart.style.display = 'none'; // Sembunyikan tombol mulai
+                        
+                        if (sisaHari > 0) {
+                            timerLabel.innerText = `⏳ SISA ${sisaHari} HARI`;
+                            btnMove.disabled = true;
+                            btnMove.style.background = "#ccc";
+                            btnMove.style.cursor = "not-allowed";
+                        } else {
+                            timerLabel.innerText = `✅ SIAP PANEN!`;
+                            btnMove.disabled = false;
+                            btnMove.style.background = colors[item.status];
+                            btnMove.style.cursor = "pointer";
+                        }
+                    } else {
+                        timerLabel.innerText = "STANDBY (BELUM PROSES)";
+                        btnStart.style.display = 'block';
+                        btnMove.disabled = true;
+                    }
+                }
             }
         });
 
+        // Update Angka Total di UI
         Object.keys(totals).forEach(status => {
             const el = document.getElementById(`val-${status}`);
             if (el) el.innerText = totals[status].toLocaleString();
@@ -112,7 +148,7 @@ const Tetas = {
                 return `
                     <tr style="background:#f8f9fa;">
                         <td style="padding:15px; font-weight:700; border: 3px solid #fff;">${tglMasuk.toLocaleDateString('id-ID')}</td>
-                        <td style="padding:15px; font-weight:800; border: 3px solid #fff; text-transform:uppercase;">${item.status.replace('_', ' ')}</td>
+                        <td style="padding:15px; font-weight:800; border: 3px solid #fff; text-transform:uppercase;">${item.status.replace('_', ' ')} ${item.mulai_proses_tgl ? '🚀' : ''}</td>
                         <td style="padding:15px; font-weight:800; border: 3px solid #fff; color:#6CA651;">${item.jumlah} Butir</td>
                         <td style="padding:15px; font-weight:700; border: 3px solid #fff;">${diffDays} Hari</td>
                     </tr>
@@ -153,6 +189,23 @@ const Tetas = {
       modal.style.display = 'flex';
     };
 
+    // Tombol Start Process
+    document.querySelectorAll('.btn-start-process').forEach(btn => {
+        btn.onclick = async (e) => {
+            const status = e.currentTarget.dataset.status;
+            const total = parseInt(document.getElementById(`val-${status}`).innerText.replace(/,/g, ''));
+            if (total <= 0) return alert("Mesin kosong!");
+
+            if (confirm(`Mulai proses inkubasi 21 hari untuk ${status}?`)) {
+                const res = await presenter.startProcess({
+                    kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
+                    status: status
+                });
+                if (res.status === 'success') location.reload();
+            }
+        };
+    });
+
     document.querySelectorAll('.btn-move-trigger').forEach(btn => {
       btn.onclick = (e) => {
         const from = e.currentTarget.dataset.from;
@@ -171,18 +224,14 @@ const Tetas = {
     document.getElementById('btnConfirmSortir').onclick = async () => {
       const berhasil = parseInt(inputBerhasil.value) || 0;
       const gagal = parseInt(inputGagal.value) || 0;
+      if (berhasil + gagal !== currentAction.total) return alert(`Jumlah tidak sinkron!`);
 
-      if (berhasil + gagal !== currentAction.total) {
-        return alert(`Jumlah tidak sinkron! Total (${berhasil+gagal}) harus sesuai dengan total telur (${currentAction.total}).`);
-      }
-
-      // 🔥 PASTIKAN VARIABEL INI TERKIRIM SEMUA! 🔥
       const res = await presenter.moveMesin({
         kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
         from_status: currentAction.from,
         to_status: currentAction.to,
         jumlah_berhasil: berhasil,
-        jumlah_gagal: gagal // <--- INI YANG TADI KAMU HAPUS!
+        jumlah_gagal: gagal
       });
 
       if (res.status === 'success') {
@@ -196,12 +245,12 @@ const Tetas = {
     document.querySelectorAll('.btn-cheat').forEach(btn => {
         btn.onclick = async (e) => {
             const { from } = e.currentTarget.dataset;
-            if (!confirm(`⚡ CHEAT: Pindahkan paksa SEMUA telur dari ${from} ke Kotak Panen?`)) return;
+            if (!confirm(`⚡ CHEAT: Langsung pindahkan ke Kotak Panen?`)) return;
             const res = await presenter.moveMesin({
                 kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
                 from_status: from, to_status: 'SIAP_PANEN',
                 jumlah_berhasil: parseInt(document.getElementById(`val-${from}`).innerText.replace(/,/g, '')),
-                jumlah_gagal: 0 // <--- INI JUGA WAJIB ADA
+                jumlah_gagal: 0
             });
             if (res.status === 'success') location.reload();
         };
