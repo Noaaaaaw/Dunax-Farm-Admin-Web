@@ -98,33 +98,13 @@ const Bibit = {
     const refreshUI = () => {
       const hash = window.location.hash.slice(1);
       const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
-      
-      // 1. Ambil data mentah sesuai kategori
       let baseData = rawEggsPanen.filter(e => e.hewan.toLowerCase().includes(categoryId.split('-')[0].toLowerCase()));
+      let filteredList = currentFilterSesi === 'SEMUA' ? baseData : baseData.filter(e => e.sesi === currentFilterSesi);
 
-      // 2. LOGIC FILTER ANTRIAN: Kurangi antrian yang sudah ada dengan history yang sudah diproses
-      let tempProcessed = processedTotalGlobal;
-      const unprocessedData = baseData.map(item => {
-        const itemJumlah = parseInt(item.jumlah) || 0;
-        if (tempProcessed <= 0) return item;
-        
-        if (tempProcessed >= itemJumlah) {
-          tempProcessed -= itemJumlah;
-          return null; // Item ini sudah habis diproses seluruhnya
-        } else {
-          const sisa = itemJumlah - tempProcessed;
-          tempProcessed = 0;
-          return { ...item, jumlah: sisa }; // Item tinggal sisa sebagian
-        }
-      }).filter(item => item !== null && item.jumlah > 0);
+      const totalPanenMurni = baseData.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
+      const saldoTersedia = Math.max(0, totalPanenMurni - processedTotalGlobal);
 
-      // 3. Filter berdasarkan Sesi
-      let filteredList = currentFilterSesi === 'SEMUA' ? unprocessedData : unprocessedData.filter(e => e.sesi === currentFilterSesi);
-
-      // 4. Hitung Saldo Real-time yang tersedia
-      const saldoTersedia = unprocessedData.reduce((sum, e) => sum + (parseInt(e.jumlah) || 0), 0);
-
-      // UI Visibility
+      // UI Control based on Session Filter
       if (currentFilterSesi === 'SEMUA') {
           updateStokContainer.style.display = 'block';
           filterWarning.style.display = 'none';
@@ -133,12 +113,12 @@ const Bibit = {
           filterWarning.style.display = 'block';
       }
 
-      // Tombol Update Stok State
+      // 1. DISABLE UPDATE BUTTON IF STOK 0
       if (saldoTersedia <= 0) {
           btnProsesBerantai.disabled = true;
           btnProsesBerantai.style.background = "#ccc";
           btnProsesBerantai.style.boxShadow = "none";
-          btnProsesBerantai.innerText = "SEMUA TELUR TELAH DIPROSES";
+          btnProsesBerantai.innerText = "STOK KOSONG";
       } else {
           btnProsesBerantai.disabled = false;
           btnProsesBerantai.style.background = "#6CA651";
@@ -151,18 +131,20 @@ const Bibit = {
       const totalInputRequest = valBerhasil + valGagal;
       const sisaSetelahInput = saldoTersedia - totalInputRequest;
 
-      // Validasi Overstok
+      // 2. VALIDASI INPUT MELEBIHI STOK
       if (totalInputRequest > saldoTersedia) {
           btnFinalSubmit.disabled = true;
           totalDisplay.innerText = "OVER STOK!";
           totalDisplay.style.color = "#c53030";
+      } else if (totalInputRequest === 0 && saldoTersedia > 0) {
+          btnFinalSubmit.disabled = false; // Boleh submit 0 kalau mau buang ke konsumsi semua
+          totalDisplay.style.color = "#6CA651";
       } else {
           btnFinalSubmit.disabled = false;
           totalDisplay.style.color = "#6CA651";
-          totalDisplay.innerText = `${Math.max(0, sisaSetelahInput).toLocaleString()} BUTIR`;
       }
 
-      // Distribusi Berantai Otomatis
+      // Logika Distribusi Berantai
       let fixKampung = 0;
       let fixKonsumsiKg = 0;
 
@@ -181,6 +163,7 @@ const Bibit = {
 
       globalFixKampung = fixKampung;
       globalFixKonsumsiKg = fixKonsumsiKg;
+      totalDisplay.innerText = `${Math.max(0, sisaSetelahInput).toLocaleString()} BUTIR`;
       
       autoKonsumsi.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -188,14 +171,13 @@ const Bibit = {
             <span style="font-weight:900; color:#1e293b;">${fixKonsumsiKg.toFixed(1)} KG</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #eee; padding-top:8px;">
-            <span style="font-weight:700; color:#475569; font-size:0.8rem;">TELUR AYAM KAMPUNG:</span>
+            <span style="font-weight:700; color:#475569; font-size:0.8rem;">TELUR AYAM KAMPUNG (17 + SISA):</span>
             <span style="font-weight:900; color:#6CA651;">${fixKampung} BUTIR</span>
         </div>
       `;
 
-      // Render Card Antrian
       eggQueue.innerHTML = filteredList.length === 0 
-        ? `<div style="padding: 40px; text-align: center; width: 100%; color:#aaa; font-weight: 700;">Data antrian ${currentFilterSesi} kosong/sudah diproses.</div>`
+        ? `<div style="padding: 40px; text-align: center; width: 100%; color:#aaa; font-weight: 700;">Data panen ${currentFilterSesi} kosong.</div>`
         : filteredList.map(e => `
           <div class="egg-card-item">
             <div style="text-align: left;">
@@ -244,7 +226,7 @@ const Bibit = {
         });
 
         if (res.status === 'success') { 
-            alert("Update Berhasil! Antrian telah diperbarui. 🚀"); 
+            alert("Update Berhasil! Stok Gabungan Telah Diperbarui. 🚀"); 
             location.reload(); 
         }
     };

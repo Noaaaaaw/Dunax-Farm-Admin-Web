@@ -47,13 +47,7 @@ const init = async () => {
                         };
                     });
                     return { status: 'success', data: result };
-                } catch (err) { 
-    console.error("DATABASE ERROR DETAIL:", err); // Pesan ini akan muncul di terminal VPS
-    return h.response({ 
-        status: 'error', 
-        message: err.message 
-    }).code(500); 
-}
+                } catch (err) { return h.response({ status: 'error' }).code(500); }
             }
         },
         {
@@ -186,7 +180,7 @@ const init = async () => {
             }
         },
         {
-            // 15. POST Proses Pembibitan (DENGAN FIX ANTRIAN)
+            // 15. POST Proses Pembibitan (DARI PANEN -> MASUK MINGGU 1 MESIN TETAS)
             method: 'POST',
             path: '/api/pembibitan/process',
             handler: async (request, h) => {
@@ -194,49 +188,28 @@ const init = async () => {
                 const client = await pool.connect();
                 try {
                     await client.query('BEGIN');
+                    const nMasukMesin = parseInt(berhasil) || 0; 
+                    const nGagalJual = parseInt(gagal) || 0;
+                    const nKonsumsiKg = parseFloat(sisa_ke_konsumsi) || 0; 
+                    const nKampung = parseInt(sisa_ke_ayam_kampung) || 0;
                     
-                    const nBerhasil = Math.floor(Number(berhasil)) || 0;
-                    const nGagal = Math.floor(Number(gagal)) || 0;
-                    const nKonsumsiButir = Math.round(parseFloat(sisa_ke_konsumsi) * 17);
-                    const nKampung = Math.floor(Number(sisa_ke_ayam_kampung)) || 0;
-
-                    // 1. HITUNG TOTAL YANG DIPROSES DARI ANTRIAN HARI INI
-                    const totalDitarikDariAntrian = nBerhasil + nGagal + nKonsumsiButir + nKampung;
-
-                    // 2. SIMPAN KE HISTORY (Agar antrian di frontend berkurang/hilang)
-                    if (totalDitarikDariAntrian > 0) {
+                    if (nMasukMesin > 0) {
                         await client.query(
-                            `INSERT INTO hatchery_process (kategori_id, total_panen, tanggal_proses) 
-                             VALUES ($1, $2, CURRENT_TIMESTAMP)`,
-                            [kategori_id, totalDitarikDariAntrian]
-                        );
-                    }
-
-                    // 3. LOGIC MESIN TETAS (Cari mesin kosong)
-                    if (nBerhasil > 0) {
-                        const mesinCheck = await client.query(
-                            `SELECT status FROM mesin_tetas 
-                             WHERE kategori_id = $1 AND mulai_proses_tgl IS NOT NULL 
-                             ORDER BY status ASC`, [kategori_id]
-                        );
-                        
-                        const lockedMachines = mesinCheck.rows.map(m => m.status);
-                        let targetStatus = 'MESIN_1';
-                        if (lockedMachines.includes('MESIN_1')) targetStatus = 'MESIN_2';
-                        if (lockedMachines.includes('MESIN_1') && lockedMachines.includes('MESIN_2')) targetStatus = 'MESIN_3';
-                        if (lockedMachines.length >= 3) throw new Error("Semua mesin sedang penuh!");
-
-                        await client.query(
-                            `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl, mulai_proses_tgl) 
-                             VALUES ($1, $2, $3, CURRENT_TIMESTAMP, NULL)`,
-                            [kategori_id, nBerhasil, targetStatus]
+                            `INSERT INTO mesin_tetas (kategori_id, jumlah, status, mesi_1_tgl) VALUES ($1, $2, 'MESIN_1', CURRENT_TIMESTAMP)`,
+                            [kategori_id, nMasukMesin]
                         );
                     }
                     
-                    // 4. UPDATE STOK KOMODITAS
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagal, kategori_id]);
-                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [parseFloat(sisa_ke_konsumsi) || 0, kategori_id]);
+                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Fertil%'`, [nGagalJual, kategori_id]);
+                    await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Konsumsi%'`, [nKonsumsiKg, kategori_id]);
                     await client.query(`UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND nama ILIKE '%Telur Ayam Kampung%'`, [nKampung, kategori_id]);
+
+                    const totalButirProcessed = nMasukMesin + nGagalJual + Math.round(nKonsumsiKg * 17) + nKampung;
+                    await client.query(
+                        `INSERT INTO hatchery_process (kategori_id, total_panen, hasil_doc, hasil_fertil_jual, hasil_konsumsi) 
+                         VALUES ($1, $2, $3, $4, $5)`, 
+                        [kategori_id, totalButirProcessed, nMasukMesin, nGagalJual, (nKonsumsiKg + nKampung)]
+                    );
 
                     await client.query('COMMIT');
                     return { status: 'success' };
@@ -272,44 +245,158 @@ const init = async () => {
             }
         },
        {
-            // 17. POST Move / Panen Berantai (FIX PANEN & CHEATING)
-            method: 'POST',
-            path: '/api/mesin-tetas/move',
-            handler: async (request, h) => {
-                const { kategori_id, from_status, to_status } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-                    if (to_status === 'SELESAI') {
-                        const batchRes = await client.query(
-                            `SELECT SUM(jumlah) as total FROM mesin_tetas WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
-                            [kategori_id]
-                        );
-                        const totalPanen = parseInt(batchRes.rows[0].total) || 0;
+    // 17. POST Move / Panen Berantai (FIX TOTAL & SORTIR DATA)
+    method: 'POST',
+    path: '/api/mesin-tetas/move',
+    handler: async (request, h) => {
+        const { kategori_id, from_status, to_status, jumlah_berhasil, jumlah_gagal } = request.payload;
+        const client = await pool.connect();
 
-                        if (totalPanen > 0) {
-                            await client.query(
-                                `UPDATE mesin_tetas SET status = 'SELESAI', siap_panen_tgl = CURRENT_TIMESTAMP WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
-                                [kategori_id]
-                            );
-                            await client.query(
-                                `UPDATE komoditas SET stok = stok + $1 WHERE category_id = $2 AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
-                                [totalPanen, kategori_id]
-                            );
-                        }
-                    } else {
+        try {
+            await client.query('BEGIN');
+
+            const qtyBerhasil = parseInt(jumlah_berhasil) || 0;
+            const qtyGagal = parseInt(jumlah_gagal) || 0;
+            const totalDiproses = qtyBerhasil + qtyGagal;
+
+            // ==============================
+            // 🔵 SIAP_PANEN -> SELESAI
+            // ==============================
+            if (to_status === 'SELESAI') {
+
+                const totalRes = await client.query(
+                    `SELECT COALESCE(SUM(jumlah),0) as total 
+                     FROM mesin_tetas 
+                     WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                    [kategori_id]
+                );
+
+                const totalSiapPanen = parseInt(totalRes.rows[0].total);
+
+                if (qtyBerhasil > totalSiapPanen) {
+                    throw new Error(`Jumlah (${qtyBerhasil}) melebihi stok siap panen (${totalSiapPanen})`);
+                }
+
+                // Hapus semua SIAP_PANEN
+                await client.query(
+                    `DELETE FROM mesin_tetas 
+                     WHERE kategori_id = $1 AND status = 'SIAP_PANEN'`,
+                    [kategori_id]
+                );
+
+                // Tambah ke stok DOC
+                if (qtyBerhasil > 0) {
+                    await client.query(
+                        `UPDATE komoditas 
+                         SET stok = stok + $1 
+                         WHERE category_id = $2 
+                         AND (nama ILIKE '%DOC%' OR nama ILIKE '%DOD%')`,
+                        [qtyBerhasil, kategori_id]
+                    );
+                }
+
+            } 
+            // ======================================
+            // 🟢 MESIN -> SIAP_PANEN (SORTIR)
+            // ======================================
+            else {
+
+                // 1️⃣ Kurangi total dari mesin asal (BERHASIL + GAGAL)
+                const mesinRes = await client.query(
+                    `SELECT id, jumlah 
+                     FROM mesin_tetas
+                     WHERE kategori_id = $1 
+                     AND status = $2
+                     ORDER BY mesi_1_tgl ASC
+                     LIMIT 1`,
+                    [kategori_id, from_status]
+                );
+
+                if (mesinRes.rows.length === 0) {
+                    throw new Error('Data mesin tidak ditemukan');
+                }
+
+                const mesinId = mesinRes.rows[0].id;
+                const stokMesin = parseInt(mesinRes.rows[0].jumlah);
+
+                if (totalDiproses > stokMesin) {
+                    throw new Error(`Jumlah sortir (${totalDiproses}) melebihi stok mesin (${stokMesin})`);
+                }
+
+                const sisa = stokMesin - totalDiproses;
+
+                if (sisa > 0) {
+                    await client.query(
+                        `UPDATE mesin_tetas 
+                         SET jumlah = $1 
+                         WHERE id = $2`,
+                        [sisa, mesinId]
+                    );
+                } else {
+                    await client.query(
+                        `DELETE FROM mesin_tetas WHERE id = $1`,
+                        [mesinId]
+                    );
+                }
+
+                // 2️⃣ MASUKKAN HANYA YANG BERHASIL KE SIAP_PANEN
+                if (qtyBerhasil > 0) {
+
+                    const existSiap = await client.query(
+                        `SELECT id, jumlah 
+                         FROM mesin_tetas 
+                         WHERE kategori_id = $1 
+                         AND status = 'SIAP_PANEN'
+                         LIMIT 1`,
+                        [kategori_id]
+                    );
+
+                    if (existSiap.rows.length > 0) {
+
+                        const siapId = existSiap.rows[0].id;
+
                         await client.query(
-                            `UPDATE mesin_tetas SET status = 'SIAP_PANEN', siap_panen_tgl = CURRENT_TIMESTAMP 
-                             WHERE id = (SELECT id FROM mesin_tetas WHERE kategori_id = $1 AND status = $2 ORDER BY mesi_1_tgl ASC LIMIT 1)`,
-                            [kategori_id, from_status]
+                            `UPDATE mesin_tetas
+                             SET jumlah = jumlah + $1,
+                                 jumlah_berhasil_akhir = COALESCE(jumlah_berhasil_akhir,0) + $1,
+                                 siap_panen_tgl = CURRENT_TIMESTAMP
+                             WHERE id = $2`,
+                            [qtyBerhasil, siapId]
+                        );
+
+                    } else {
+
+                        await client.query(
+                            `INSERT INTO mesin_tetas 
+                            (kategori_id, jumlah, status, jumlah_berhasil_akhir, jumlah_gagal_akhir, mesi_1_tgl, siap_panen_tgl)
+                             VALUES ($1, $2, 'SIAP_PANEN', $2, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                            [kategori_id, qtyBerhasil]
                         );
                     }
-                    await client.query('COMMIT');
-                    return { status: 'success' };
-                } catch (err) { await client.query('ROLLBACK'); return h.response({ status: 'error' }).code(500); }
-                finally { client.release(); }
+                }
+
+                // 3️⃣ Simpan histori gagal (opsional tapi bagus untuk audit)
+                if (qtyGagal > 0) {
+                    await client.query(
+                        `INSERT INTO hatchery_process 
+                        (kategori_id, total_panen, hasil_doc, hasil_fertil_jual)
+                         VALUES ($1, $2, $3, $4)`,
+                        [kategori_id, totalDiproses, qtyBerhasil, qtyGagal]
+                    );
+                }
             }
-        },
+
+            await client.query('COMMIT');
+            return { status: 'success' };
+
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally {
+            client.release();
+        }
+    }
+},
         {
     // 18. POST Proses Pullet (Distribusi ke Pejantan/Petelur/Konsumsi)
     method: 'POST',

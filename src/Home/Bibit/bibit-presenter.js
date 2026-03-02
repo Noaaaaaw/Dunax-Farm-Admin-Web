@@ -8,7 +8,6 @@ class BibitPresenter {
   }
 
   async init(selectedDate = new Date()) {
-    // ... (Logika init tetap sama seperti kode Anda) ...
     try {
       const hash = window.location.hash.slice(1);
       const categoryId = hash.includes('-') ? hash.split('-').slice(1).join('-') : '';
