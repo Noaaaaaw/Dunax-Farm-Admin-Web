@@ -17,7 +17,9 @@ const Tetas = {
                 <div>
                     <h3 style="color:#666; font-size:0.9rem; font-weight:900;">MESIN ${i}</h3>
                     <div id="val-MESIN_${i}" style="font-size:2.8rem; font-weight:1200; color:${i === 1 ? '#6CA651' : i === 2 ? '#d68910' : '#e74c3c'}; margin: 10px 0;">0</div>
-                    <div style="font-size:0.7rem; color:#aaa; font-weight:800;">BUTIR TELUR</div>
+                    <div style="font-size:0.7rem; color:#aaa; font-weight:800; text-transform:uppercase;">BUTIR TELUR</div>
+                    
+                    <div id="age-MESIN_${i}" style="margin-top:5px; font-size:0.85rem; font-weight:900; color:#41644A; min-height:20px;"></div>
                 </div>
                 
                 <div id="action-container-MESIN_${i}" style="margin-top:20px;">
@@ -30,9 +32,10 @@ const Tetas = {
                 <div>
                     <h3 style="color:#16a34a; font-size:0.9rem; font-weight:900;">KOTAK PANEN</h3>
                     <div id="val-SIAP_PANEN" style="font-size:2.8rem; font-weight:1200; color:#1f3326; margin: 10px 0;">0</div>
-                    <div style="font-size:0.7rem; color:#16a34a; font-weight:800;">TOTAL SIAP PINDAH</div>
+                    <div style="font-size:0.7rem; color:#16a34a; font-weight:800; text-transform:uppercase;">TOTAL SIAP PINDAH</div>
+                    <div style="margin-top:5px; height:20px;"></div>
                 </div>
-                <button id="btnFinalHatch" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:#16a34a; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Kirim ke Kelola DOC 🚀</button>
+                <button id="btnFinalHatch" style="margin-top:20px; width:100%; padding:15px; border-radius:12px; background:#16a34a; color:#fff; border:none; cursor:pointer; font-weight:900; text-transform:uppercase;">Kirim ke Kelola DOC</button>
             </div>
         </div>
 
@@ -44,7 +47,7 @@ const Tetas = {
                         <th style="padding:15px; color:white; border: 2px solid #fff;">TGL MASUK</th>
                         <th style="padding:15px; color:white; border: 2px solid #fff;">STATUS</th>
                         <th style="padding:15px; color:white; border: 2px solid #fff;">JUMLAH</th>
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">UMUR</th>
+                        <th style="padding:15px; color:white; border: 2px solid #fff;">PROGRES UMUR</th>
                     </tr>
                 </thead>
                 <tbody id="umurTableBody">
@@ -59,13 +62,13 @@ const Tetas = {
                 <h2 style="color:#6CA651; font-family:'Luckiest Guy';">SORTIR HASIL</h2>
                 <p id="modalSourceText" style="font-weight:800; color:#aaa; font-size:0.8rem;"></p>
                 <div style="background:#f8f9fa; padding:15px; border-radius:15px; margin-bottom:20px;">
-                    <span id="modalTotalQty" style="font-weight:900; font-size:1.2rem;">0</span>
+                    <span id="modalTotalQtyDisplay" style="font-weight:900; font-size:1.2rem;">0</span> <small>BUTIR</small>
                 </div>
                 <div style="text-align:left; gap:15px; display:flex; flex-direction:column;">
-                    <label style="font-weight:bold; font-size:0.8rem;">BERHASIL (HIDUP):</label>
-                    <input type="number" id="inputBerhasil" style="width:100%; padding:15px; border-radius:12px; border:2px solid #eee; font-weight:900;">
-                    <label style="font-weight:bold; font-size:0.8rem;">GAGAL (MATI):</label>
-                    <input type="number" id="inputGagal" style="width:100%; padding:15px; border-radius:12px; border:2px solid #eee; font-weight:900;">
+                    <label style="font-weight:bold; font-size:0.8rem; color:#16a34a;">BERHASIL (HIDUP):</label>
+                    <input type="number" id="inputBerhasil" style="width:100%; padding:15px; border-radius:12px; border:2px solid #eee; font-weight:900; font-size:1.2rem;">
+                    <label style="font-weight:bold; font-size:0.8rem; color:#e74c3c;">GAGAL (MATI):</label>
+                    <input type="number" id="inputGagal" style="width:100%; padding:15px; border-radius:12px; border:2px solid #eee; font-weight:900; font-size:1.2rem;">
                 </div>
                 <div style="display:flex; gap:12px; margin-top:25px;">
                     <button id="btnCancelSortir" style="flex:1; padding:15px; border-radius:12px; background:#eee; border:none; font-weight:800;">BATAL</button>
@@ -95,51 +98,53 @@ const Tetas = {
           if (valEl) valEl.innerText = totals[s].toLocaleString();
 
           const container = document.getElementById(`action-container-${s}`);
+          const ageEl = document.getElementById(`age-${s}`);
           const cheatBtn = document.getElementById(`btn-cheat-${s}`);
           
           if (container) {
             const item = mesinMap[s];
-            
-            // Sembunyikan petir secara default
             if(cheatBtn) cheatBtn.style.display = 'none';
+            if(ageEl) ageEl.innerText = ''; 
 
             if (!item || parseInt(item.jumlah) === 0) {
               container.innerHTML = `<button disabled style="width:100%; padding:15px; border-radius:12px; background:#f3f4f6; color:#94a3b8; border:none; font-weight:900;">MESIN KOSONG</button>`;
             } else if (!item.mulai_inkubasi_tgl) {
-              container.innerHTML = `<button id="btn-lock-${s}" style="width:100%; padding:15px; border-radius:12px; background:#3b82f6; color:#fff; border:none; cursor:pointer; font-weight:900;">🔒 MULAI INKUBASI</button>`;
+              container.innerHTML = `<button id="btn-lock-${s}" style="width:100%; padding:15px; border-radius:12px; background:#3b82f6; color:#fff; border:none; cursor:pointer; font-weight:900;">MULAI INKUBASI</button>`;
               document.getElementById(`btn-lock-${s}`).onclick = () => handleLock(item.id, s);
+              if(ageEl) ageEl.innerText = 'WAITING LOCK';
             } else {
               const umur = Math.floor((new Date() - new Date(item.mulai_inkubasi_tgl)) / (1000 * 60 * 60 * 24));
-              
+              if(ageEl) ageEl.innerText = `${umur}/21 HARI`;
+
               if (umur < 21) {
-                // TAMPILKAN LOGO PETIR JIKA LAGI PROSES
                 if(cheatBtn) {
                     cheatBtn.style.display = 'flex';
                     cheatBtn.onclick = () => {
-                        if(confirm("⚡ Gunakan Cheat? Lewati masa inkubasi dan langsung sortir sekarang?")) {
+                        if(confirm("⚡ Gunakan Cheat? Langsung sortir sekarang?")) {
                             openSortirModal(s, 'SIAP_PANEN', item.jumlah);
                         }
                     };
                 }
-                container.innerHTML = `<button disabled style="width:100%; padding:15px; border-radius:12px; background:#fbbf24; color:#fff; border:none; font-weight:900;">⏳ PROSES (${21 - umur} HARI)</button>`;
+                container.innerHTML = `<button disabled style="width:100%; padding:15px; border-radius:12px; background:#fbbf24; color:#fff; border:none; font-weight:900;">PROSES INKUBASI</button>`;
               } else {
-                container.innerHTML = `<button id="btn-move-${s}" style="width:100%; padding:15px; border-radius:12px; background:#6CA651; color:#fff; border:none; cursor:pointer; font-weight:900;">🐣 KONFIRMASI PANEN</button>`;
+                container.innerHTML = `<button id="btn-move-${s}" style="width:100%; padding:15px; border-radius:12px; background:#6CA651; color:#fff; border:none; cursor:pointer; font-weight:900;">KONFIRMASI PANEN</button>`;
                 document.getElementById(`btn-move-${s}`).onclick = () => openSortirModal(s, 'SIAP_PANEN', item.jumlah);
               }
             }
           }
         });
 
-        // Update Tabel Antrian
         document.getElementById('umurTableBody').innerHTML = data.length === 0 
           ? `<tr><td colspan="4" style="padding:40px; color:#aaa;">BELUM ADA DATA.</td></tr>`
           : data.map(item => {
-              const umur = item.mulai_inkubasi_tgl ? `${Math.floor((new Date() - new Date(item.mulai_inkubasi_tgl))/(1000*60*60*24))} Hari` : 'Waiting Lock';
+              const umurStatus = item.mulai_inkubasi_tgl 
+                ? `${Math.floor((new Date() - new Date(item.mulai_inkubasi_tgl))/(1000*60*60*24))}/21 Hari` 
+                : 'Waiting Lock';
               return `<tr style="background:#f8f9fa;">
                 <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${new Date(item.mesi_1_tgl).toLocaleDateString('id-ID')}</td>
-                <td style="padding:15px; font-weight:800; border: 2px solid #fff;">${item.mulai_inkubasi_tgl ? '🔒 LOCKED' : '🔓 OPEN'}</td>
+                <td style="padding:15px; font-weight:800; border: 2px solid #fff;">${item.mulai_inkubasi_tgl ? 'LOCKED' : 'OPEN'}</td>
                 <td style="padding:15px; font-weight:800; border: 2px solid #fff; color:#6CA651;">${item.jumlah} Butir</td>
-                <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${umur}</td>
+                <td style="padding:15px; font-weight:700; border: 2px solid #fff;">${umurStatus}</td>
               </tr>`;
           }).join('');
       }
@@ -156,10 +161,22 @@ const Tetas = {
     const inputGagal = document.getElementById('inputGagal');
     let currentAction = { from: '', to: '', total: 0 };
 
+    inputBerhasil.addEventListener('input', () => {
+        let val = parseInt(inputBerhasil.value) || 0;
+        if (val > currentAction.total) { val = currentAction.total; inputBerhasil.value = val; }
+        inputGagal.value = currentAction.total - val;
+    });
+
+    inputGagal.addEventListener('input', () => {
+        let val = parseInt(inputGagal.value) || 0;
+        if (val > currentAction.total) { val = currentAction.total; inputGagal.value = val; }
+        inputBerhasil.value = currentAction.total - val;
+    });
+
     const openSortirModal = (from, to, total) => {
       currentAction = { from, to, total };
       document.getElementById('modalSourceText').innerText = `DARI: ${from.replace('_', ' ')}`;
-      document.getElementById('modalTotalQty').innerText = `${total} BUTIR`;
+      document.getElementById('modalTotalQtyDisplay').innerText = total;
       inputBerhasil.value = total; 
       inputGagal.value = 0;
       modal.style.display = 'flex';
@@ -180,9 +197,25 @@ const Tetas = {
 
     document.getElementById('btnCancelSortir').onclick = () => { modal.style.display = 'none'; };
     
-    document.getElementById('btnFinalHatch').onclick = () => {
+    // --- LOGIC KIRIM LANGSUNG KE DOC DENGAN PERINGATAN ---
+    document.getElementById('btnFinalHatch').onclick = async () => {
       const total = parseInt(document.getElementById('val-SIAP_PANEN').innerText.replace(/,/g, ''));
-      if (total > 0) openSortirModal('SIAP_PANEN', 'SELESAI', total);
+      if (total <= 0) return alert("Kotak Panen kosong!");
+
+      if (confirm(`Lanjut untuk kelola DOC? Sejumlah ${total} butir akan dikirim ke stok DOC.`)) {
+        const res = await presenter.moveMesin({
+          kategori_id: window.location.hash.split('-').slice(1).join('-').toLowerCase(),
+          from_status: 'SIAP_PANEN',
+          to_status: 'SELESAI',
+          jumlah_berhasil: total, // Anggap 100% masuk stok DOC dulu
+          jumlah_gagal: 0 
+        });
+
+        if (res.status === 'success') {
+          alert("Berhasil dikirim ke Kelola DOC! 🚀");
+          location.reload();
+        }
+      }
     };
 
     await presenter.init();
