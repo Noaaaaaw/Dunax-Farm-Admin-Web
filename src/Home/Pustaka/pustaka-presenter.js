@@ -121,22 +121,30 @@ class PustakaPresenter {
     }
 
     this.tableBody.innerHTML = data.map(item => `
-      <tr style="border-bottom: 3px solid white; background:#fdfdfd;">
-        <td style="padding: 15px; border: 3px solid white; text-align: center;">
+      <tr style="border-bottom: 2px solid #eef2ed; background:#ffffff; transition: 0.3s;">
+        
+        <td style="padding: 15px; border-right: 1px solid #f0f0f0; text-align: center;">
             <img src="${item.foto || 'https://placehold.co/100'}" class="zoomable-img" data-src="${item.foto}" style="width:75px; height:75px; object-fit:cover; border-radius:12px; border:3px solid #6CA651; cursor:zoom-in;">
         </td>
-        <td style="padding: 15px; border: 3px solid white; font-weight: 900; text-transform: uppercase; text-align: center;">${item.nama}</td>
-        <td style="padding: 15px; border: 3px solid white; text-align: center;">
+        
+        <td style="padding: 15px; border-right: 1px solid #f0f0f0; font-weight: 900; text-transform: uppercase; text-align: center; color: #1f3326;">${item.nama}</td>
+        
+        <td style="padding: 15px; border-right: 1px solid #f0f0f0; text-align: center;">
             <span style="background:#eef2ed; color:#41644A; padding:6px 12px; border-radius:10px; font-size:0.75rem; font-weight:900;">${item.kategori}</span>
         </td>
-        <td style="padding: 15px; border: 3px solid white; font-size:0.85rem; max-width:350px; line-height:1.4; text-align: center;">${item.deskripsi || '-'}</td>
-        <td style="padding: 15px; border: 3px solid white; text-align: center;">
+        
+        <td style="padding: 15px 20px; border-right: 1px solid #f0f0f0; font-size:0.85rem; max-width:350px; line-height:1.6; text-align: justify; color: #444;">
+            ${item.deskripsi || '-'}
+        </td>
+        
+        <td style="padding: 15px; border-right: 1px solid #f0f0f0; text-align: center;">
             <div style="display:flex; flex-direction:column; gap:5px; align-items:center;">
                 <a href="${item.url}" target="_blank" style="color:#6CA651; font-weight:900; text-decoration:none; font-size:0.8rem; background:#f0f7f0; padding:8px 12px; border-radius:8px;">BUKA LINK 🔗</a>
                 <span style="font-size:0.6rem; color:#888; word-break:break-all; max-width:150px;">${item.url || ''}</span>
             </div>
         </td>
-        <td style="padding: 15px; border: 3px solid white; text-align: center;">
+        
+        <td style="padding: 15px; text-align: center;">
             <div style="display:flex; gap:8px; justify-content:center;">
                 <button class="btn-edit" data-id="${item.id}" style="background:#f0ad4e; color:white; border:none; padding:10px 15px; border-radius:10px; cursor:pointer; font-weight:800; font-size:0.7rem;">EDIT</button>
                 <button class="btn-delete" data-id="${item.id}" style="background:#d9534f; color:white; border:none; padding:10px 15px; border-radius:10px; cursor:pointer; font-weight:800; font-size:0.7rem;">HAPUS</button>

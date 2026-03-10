@@ -89,7 +89,7 @@ const BibitBaru = {
                         <label style="font-weight: 900; color: #41644A; display: block; margin-bottom: 5px; font-size: 0.8rem;">UPLOAD BUKTI</label>
                         <input type="file" id="buktiAlat" accept="image/*" style="width: 100%; padding: 10px; border: 2px dashed #41644A; border-radius: 12px;">
                     </div>
-                    <button type="submit" id="btnSubmitAlat" style="width: 100%; padding: 18px; background: #41644A; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer;">SIMPAN ALAT</button>
+                    <button type="submit" id="btnSubmitAlat" style="width: 100%; padding: 18px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer;">SIMPAN ALAT</button>
                     <button type="button" id="btnCancelAlat" style="display: none; width: 100%; padding: 10px; background: #888; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer; margin-top: -10px;">BATAL EDIT</button>
                 </form>
             </div>
@@ -100,7 +100,7 @@ const BibitBaru = {
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse; text-align: center; border: 3px solid white;">
                     <thead>
-                        <tr style="background: #6CA651; color: white; text-transform: uppercase; font-size: 0.75rem; font-weight: 900;">
+                        <tr style="background: #6CA651; color: white; text-transform: uppercase; font-size: 0.65rem; font-weight: 900;">
                             <th style="padding: 15px; border: 3px solid white; text-align: center;">Tgl Input</th>
                             <th style="padding: 15px; border: 3px solid white; text-align: center;">Tgl Beli</th>
                             <th style="padding: 15px; border: 3px solid white; text-align: center;">Nama Item</th>
@@ -113,6 +113,7 @@ const BibitBaru = {
                         </tr>
                     </thead>
                     <tbody id="historyCombinedBody"></tbody>
+                    <tfoot id="historyCombinedFooter"></tfoot>
                 </table>
             </div>
         </div>
@@ -133,7 +134,7 @@ const BibitBaru = {
         .optionItem:hover { background: #f0f7f0; color: #6CA651; }
         .history-row { background-color: #fcfcfc; border-bottom: 3px solid white; }
         .history-row:nth-child(even) { background-color: #f4f8f4; }
-        .btn-table { border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 0.65rem; color: white; margin: 2px; }
+        .btn-table { border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 0.6rem; color: white; margin: 2px; }
       </style>
     `;
   },
@@ -142,7 +143,6 @@ const BibitBaru = {
     const presenter = new BibitBaruPresenter();
     const modalImg = document.getElementById('modalImg');
     
-    // Logika perhitungan umur
     const formatUmurManusiawi = (tglBeli) => {
         if (!tglBeli) return "N/A";
         const tglAwal = new Date(tglBeli);
@@ -159,6 +159,70 @@ const BibitBaru = {
         return hasil.join(" ");
     };
 
+    const loadHistory = async () => {
+        const history = await presenter.fetchAlatHistory();
+        const container = document.getElementById('historyCombinedBody');
+        const footer = document.getElementById('historyCombinedFooter');
+        
+        history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        // LOGIKA PERHITUNGAN TOTAL TERPISAH
+        const totalAssetTernak = history
+            .filter(item => item.kategori_id === 'asset_ternak')
+            .reduce((acc, item) => acc + (item.jumlah * item.harga), 0);
+
+        const totalAlatBarang = history
+            .filter(item => item.kategori_id === 'alat_barang')
+            .reduce((acc, item) => acc + (item.jumlah * item.harga), 0);
+
+        const grandTotal = totalAssetTernak + totalAlatBarang;
+
+        if (history.length === 0) {
+            container.innerHTML = `<tr><td colspan="9" style="padding:50px; color:#ccc; text-align:center;">Belum ada data</td></tr>`;
+            footer.innerHTML = "";
+            return;
+        }
+
+        container.innerHTML = history.map((item) => `
+            <tr class="history-row">
+                <td style="padding: 8px; text-align: center; border: 3px solid white; font-size: 0.7rem">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
+                <td style="padding: 8px; text-align: center; border: 3px solid white; font-size: 0.7rem">${new Date(item.tanggal_beli).toLocaleDateString('id-ID')}</td>
+                <td style="padding: 8px; text-align: center; font-weight: 900; text-transform: uppercase; border: 3px solid white; font-size: 0.65rem;">${item.nama_alat}</td>
+                <td style="padding: 8px; text-align: center; color: #6CA651; font-weight: 800; border: 3px solid white; font-size: 0.65rem;">${formatUmurManusiawi(item.tanggal_beli)}</td>
+                <td style="padding: 8px; text-align: center; border: 3px solid white; font-size: 0.7rem">${item.jumlah}</td>
+                <td style="padding: 8px; text-align: center; font-weight: 900; color: #41644A; border: 3px solid white; font-size: 0.65rem;">Rp ${(item.jumlah * item.harga).toLocaleString()}</td>
+                <td style="padding: 8px; text-align: center; color: #333; font-weight: 600; max-width: 250px; border: 3px solid white; font-size: 0.65rem">${item.keterangan || '-'}</td>
+                <td style="padding: 8px; text-align: center; border: 3px solid white;">
+                    ${item.bukti_pembayaran ? `<button class="btn-table" style="background:#41644A;" onclick="window.openBukti('${item.bukti_pembayaran}')">LIHAT</button>` : '-'}
+                </td>
+                <td style="padding: 8px; text-align: center; border: 3px solid white;">
+                    <div style="display: flex; justify-content: center; gap: 5px;">
+                        <button class="btn-table" style="background:#f0ad4e;" onclick='window.handleEditAction(${JSON.stringify(item)})'>EDIT</button>
+                        <button class="btn-table" style="background:#d9534f;" onclick="window.handleHapusAsset(${item.id}, '${item.nama_alat}')">HAPUS</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        // FOOTER DENGAN TOTAL TERPISAH & GRAND TOTAL CENTER
+        footer.innerHTML = `
+            <tr style="background: #6CA651; color: white; font-weight: 800;">
+                <td colspan="5" style="padding: 10px 20px; text-align: right; border: 3px solid white; font-size: 0.7rem; text-align: center;">TOTAL KHUSUS ASSET TERNAK </td>
+                <td colspan="4" style="padding: 10px; text-align: left; border: 3px solid white; font-size: 0.75rem; text-align: center;">Rp ${totalAssetTernak.toLocaleString('id-ID')}</td>
+            </tr>
+            <tr style="background: #6CA651; color: white; font-weight: 800;">
+                <td colspan="5" style="padding: 10px 20px; text-align: right; border: 3px solid white; font-size: 0.7rem; text-align: center;">TOTAL KHUSUS ALAT & BARANG </td>
+                <td colspan="4" style="padding: 10px; text-align: left; border: 3px solid white; font-size: 0.75rem; text-align: center;">Rp ${totalAlatBarang.toLocaleString('id-ID')}</td>
+            </tr>
+            <tr style="background: #41644A; color: white; font-weight: 900;">
+                <td colspan="9" style="padding: 18px; text-align: center; border: 3px solid white; font-size: 0.9rem; letter-spacing: 1px;">
+                    TOTAL KESELURUHAN PENGADAAN : &nbsp; Rp ${grandTotal.toLocaleString('id-ID')}
+                </td>
+            </tr>
+        `;
+    };
+
+    // ... (Fungsi window.closeAllModals, uploadToSupabase, window.handleEditAction, resetForms tetap sama)
     window.closeAllModals = () => {
         document.getElementById('imageModal').style.display = "none";
         document.body.style.overflow = "auto";
@@ -171,38 +235,9 @@ const BibitBaru = {
         return supabase.storage.from('bukti-pengadaan').getPublicUrl(fileName).data.publicUrl;
     };
 
-    const loadHistory = async () => {
-        const history = await presenter.fetchAlatHistory();
-        const container = document.getElementById('historyCombinedBody');
-        history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-        container.innerHTML = history.length === 0 ? `<tr><td colspan="9" style="padding:50px; color:#ccc; text-align:center;">Belum ada data</td></tr>` : 
-        history.map((item) => `
-            <tr class="history-row">
-                <td style="padding: 15px; text-align: center; border: 3px solid white;">${new Date(item.created_at).toLocaleDateString('id-ID')}</td>
-                <td style="padding: 15px; text-align: center; border: 3px solid white;">${new Date(item.tanggal_beli).toLocaleDateString('id-ID')}</td>
-                <td style="padding: 15px; text-align: center; font-weight: 900; text-transform: uppercase; border: 3px solid white;">${item.nama_alat}</td>
-                <td style="padding: 15px; text-align: center; color: #6CA651; font-weight: 800; font-size: 0.8rem; border: 3px solid white;">${formatUmurManusiawi(item.tanggal_beli)}</td>
-                <td style="padding: 15px; text-align: center; border: 3px solid white;">${item.jumlah}</td>
-                <td style="padding: 15px; text-align: center; font-weight: 900; color: #41644A; border: 3px solid white;">Rp ${(item.jumlah * item.harga).toLocaleString()}</td>
-                <td style="padding: 15px; text-align: center; color: #333; font-weight: 800; font-size: 1.1rem; max-width: 250px; border: 3px solid white;">${item.keterangan || '-'}</td>
-                <td style="padding: 15px; text-align: center; border: 3px solid white;">
-                    ${item.bukti_pembayaran ? `<button class="btn-table" style="background:#41644A;" onclick="window.openBukti('${item.bukti_pembayaran}')">LIHAT</button>` : '-'}
-                </td>
-                <td style="padding: 15px; text-align: center; border: 3px solid white;">
-                    <div style="display: flex; justify-content: center; gap: 5px;">
-                        <button class="btn-table" style="background:#f0ad4e;" onclick='window.handleEditAction(${JSON.stringify(item)})'>EDIT</button>
-                        <button class="btn-table" style="background:#d9534f;" onclick="window.handleHapusAsset(${item.id}, '${item.nama_alat}')">HAPUS</button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
-    };
-
     window.handleEditAction = (item) => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         const tglFormatted = new Date(item.tanggal_beli).toISOString().split('T')[0];
-
         if (item.kategori_id === 'asset_ternak') {
             document.getElementById('editAssetId').value = item.id;
             document.getElementById('produkAsset').value = item.nama_alat;
@@ -239,12 +274,10 @@ const BibitBaru = {
         document.getElementById('assetFormTitle').innerText = "INPUT ASSET TERNAK BARU";
         document.getElementById('alatFormTitle').innerText = "INPUT ALAT & BARANG";
         document.getElementById('selectedProductLabel').innerText = "-- PILIH PRODUK --";
-        document.getElementById('customSelectList').style.display = 'none';
     };
 
     document.getElementById('btnCancelAsset').onclick = resetForms;
     document.getElementById('btnCancelAlat').onclick = resetForms;
-
     window.openBukti = (src) => { modalImg.src = src; document.getElementById('imageModal').style.display = "flex"; document.body.style.overflow = "hidden"; };
     
     window.handleHapusAsset = async (id, nama) => {
@@ -261,7 +294,6 @@ const BibitBaru = {
         btn.disabled = true; btn.innerText = "SAVING...";
         const file = document.getElementById('buktiBibit').files[0];
         const url = file ? await uploadToSupabase(file) : null;
-
         const data = {
             nama_alat: document.getElementById('produkAsset').value,
             jumlah: parseInt(document.getElementById('jumlahAsset').value),
@@ -271,13 +303,8 @@ const BibitBaru = {
             kategori_id: 'asset_ternak',
             bukti_pembayaran: url
         };
-
-        if (editId) {
-            data.id = editId;
-            await presenter.updateUnifiedTable(data);
-        } else {
-            await presenter.submitToUnifiedTable(data);
-        }
+        if (editId) { data.id = editId; await presenter.updateUnifiedTable(data); }
+        else { await presenter.submitToUnifiedTable(data); }
         resetForms(); loadHistory(); btn.disabled = false;
     };
 
@@ -288,7 +315,6 @@ const BibitBaru = {
         btn.disabled = true; btn.innerText = "SAVING...";
         const file = document.getElementById('buktiAlat').files[0];
         const url = file ? await uploadToSupabase(file) : null;
-
         const data = {
             nama_alat: document.getElementById('namaAlat').value,
             jumlah: parseInt(document.getElementById('jumlahAlat').value),
@@ -298,27 +324,16 @@ const BibitBaru = {
             kategori_id: 'alat_barang',
             bukti_pembayaran: url
         };
-
-        if (editId) {
-            data.id = editId;
-            await presenter.updateUnifiedTable(data);
-        } else {
-            await presenter.submitToUnifiedTable(data);
-        }
+        if (editId) { data.id = editId; await presenter.updateUnifiedTable(data); }
+        else { await presenter.submitToUnifiedTable(data); }
         resetForms(); loadHistory(); btn.disabled = false;
     };
 
-    // Toggle Dropdown
     document.getElementById('customSelectTrigger').onclick = (e) => {
         e.stopPropagation();
         const list = document.getElementById('customSelectList');
         list.style.display = list.style.display === 'none' ? 'block' : 'none';
     };
-
-    // Klik di luar dropdown untuk menutup
-    document.addEventListener('click', () => {
-        document.getElementById('customSelectList').style.display = 'none';
-    });
 
     document.querySelectorAll('.optionItem').forEach(item => {
         item.onclick = (e) => {

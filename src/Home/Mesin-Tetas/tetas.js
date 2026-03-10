@@ -44,10 +44,10 @@ const Tetas = {
             <table style="width:100%; border-collapse:collapse; text-align:center;">
                 <thead>
                     <tr style="background:#6CA651;">
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">TGL MASUK</th>
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">STATUS</th>
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">JUMLAH</th>
-                        <th style="padding:15px; color:white; border: 2px solid #fff;">PROGRES UMUR</th>
+                        <th style="padding:15px; color:white; text-align:center; border: 2px solid #fff;">TGL MASUK</th>
+                        <th style="padding:15px; color:white; text-align:center; border: 2px solid #fff;">STATUS</th>
+                        <th style="padding:15px; color:white; text-align:center; border: 2px solid #fff;">JUMLAH</th>
+                        <th style="padding:15px; color:white; text-align:center; border: 2px solid #fff;">PROGRES UMUR</th>
                     </tr>
                 </thead>
                 <tbody id="umurTableBody">

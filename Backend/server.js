@@ -753,7 +753,39 @@ const init = async () => {
             handler: async (request, h) => {
                 return { status: 'success', message: 'Endpoint standby' };
             }
-        }
+        },
+        {
+            // 36. POST Update Stok Manual Jantan/Petelur Aktif
+            method: 'POST',
+            path: '/api/production/manual-update',
+            handler: async (request, h) => {
+                const { kategori_id, jantan, petelur } = request.payload;
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+
+                    // 1. Set stok Jantan di tabel komoditas
+                    await client.query(
+                        `UPDATE komoditas SET stok = $1 WHERE category_id = $2 AND nama ILIKE '%Pejantan%'`,
+                        [jantan, kategori_id]
+                    );
+
+                    // 2. Set stok Petelur di tabel komoditas
+                    await client.query(
+                        `UPDATE komoditas SET stok = $1 WHERE category_id = $2 AND nama ILIKE '%Petelur%'`,
+                        [petelur, kategori_id]
+                    );
+
+                    await client.query('COMMIT');
+                    return { status: 'success', message: 'Stok aktif berhasil disinkronkan' };
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    return h.response({ status: 'error', message: err.message }).code(500);
+                } finally {
+                    client.release();
+                }
+            }
+        },
     ]);
     
     await server.start();
