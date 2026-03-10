@@ -755,7 +755,7 @@ const init = async () => {
             }
         },
         {
-    // 36. POST Update Stok Manual Jantan/Petelur Aktif (SINKRON KE LOGS)
+    // 36. POST Update Stok Manual (Sinkron ke SEMUA tabel histori)
     method: 'POST',
     path: '/api/production/manual-update',
     handler: async (request, h) => {
@@ -764,31 +764,37 @@ const init = async () => {
         try {
             await client.query('BEGIN');
 
-            // 1. Update stok di tabel komoditas (Pejantan)
+            // 1. Update stok Utama di tabel komoditas
             await client.query(
                 `UPDATE komoditas SET stok = $1 WHERE category_id = $2 AND nama ILIKE '%Pejantan%'`,
                 [jantan, kategori_id]
             );
-
-            // 2. Update stok di tabel komoditas (Petelur)
             await client.query(
                 `UPDATE komoditas SET stok = $1 WHERE category_id = $2 AND nama ILIKE '%Petelur%'`,
                 [petelur, kategori_id]
             );
 
-            // 3. SIMPAN KE TABEL manual_stock_logs (Agar Route 37 bisa baca data terbaru)
-            // Gunakan ON CONFLICT jika kategori_id adalah unique, atau cukup INSERT biasa
+            // 2. Simpan ke manual_stock_logs (untuk kebutuhan Dashboard/Presenter)
             await client.query(
                 `INSERT INTO manual_stock_logs (kategori_id, jantan_set, petelur_set, created_at) 
                  VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
                 [kategori_id, jantan, petelur]
             );
 
+            // 3. Simpan ke production_process (sebagai Histori Perubahan Stok Awal)
+            // Kita set penjualannya 0 karena ini cuma update stok awal manual
+            await client.query(
+                `INSERT INTO production_process 
+                (kategori_id, stok_awal_pejantan, stok_awal_petelur, pejantan_dijual, petelur_dijual, sisa_pejantan_simpan, sisa_petelur_simpan, tanggal_proses) 
+                VALUES ($1, $2, $3, 0, 0, $2, $3, CURRENT_TIMESTAMP)`,
+                [kategori_id, jantan, petelur]
+            );
+
             await client.query('COMMIT');
-            return { status: 'success', message: 'Stok berhasil diupdate dan dicatat di logs!' };
+            return { status: 'success', message: 'Semua tabel sinkron! Stok manual & histori tercatat. 🚀' };
         } catch (err) {
             await client.query('ROLLBACK');
-            console.error("Error Manual Update:", err.message);
+            console.error("Gagal Sinkron Tabel:", err.message);
             return h.response({ status: 'error', message: err.message }).code(500);
         } finally {
             client.release();

@@ -151,13 +151,13 @@ const Ayam = {
 
     btnShowSick.onclick = () => {
         if (sickHistory.length === 0) return alert("Tidak ada ayam sakit!");
-        let tableHtml = `<table><thead><tr><th>KDG</th><th>TAG AYAM</th><th>PENYAKIT</th><th>PEMULIHAN</th><th>KARANTINA</th></tr></thead><tbody>`;
+        let tableHtml = `<table><thead><tr><th>NOMOR KANDANG</th><th>NOMOR AYAM</th><th>PENYAKIT</th><th>PEMULIHAN</th><th>KARANTINA</th></tr></thead><tbody>`;
         sickHistory.forEach(item => {
             tableHtml += `<tr>
-                <td style="font-weight:900;">#${item.kandang}</td>
+                <td style="font-weight:900;">NOMOR ${item.kandang}</td>
                 <td style="background:#fff5f5; color:#e74c3c; font-weight:900;">ID-${item.ayam}</td>
-                <td style="text-align:left;">${item.penyakit}</td>
-                <td style="text-align:left; font-style:italic;">${item.pemulihan || '-'}</td>
+                <td style="text-align:center;">${item.penyakit}</td>
+                <td style="text-align:center; font-style:italic;">${item.pemulihan || '-'}</td>
                 <td style="color:${item.kantina === 'YA' ? '#e74c3c' : '#27ae60'}; font-weight:900;">${item.kantina || 'TIDAK'}</td>
             </tr>`;
         });
