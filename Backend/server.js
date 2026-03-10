@@ -755,58 +755,70 @@ const init = async () => {
             }
         },
         {
-            // 36. POST Update Stok Manual Jantan/Petelur Aktif
-            method: 'POST',
-            path: '/api/production/manual-update',
-            handler: async (request, h) => {
-                const { kategori_id, jantan, petelur } = request.payload;
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
+    // 36. POST Update Stok Manual Jantan/Petelur Aktif (SINKRON KE LOGS)
+    method: 'POST',
+    path: '/api/production/manual-update',
+    handler: async (request, h) => {
+        const { kategori_id, jantan, petelur } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
 
-                    // 1. Set stok Jantan di tabel komoditas
-                    await client.query(
-                        `UPDATE komoditas SET stok = $1 WHERE category_id = $2 AND nama ILIKE '%Pejantan%'`,
-                        [jantan, kategori_id]
-                    );
+            // 1. Update stok di tabel komoditas (Pejantan)
+            await client.query(
+                `UPDATE komoditas SET stok = $1 WHERE category_id = $2 AND nama ILIKE '%Pejantan%'`,
+                [jantan, kategori_id]
+            );
 
-                    // 2. Set stok Petelur di tabel komoditas
-                    await client.query(
-                        `UPDATE komoditas SET stok = $1 WHERE category_id = $2 AND nama ILIKE '%Petelur%'`,
-                        [petelur, kategori_id]
-                    );
+            // 2. Update stok di tabel komoditas (Petelur)
+            await client.query(
+                `UPDATE komoditas SET stok = $1 WHERE category_id = $2 AND nama ILIKE '%Petelur%'`,
+                [petelur, kategori_id]
+            );
 
-                    await client.query('COMMIT');
-                    return { status: 'success', message: 'Stok aktif berhasil disinkronkan' };
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    return h.response({ status: 'error', message: err.message }).code(500);
-                } finally {
-                    client.release();
-                }
-            }
-        },
+            // 3. SIMPAN KE TABEL manual_stock_logs (Agar Route 37 bisa baca data terbaru)
+            // Gunakan ON CONFLICT jika kategori_id adalah unique, atau cukup INSERT biasa
+            await client.query(
+                `INSERT INTO manual_stock_logs (kategori_id, jantan_set, petelur_set, created_at) 
+                 VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
+                [kategori_id, jantan, petelur]
+            );
+
+            await client.query('COMMIT');
+            return { status: 'success', message: 'Stok berhasil diupdate dan dicatat di logs!' };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error("Error Manual Update:", err.message);
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally {
+            client.release();
+        }
+    }
+},
         {
-    // 37. GET Stok Manual Terbaru (Ditarik dari Komoditas)
+    // 37. GET Stok Manual Terbaru (Ambil dari Log Terakhir)
     method: 'GET',
     path: '/api/manual-stock-logs/{kategori_id}',
     handler: async (request, h) => {
         const { kategori_id } = request.params;
         try {
-            const jantanRes = await pool.query(
-                `SELECT stok FROM komoditas WHERE category_id = $1 AND nama ILIKE '%Pejantan%' LIMIT 1`, [kategori_id]
-            );
-            const petelurRes = await pool.query(
-                `SELECT stok FROM komoditas WHERE category_id = $1 AND nama ILIKE '%Petelur%' LIMIT 1`, [kategori_id]
+            // Ambil 1 data terbaru berdasarkan waktu input
+            const res = await pool.query(
+                `SELECT jantan_set, petelur_set FROM manual_stock_logs 
+                 WHERE kategori_id = $1 
+                 ORDER BY created_at DESC LIMIT 1`, 
+                [kategori_id]
             );
 
-            return { 
-                status: 'success', 
-                data: { 
-                    jantan_set: parseInt(jantanRes.rows[0]?.stok) || 0, 
-                    petelur_set: parseInt(petelurRes.rows[0]?.stok) || 0 
-                } 
-            };
+            if (res.rows.length > 0) {
+                return { 
+                    status: 'success', 
+                    data: res.rows[0] 
+                };
+            } else {
+                // Jika belum pernah input manual, return 0
+                return { status: 'success', data: { jantan_set: 0, petelur_set: 0 } };
+            }
         } catch (err) {
             return h.response({ status: 'error', message: err.message }).code(500);
         }
