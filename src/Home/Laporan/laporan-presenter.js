@@ -97,13 +97,24 @@ class LaporanPresenter {
       if (result.status === 'success') {
         this.allData = result.data; 
         const todayStr = new Date().toLocaleDateString('id-ID');
+        
+        // Ambil laporan hari ini
         const todayReports = this.allData.filter(item => 
             new Date(item.tanggal_jam).toLocaleDateString('id-ID') === todayStr
         );
-        const pagiReps = todayReports.filter(r => r.sesi === 'PAGI');
-        const soreReps = todayReports.filter(r => r.sesi === 'SORE');
-        this.progress.PAGI = pagiReps.length > 0 ? Math.max(...pagiReps.map(r => parseInt(r.deret_kandang))) : 0;
-        this.progress.SORE = soreReps.length > 0 ? Math.max(...soreReps.map(r => parseInt(r.deret_kandang))) : 0;
+
+        // LOGIKA BARU: Ambil hanya data terbaru per nomor deret agar tidak double count
+        const uniqueLatestReports = {};
+        todayReports.forEach(rep => {
+            uniqueLatestReports[rep.deret_kandang] = rep;
+        });
+
+        const finalTodayData = Object.values(uniqueLatestReports);
+        const pagiReps = finalTodayData.filter(r => r.sesi === 'PAGI');
+        const soreReps = finalTodayData.filter(r => r.sesi === 'SORE');
+        
+        this.progress.PAGI = pagiReps.length;
+        this.progress.SORE = soreReps.length;
       }
     } catch (err) { console.error("Gagal sinkron cloud:", err); }
   }
@@ -444,9 +455,9 @@ class LaporanPresenter {
     const kelayakan = data.kelayakan_data || { status: 'LAYAK', problems: [] };
     const pekerjaan = data.pekerjaan_data || [];
     const panenTask = pekerjaan.find(t => t.name.includes('Panen Telur'));
-    const populasiDeret = (panenTask?.detailPanen && panenTask.detailPanen.length > 0) 
-                          ? parseInt(panenTask.detailPanen[0].ayam) 
-                          : 15; 
+    const populasiTampil = (panenTask?.detailPanen && panenTask.detailPanen.length > 0) 
+                      ? (parseInt(panenTask.detailPanen[0].ayam) || 15) 
+                      : 15;                     
     const totalButir = panenTask ? parseFloat(panenTask.val) : 0;
     const panenColor = totalButir > 0 ? { bg: '#eef2ed', text: '#2d4a36', label: `${totalButir} Btr` } : { bg: '#fff5f5', text: '#c53030', label: 'TIDAK PANEN' };
 
@@ -454,9 +465,7 @@ class LaporanPresenter {
       <tr style="border-bottom: 1px solid #eee; text-align: center;">
         <td style="padding: 15px;">${time} WIB</td>
         <td style="padding: 15px; font-weight:700;">${data.hewan}</td>
-        
-        <td style="padding: 15px; font-weight:900; color:#41644A;">${populasiDeret} EKOR</td> 
-        
+        <td style="padding: 15px; font-weight:900; color:#41644A;">${populasiTampil} EKOR</td> 
         <td style="padding: 15px;">Deret ${data.deret_kandang}</td>
         <td style="padding: 15px;">${data.sesi}</td>
         <td style="padding: 15px;"><button type="button" class="btn-panen-pop" data-detail='${JSON.stringify(panenTask?.detailPanen || []).replace(/'/g,"&apos;")}' style="padding: 5px 12px; border-radius: 8px; border: none; font-weight: 800; cursor: pointer; background: ${panenColor.bg}; color: ${panenColor.text};">${panenColor.label}</button></td>

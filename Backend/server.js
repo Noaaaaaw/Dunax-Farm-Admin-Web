@@ -786,6 +786,32 @@ const init = async () => {
                 }
             }
         },
+        {
+    // 37. GET Stok Manual Terbaru (Ditarik dari Komoditas)
+    method: 'GET',
+    path: '/api/manual-stock-logs/{kategori_id}',
+    handler: async (request, h) => {
+        const { kategori_id } = request.params;
+        try {
+            const jantanRes = await pool.query(
+                `SELECT stok FROM komoditas WHERE category_id = $1 AND nama ILIKE '%Pejantan%' LIMIT 1`, [kategori_id]
+            );
+            const petelurRes = await pool.query(
+                `SELECT stok FROM komoditas WHERE category_id = $1 AND nama ILIKE '%Petelur%' LIMIT 1`, [kategori_id]
+            );
+
+            return { 
+                status: 'success', 
+                data: { 
+                    jantan_set: parseInt(jantanRes.rows[0]?.stok) || 0, 
+                    petelur_set: parseInt(petelurRes.rows[0]?.stok) || 0 
+                } 
+            };
+        } catch (err) {
+            return h.response({ status: 'error', message: err.message }).code(500);
+        }
+    }
+},
     ]);
     
     await server.start();
