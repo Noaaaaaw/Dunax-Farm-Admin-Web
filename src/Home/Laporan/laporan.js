@@ -71,7 +71,7 @@ const Laporan = {
           <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center;">
             <thead style="background: #6CA651; color: white;">
               <tr>
-                <th>WAKTU</th><th>HEWAN</th><th>DERET</th><th>SESI</th><th>PANEN</th><th>KESEHATAN</th><th>KELAYAKAN</th><th>PETUGAS</th><th>KINERJA</th>
+                <th>WAKTU</th><th>HEWAN</th><th>POPULASI</th><th>DERET</th><th>SESI</th><th>PANEN</th><th>KESEHATAN</th><th>KELAYAKAN</th><th>PETUGAS</th><th>KINERJA</th>
               </tr>
             </thead>
             <tbody id="reportTableBody"></tbody>
@@ -129,6 +129,7 @@ const Laporan = {
     const { default: LaporanPresenter } = await import('./laporan-presenter.js');
     const presenter = new LaporanPresenter();
 
+    // Logika tombol modal (Pop-up) dipindahkan ke sini agar sinkron dengan HTML
     presenter._bindTableButtons = (row) => {
       const modalTitle = document.getElementById('statusModalTitle');
       const modalNote = document.getElementById('modalNote');

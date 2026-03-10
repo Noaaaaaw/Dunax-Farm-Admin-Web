@@ -28,90 +28,80 @@ class AyamPresenter {
       const resultLap = await resLaporan.json();
 
       if (resultCat.status === "success") {
-        // Pastikan elemen displayCategoryName ada sebelum set text
         const displayCat = document.getElementById('displayCategoryName');
         if (displayCat) displayCat.innerText = resultCat.data.nama;
-        
         if (this.onDataReady) this.onDataReady(resultCat.data);
 
-        // 1. LOGIKA SALDO MENTERENG (STOK AKTIF DARI TRANSAKSI)
+        // 1. LOGIKA SALDO STOK AKTIF (TRANSAKSI JUAL/BELI)
         const filterCat = (arr) => (arr || []).filter((m) => m.kategori_id === categoryId);
-        
-        const masukInternalJantan = filterCat(resultMaturity.data).reduce((sum, m) => sum + (parseInt(m.hasil_pejantan) || 0), 0);
-        const masukInternalBetina = filterCat(resultMaturity.data).reduce((sum, m) => sum + (parseInt(m.hasil_petelur) || 0), 0);
-
-        const masukEksternalJantan = (resultAsset.data || [])
-          .filter((a) => a.kategori_id.includes(categoryId) && a.produk === 'AYAM PEJANTAN')
-          .reduce((sum, a) => sum + (parseInt(a.jumlah) || 0), 0);
-
-        const masukEksternalBetina = (resultAsset.data || [])
-          .filter((a) => a.kategori_id.includes(categoryId) && a.produk === 'AYAM BETINA')
-          .reduce((sum, a) => sum + (parseInt(a.jumlah) || 0), 0);
-
-        const totalKeluarJantan = filterCat(resultProduction.data).reduce((sum, p) => sum + (parseInt(p.pejantan_dijual) || 0), 0);
-        const totalKeluarBetina = filterCat(resultProduction.data).reduce((sum, p) => sum + (parseInt(p.petelur_dijual) || 0), 0);
-
-        const saldoJantan = (masukInternalJantan + masukEksternalJantan) - totalKeluarJantan;
-        const saldoBetina = (masukInternalBetina + masukEksternalBetina) - totalKeluarBetina;
+        const masukIntJ = filterCat(resultMaturity.data).reduce((s, m) => s + (parseInt(m.hasil_pejantan) || 0), 0);
+        const masukIntB = filterCat(resultMaturity.data).reduce((s, m) => s + (parseInt(m.hasil_petelur) || 0), 0);
+        const masukEksJ = (resultAsset.data || []).filter(a => a.kategori_id.includes(categoryId) && a.produk === 'AYAM PEJANTAN').reduce((s, a) => s + (parseInt(a.jumlah) || 0), 0);
+        const masukEksB = (resultAsset.data || []).filter(a => a.kategori_id.includes(categoryId) && a.produk === 'AYAM BETINA').reduce((s, a) => s + (parseInt(a.jumlah) || 0), 0);
+        const keluarJ = filterCat(resultProduction.data).reduce((s, p) => s + (parseInt(p.pejantan_dijual) || 0), 0);
+        const keluarB = filterCat(resultProduction.data).reduce((s, p) => s + (parseInt(p.petelur_dijual) || 0), 0);
 
         if (this.onStockReady) {
             this.onStockReady({
-              pejantan: Math.max(0, saldoJantan),
-              petelur: Math.max(0, saldoBetina),
+              pejantan: Math.max(0, (masukIntJ + masukEksJ) - keluarJ),
+              petelur: Math.max(0, (masukIntB + masukEksB) - keluarB),
             });
         }
 
-        // 2. LOGIKA KESEHATAN (DATA DARI LAPORAN OPERASIONAL HARIAN)
-        let totalAyamDiLaporan = 0;
+        // 2. LOGIKA POPULASI (PAS 135: 9 DERET X 15 EKOR)
+        let latestReportsPerDeret = {}; 
         let sickDetails = [];
+        
+        // Sort data laporan agar data terbaru menimpa data lama di objek per deret
+        const reports = resultLap.data || [];
+        reports.sort((a, b) => new Date(a.tanggal_jam) - new Date(b.tanggal_jam));
 
-        (resultLap.data || []).forEach(lap => {
+        reports.forEach(lap => {
             if (lap.hewan && lap.hewan.toLowerCase().includes(categoryId.split('-')[0])) {
-                // Ambil jumlah ayam aktif dari pekerjaan Panen
-                (lap.pekerjaan_data || []).forEach(job => {
-                    if (job.name.toLowerCase().includes('panen telur')) {
-                        (job.detailPanen || []).forEach(d => { 
-                            totalAyamDiLaporan += (parseInt(d.ayam) || 0); 
-                        });
-                    }
-                });
-
-                // Ambil Data Sakit
-                const health = lap.kesehatan_data || {};
-                if (health.detail && Array.isArray(health.detail)) {
-                    sickDetails = [...sickDetails, ...health.detail];
-                }
+                // Key berdasarkan nomor deret, value adalah data laporan terbaru
+                latestReportsPerDeret[lap.deret_kandang] = lap;
             }
         });
 
-        const jumlahSakitEkor = sickDetails.length;
+        let totalPopulasiValid = 0;
+        // Hanya jumlahkan populasi dari 1 laporan terakhir untuk setiap deret yang aktif
+        Object.values(latestReportsPerDeret).forEach(lap => {
+            (lap.pekerjaan_data || []).forEach(job => {
+                if (job.name.toLowerCase().includes('panen telur')) {
+                    (job.detailPanen || []).forEach(d => { 
+                        // Ambil angka 15 dari database (bukan akumulasi seluruh histori)
+                        totalPopulasiValid += (parseInt(d.ayam) || 15); 
+                    });
+                }
+            });
+
+            // Ambil detail ayam sakit dari kondisi terbaru setiap deret
+            if (lap.kesehatan_data?.detail) {
+                sickDetails = [...sickDetails, ...lap.kesehatan_data.detail];
+            }
+        });
 
         if (this.onHealthReady) {
             this.onHealthReady({
-                totalPopulasi: totalAyamDiLaporan,
-                sakit: jumlahSakitEkor,
-                sehat: Math.max(0, totalAyamDiLaporan - jumlahSakitEkor),
+                totalPopulasi: totalPopulasiValid, 
+                sakit: sickDetails.length,
+                sehat: Math.max(0, totalPopulasiValid - sickDetails.length),
                 sickDetails: sickDetails
             });
         }
       }
-    } catch (err) {
-      console.error("Presenter Init Error:", err);
-    }
+    } catch (err) { console.error("Ayam Presenter Error:", err); }
   }
 
   async submitAyamProcess(payload) {
-    const response = await fetch(`${this.baseUrl}/api/production/process`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-    });
-    return await response.json();
+    const res = await fetch(`${this.baseUrl}/api/production/process`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    return await res.json();
   }
 
   async updateManualStock(payload) {
-    const response = await fetch(`${this.baseUrl}/api/production/manual-update`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-    });
-    return await response.json();
+    const res = await fetch(`${this.baseUrl}/api/production/manual-update`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    return await res.json();
   }
 }
+
 export default AyamPresenter;

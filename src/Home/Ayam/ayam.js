@@ -23,7 +23,7 @@ const Ayam = {
             <div class="dashboard-card" style="background: #fff5f5; padding: 25px; border-radius: 24px; border: 1px solid #feb2b2; text-align: center;">
                 <h3 style="margin:0; font-weight:900; color:#c53030; font-size:0.9rem;">KONDISI SAKIT</h3>
                 <div id="totalSakit" style="font-size:3rem; font-weight:1200; color:#e74c3c;">0</div>
-                <button id="btnShowSickDetail" style="margin-top:10px; background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:10px; font-weight:900; cursor:pointer; font-size:0.7rem; box-shadow: 0 4px 0 #9b2222;">LIHAT DETAIL SAKIT ⚠️</button>
+                <button id="btnShowSickDetail" style="margin-top:10px; background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:10px; font-weight:900; cursor:pointer; font-size:0.7rem;">LIHAT DETAIL SAKIT ⚠️</button>
             </div>
         </div>
 
@@ -108,7 +108,6 @@ const Ayam = {
     const closeModal = document.getElementById('closeModal');
     const modalContent = document.getElementById('modalContent');
     
-    // GUARD: Pastikan elemen ada sebelum lanjut
     if (!sellPejantan) return;
 
     let stocks = { pejantan: 0, petelur: 0 };
@@ -142,6 +141,7 @@ const Ayam = {
           const tpl = document.getElementById('totalPopulasiLap');
           const tse = document.getElementById('totalSehat');
           const tsa = document.getElementById('totalSakit');
+          // UPDATE UI POPULASI
           if (tpl) tpl.innerText = h.totalPopulasi.toLocaleString();
           if (tse) tse.innerText = h.sehat.toLocaleString();
           if (tsa) tsa.innerText = h.sakit.toLocaleString();

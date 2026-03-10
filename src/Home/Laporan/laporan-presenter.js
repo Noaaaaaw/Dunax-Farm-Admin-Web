@@ -249,26 +249,17 @@ class LaporanPresenter {
     const panenEntries = document.getElementById('panenEntries');
     panenEntries.innerHTML = '';
 
-    const todayStr = new Date().toLocaleDateString('id-ID');
-    const todayData = this.allData.filter(d => new Date(d.tanggal_jam).toLocaleDateString('id-ID') === todayStr);
-
     for (let i = start; i <= end; i++) {
-        let sudahPanen = 0;
-        todayData.forEach(rep => {
-            const task = rep.pekerjaan_data.find(t => t.name.toLowerCase().includes('panen telur'));
-            if (task && task.detailPanen) {
-                const kandangInfo = task.detailPanen.find(p => parseInt(p.noKandang) === i);
-                if (kandangInfo) sudahPanen += parseFloat(kandangInfo.jumlah);
-            }
-        });
-        const sisaQuota = Math.max(0, this.MAX_TELUR_PER_HARI - sudahPanen);
         const div = document.createElement('div');
         div.className = 'panen-row';
-        div.style = "display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background: #f9f9f9; padding: 10px; border-radius: 10px;";
+        div.style = "display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background: #f9f9f9; padding: 10px; border-radius: 12px; border: 1px solid #eee;";
         div.innerHTML = `
-            <input type="text" class="p-no-kandang" value="${i}" readonly style="width: 60px; padding:10px; border-radius:8px; border:1px solid #ddd; font-weight:900; text-align:center; background:#eee;">
-            <input type="number" class="p-jumlah" step="0.1" data-quota="${sisaQuota}" placeholder="Butir" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd; font-weight:700;">
-            <span style="font-size:0.6rem; color:#888; width:40px;">SISA:${sisaQuota}</span>
+            <input type="text" class="p-no-kandang" value="${i}" readonly style="width: 60px; padding:10px; border-radius:8px; border:none; font-weight:900; text-align:center; background:#e2e8f0;">
+            <div style="flex:1;">
+                <label style="display:block; font-size:0.6rem; font-weight:900; color:#6CA651; margin-bottom:2px;">HASIL PANEN TELUR (BUTIR)</label>
+                <input type="number" class="p-jumlah" placeholder="0" style="width: 100%; padding:10px; border-radius:8px; border:1px solid #6CA651; font-weight:700; text-align:center;">
+                <input type="hidden" class="p-ayam-count" value="15">
+            </div>
         `;
         panenEntries.appendChild(div);
     }
@@ -339,6 +330,7 @@ class LaporanPresenter {
     const kelayakanType = this.form.querySelector('.status-kandang-select')?.value || 'STANDAR';
     let problemList = [];
 
+    // 1. Ambil Data Masalah Kandang (Jika Ada)
     for (const row of this.form.querySelectorAll('.problem-entry-row')) {
         const kandangNo = row.querySelector('.problem-kandang-no')?.value;
         const note = row.querySelector('.kandang-note')?.value;
@@ -354,44 +346,54 @@ class LaporanPresenter {
         if (kandangNo || note) problemList.push({ kandang: kandangNo || '-', note: note || '-', photo: photoData });
     }
 
+    // Validasi: Jika pilih TIDAK STANDAR, wajib isi minimal 1 masalah
     if (kelayakanType === 'TIDAK_STANDAR' && problemList.length === 0) {
-        alert('Kandang TIDAK STANDAR wajib diisi minimal 1 masalah!');
+        alert('⚠️ Kandang TIDAK STANDAR wajib diisi minimal 1 masalah!');
         return;
     }
-
+    
+    // 2. Ambil Data Kesehatan (Ayam Sakit)
     const healthStatus = this.form.querySelector('.health-status-select')?.value || 'SEHAT';
     let healthDetail = [];
     this.form.querySelectorAll('.health-entry-card').forEach(card => {
         healthDetail.push({
             kandang: card.querySelector('.disease-kandang')?.value || '-',
-            ayam: card.querySelector('.disease-ayam')?.value || '-',
+            ayam: card.querySelector('.disease-ayam')?.value || '-', // Ini Tag Nomor Ayam
             penyakit: card.querySelector('.disease-name')?.value || '-',
             kantina: card.querySelector('.is-quarantine')?.value || 'TIDAK',
             pemulihan: card.querySelector('.recovery-step')?.value || '-'
         });
     });
 
+    // 3. Ambil List Tugas & Sinkronisasi Populasi
     const pekerjaan = this._getTaskList();
     const totalPanen = this.tempPanenData.reduce((s, p) => s + p.jumlah, 0);
 
+    // --- LOGIKA KRITIKAL: SINKRONISASI DATA AYAM 15 EKOR KE DATABASE ---
     pekerjaan.forEach(task => {
         if (task.name.includes('Panen Telur')) {
-            task.detailPanen = this.tempPanenData;
+            // Kita masukkan tempPanenData yang isinya sudah ada {noKandang, jumlah, ayam: 15}
+            task.detailPanen = this.tempPanenData; 
             task.val = totalPanen;
         }
     });
 
+    // 4. Susun Payload Akhir
     const payload = {
-        hewan: this.hewanSelect.value, // Data tetap terambil meski dropdown disabled
+        hewan: this.hewanSelect.value,
         deret: kandang,
         sesi: session,
         kesehatan: { status: healthStatus, detail: healthDetail },
-        kelayakan: { status: kelayakanType === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK', problems: problemList },
+        kelayakan: { 
+            status: kelayakanType === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK', 
+            problems: problemList 
+        },
         pekerjaan,
         petugas: user.nama,
         total_panen: totalPanen
     };
 
+    // 5. Kirim ke Backend
     const response = await fetch(`${CONFIG.BASE_URL}/api/laporan/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -399,20 +401,29 @@ class LaporanPresenter {
     });
 
     const result = await response.json();
+
     if (result.status === 'success') {
         alert('Laporan Berhasil Disimpan! ☁️');
+        
+        // Reset Semua UI Form
         this.form.reset();
         document.getElementById('problemListContainer').innerHTML = ""; 
         this.form.querySelector('.alert-row').style.display = 'none'; 
         this.stepSesi.style.display = 'none';
         this.tempPanenData = [];
+        
         const btnPanen = document.querySelector('.btn-open-panen');
         if (btnPanen) {
             btnPanen.innerText = "+ INPUT PANEN";
             btnPanen.style.background = "#6CA651";
         }
+
+        // REFRESH HALAMAN agar stok aktif di dashboard terupdate otomatis
+        location.reload(); 
+    } else {
+        alert('Gagal menyimpan laporan. Cek koneksi!');
     }
-  }
+}
 
   _getTaskList() {
     let taskList = [];
@@ -433,13 +444,19 @@ class LaporanPresenter {
     const kelayakan = data.kelayakan_data || { status: 'LAYAK', problems: [] };
     const pekerjaan = data.pekerjaan_data || [];
     const panenTask = pekerjaan.find(t => t.name.includes('Panen Telur'));
+    const populasiDeret = (panenTask?.detailPanen && panenTask.detailPanen.length > 0) 
+                          ? parseInt(panenTask.detailPanen[0].ayam) 
+                          : 15; 
     const totalButir = panenTask ? parseFloat(panenTask.val) : 0;
-    const panenColor = totalButir > 0 ? { bg: '#eef2ed', text: '#2d4a36', label: `${totalButir}` } : { bg: '#fff5f5', text: '#c53030', label: 'TIDAK PANEN' };
+    const panenColor = totalButir > 0 ? { bg: '#eef2ed', text: '#2d4a36', label: `${totalButir} Btr` } : { bg: '#fff5f5', text: '#c53030', label: 'TIDAK PANEN' };
 
     const newRow = `
       <tr style="border-bottom: 1px solid #eee; text-align: center;">
         <td style="padding: 15px;">${time} WIB</td>
         <td style="padding: 15px; font-weight:700;">${data.hewan}</td>
+        
+        <td style="padding: 15px; font-weight:900; color:#41644A;">${populasiDeret} EKOR</td> 
+        
         <td style="padding: 15px;">Deret ${data.deret_kandang}</td>
         <td style="padding: 15px;">${data.sesi}</td>
         <td style="padding: 15px;"><button type="button" class="btn-panen-pop" data-detail='${JSON.stringify(panenTask?.detailPanen || []).replace(/'/g,"&apos;")}' style="padding: 5px 12px; border-radius: 8px; border: none; font-weight: 800; cursor: pointer; background: ${panenColor.bg}; color: ${panenColor.text};">${panenColor.label}</button></td>
