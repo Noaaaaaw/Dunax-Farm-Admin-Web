@@ -27,7 +27,7 @@ const Laporan = {
                 <label style="font-size: 0.85rem; font-weight: 1200; text-transform: uppercase; color: #14280a; display: block; margin-bottom: 8px; text-align: center;">DERET KANDANG</label>
                 <select id="noKandang" required style="width: 100%; padding: 16px; border-radius: 12px; border: 2px solid #eef2ed; background: #f9fbf9; font-weight: 800; text-align: center;">
                     <option value="">-- PILIH --</option>
-                    ${Array.from({length: 9}, (_, i) => `<option value="${i+1}">DERET KANDANG KE-${i+1}</option>`).join('')}
+                    ${Array.from({length: 10}, (_, i) => `<option value="${i+1}">DERET KANDANG KE-${i+1}</option>`).join('')}
                 </select>
               </div>
             </div>
@@ -71,7 +71,7 @@ const Laporan = {
           <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center;">
             <thead style="background: #6CA651; color: white;">
               <tr>
-                <th>WAKTU</th><th>HEWAN</th><th>POPULASI</th><th>DERET</th><th>SESI</th><th>PANEN</th><th>KESEHATAN</th><th>KELAYAKAN</th><th>PETUGAS</th><th>KINERJA</th>
+                <th>WAKTU</th><th>HEWAN</th><th>DERET</th><th>SESI</th><th>PANEN</th><th>KESEHATAN</th><th>KELAYAKAN</th><th>PETUGAS</th><th>KINERJA</th>
               </tr>
             </thead>
             <tbody id="reportTableBody"></tbody>
@@ -129,7 +129,6 @@ const Laporan = {
     const { default: LaporanPresenter } = await import('./laporan-presenter.js');
     const presenter = new LaporanPresenter();
 
-    // Logika tombol modal (Pop-up) dipindahkan ke sini agar sinkron dengan HTML
     presenter._bindTableButtons = (row) => {
       const modalTitle = document.getElementById('statusModalTitle');
       const modalNote = document.getElementById('modalNote');

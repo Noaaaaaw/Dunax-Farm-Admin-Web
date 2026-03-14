@@ -10,7 +10,6 @@ const Pustaka = {
             
             <div style="flex: 3; position: relative;">
                 <input type="text" id="searchInput" placeholder="Cari judul atau deskripsi materi..." style="width: 100%; padding: 15px 20px; border-radius: 15px; border: 2px solid #eee; font-weight: 700; outline: none; transition: 0.3s;">
-                <span style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 1.2rem;">🔍</span>
             </div>
 
             <button id="btnOpenPopup" style="flex: 0.8; padding: 15px; background: #6CA651; color: white; border: none; border-radius: 15px; font-weight: 900; cursor: pointer; transition: 0.3s; font-size: 0.85rem; white-space: nowrap;">

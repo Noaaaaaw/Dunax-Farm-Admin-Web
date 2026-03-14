@@ -830,6 +830,47 @@ const init = async () => {
         }
     }
 },
+{
+    // 38. ROUTE: Update Status Kesehatan Ayam (Pulih/Mati)
+    method: 'POST',
+    path: '/api/laporan/update-ayam',
+    handler: async (request, h) => {
+        const { id, index, status } = request.payload;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            // 1. Ambil data laporan berdasarkan ID
+            const res = await client.query('SELECT kesehatan_data FROM laporan_operasional WHERE id = $1', [id]);
+            if (res.rows.length === 0) throw new Error("Laporan tidak ditemukan");
+
+            let kesehatan = res.rows[0].kesehatan_data;
+
+            if (status === 'PULIH') {
+                // Hapus objek dari array detail karena ayam sudah sehat
+                kesehatan.detail.splice(index, 1);
+            } else if (status === 'MATI') {
+                // Ubah keterangan penyakit menjadi MATI
+                // Ini otomatis akan dihitung sebagai 'mati' oleh presenter frontend
+                kesehatan.detail[index].penyakit = 'MATI';
+            }
+
+            // 2. Simpan kembali perubahan ke database
+            await client.query(
+                'UPDATE laporan_operasional SET kesehatan_data = $1 WHERE id = $2',
+                [JSON.stringify(kesehatan), id]
+            );
+
+            await client.query('COMMIT');
+            return { status: 'success', message: `Ayam berhasil diproses: ${status}` };
+        } catch (err) {
+            await client.query('ROLLBACK');
+            return h.response({ status: 'error', message: err.message }).code(500);
+        } finally {
+            client.release();
+        }
+    }
+},
     ]);
     
     await server.start();

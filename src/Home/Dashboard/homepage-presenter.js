@@ -4,7 +4,6 @@ class HomePresenter {
   constructor({ container }) {
     this.container = container;
     this.viewDate = new Date(); 
-    this.statsMonthDate = new Date(); // State navigasi bulan untuk grafik tren
     this.allOperationalData = []; 
     this.allCommoditiesData = []; 
     this.summaryData = {};
@@ -43,7 +42,6 @@ class HomePresenter {
     let salesStats = [];
     let allItems = [];
 
-    // 1. Proses Data Komoditas & Pemasukan per Kategori
     this.allCommoditiesData.forEach(cat => {
       const serverData = cat.details || [];
       const totalStokKategori = serverData.reduce((acc, curr) => acc + (Number(curr.stok) || 0), 0);
@@ -55,14 +53,12 @@ class HomePresenter {
         products: serverData 
       });
 
-      // Rumus: Total Penjualan per Kategori (Berdasarkan terjual * harga)
       const totalPemasukan = serverData.reduce((acc, curr) => acc + (curr.terjual ? curr.terjual * curr.harga : 0), 0);
       salesStats.push({ label: cat.nama, nilai: totalPemasukan });
 
       allItems = [...allItems, ...serverData.map(item => ({ ...item, kategoriLabel: cat.nama }))];
     });
 
-    // 2. Kalkulasi Efisiensi Produksi Telur (Sesuai Revisi Tabel)
     const eggEfficiency = this._calculateEggEfficiency();
 
     this.summaryData = {
@@ -81,37 +77,27 @@ class HomePresenter {
   }
 
   _calculateEggEfficiency() {
-    const getPopulasi = (name) => {
-      const cat = this.allCommoditiesData.find(c => c.nama.toLowerCase().includes(name.toLowerCase()));
-      return cat ? cat.details.reduce((acc, curr) => acc + (Number(curr.stok) || 0), 0) : 0;
-    };
-
-    const popAyam = getPopulasi('Ayam');
-    const popBebek = getPopulasi('Bebek');
-
-    // Ambil panen dari data operasional pada viewDate
     const dateStr = this.viewDate.toLocaleDateString('id-ID');
-    let panenAyam = 0;
-    let panenBebek = 0;
+    let totalPanenHariIni = 0;
 
     this.allOperationalData.forEach(op => {
-      if (new Date(op.tanggal_jam || op.created_at).toLocaleDateString('id-ID') === dateStr) {
-        const tasks = op.pekerjaan_data || [];
-        tasks.forEach(t => {
-          if (t.name.toLowerCase().includes('panen telur')) {
-            if (op.hewan.toLowerCase().includes('ayam')) panenAyam += (parseInt(t.val) || 0);
-            if (op.hewan.toLowerCase().includes('bebek')) panenBebek += (parseInt(t.val) || 0);
-          }
-        });
+      const itemDate = new Date(op.tanggal_jam || op.created_at).toLocaleDateString('id-ID');
+      if (itemDate === dateStr && op.hewan.toLowerCase().includes('ayam')) {
+        let panenRecord = parseInt(op.total_panen) || 0;
+        if (panenRecord === 0) {
+            const jobPanen = (op.pekerjaan_data || []).find(j => j.name.toLowerCase().includes('panen telur'));
+            panenRecord = parseInt(jobPanen?.val) || 0;
+        }
+        totalPanenHariIni += panenRecord;
       }
     });
 
-    return {
-      ayam: { hasil: panenAyam, populasi: popAyam, persen: popAyam > 0 ? ((panenAyam / popAyam) * 100).toFixed(1) : 0 },
-      bebek: { hasil: panenBebek, populasi: popBebek, persen: popBebek > 0 ? ((panenBebek / popBebek) * 100).toFixed(1) : 0 }
-    };
-  }
+    const targetKapasitas = 5 * 15 * 10; 
+    const persentase = targetKapasitas > 0 ? ((totalPanenHariIni / targetKapasitas) * 100).toFixed(1) : 0;
 
+    return { hasil: totalPanenHariIni, target: targetKapasitas, persen: persentase, deret: 10 };
+}
+  
   _renderFullDashboard() {
     this._renderMainStructure();
     this._renderOperationalTable(); 
@@ -122,7 +108,7 @@ class HomePresenter {
   }
 
   _renderMainStructure() {
-    const { summaryItems, salesStats, totalDanaMasukGlobal } = this.summaryData;
+    const { summaryItems, salesStats, totalDanaMasukGlobal, categoryStats, totalStokGlobal } = this.summaryData;
     const colors = ['#f39c12', '#41644A', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c'];
 
     this.container.innerHTML = `
@@ -135,16 +121,28 @@ class HomePresenter {
           ${this._createSummaryItem('Omzet Terjual', `Rp ${summaryItems.danaMasuk.toLocaleString('id-ID')}`, '#9b59b6')}
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-            
+        <div class="dashboard-card" style="background: white; padding: 30px; border-radius: 24px; border: 1px solid #e0eadd; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+          <h4 style="margin: 0 0 25px; font-weight: 1200; font-size: 1rem; text-transform: uppercase; color: #14280a; letter-spacing: 1px; text-align: center;">📊 KOMPOSISI STOK GLOBAL PER KATEGORI</h4>
+          <div style="display: flex; height: 35px; border-radius: 12px; overflow: hidden; background: #f0f0f0; margin-bottom: 25px;">
+            ${categoryStats.map((s, i) => {
+              const perc = totalStokGlobal > 0 ? (s.stok / totalStokGlobal * 100) : 0;
+              return perc > 0 ? `<div style="width:${perc}%; background:${colors[i % colors.length]}; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.65rem; font-weight: 900;" title="${s.label}">${perc > 10 ? s.label : ''}</div>` : '';
+            }).join('')}
+          </div>
+          <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 15px;">
+            ${categoryStats.map((s, i) => `<div style="display: flex; align-items: center; gap: 8px;"><span style="width:12px; height:12px; border-radius:3px; background:${colors[i % colors.length]}"></span><span style="font-size:0.75rem; font-weight:800;">${s.label}: ${s.stok.toLocaleString('id-ID')}</span></div>`).join('')}
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px;">
             <div class="dashboard-card" style="background: white; padding: 30px; border-radius: 24px; border: 1px solid #e0eadd; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-              <h4 style="margin: 0 0 30px; font-weight: 1200; font-size: 1rem; text-transform: uppercase; color: #14280a; text-align: center;"> ANALISIS PEMASUKAN PER KATEGORI</h4>
+              <h4 style="margin: 0 0 30px; font-weight: 1200; font-size: 1rem; text-transform: uppercase; color: #14280a; text-align: center;">💰 ANALISIS PEMASUKAN PER KATEGORI</h4>
               <div style="display: flex; flex-direction: column; gap: 15px;">
                 ${salesStats.map((s, i) => {
                   const perc = totalDanaMasukGlobal > 0 ? ((s.nilai / totalDanaMasukGlobal) * 100).toFixed(1) : 0;
                   return `
                     <div style="display: flex; align-items: center; gap: 15px;">
-                      <div style="width: 100px; font-size: 0.7rem; font-weight: 900; color: #4a5568; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.label}</div>
+                      <div style="width: 100px; font-size: 0.7rem; font-weight: 900; color: #4a5568;">${s.label}</div>
                       <div style="flex-grow: 1; background: #edf2f7; height: 16px; border-radius: 8px; overflow: hidden;">
                         <div style="width: ${perc}%; height: 100%; background: ${colors[i % colors.length]}; transition: width 1s;"></div>
                       </div>
@@ -156,7 +154,6 @@ class HomePresenter {
 
             <div id="productionStatsContainer" class="dashboard-card" style="background: white; padding: 30px; border-radius: 24px; border: 1px solid #e0eadd; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center; justify-content: center;">
             </div>
-
         </div>
 
         <div class="dashboard-card" style="background: white; border-radius: 24px; border: 1px solid #e0eadd; overflow: hidden; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
@@ -225,47 +222,59 @@ class HomePresenter {
       </div>
     `;
   }
-
+  
   _renderProductionStats() {
     const container = document.getElementById('productionStatsContainer');
     if (!container) return;
-
-    const { ayam, bebek } = this.summaryData.eggEfficiency;
+    const stats = this._calculateEggEfficiency();
+    
+    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    const dateLabel = this.viewDate.toLocaleDateString('id-ID', options).toUpperCase();
 
     container.innerHTML = `
-        <h4 style="margin: 0 0 25px; font-weight: 1200; font-size: 1rem; text-transform: uppercase; color: #14280a; text-align: center;">📈 ANALISA PRODUKSI TELUR HARIAN</h4>
-        <div style="width: 100%; display: flex; flex-direction: column; gap: 25px;">
-            <div style="background: #f9fbf9; padding: 15px; border-radius: 15px; border: 1px solid #eef2ed;">
-                <div style="display:flex; justify-content: space-between; font-size: 0.75rem; font-weight: 900; margin-bottom: 10px; color: #41644A;">
-                    <span>AYAM PETELUR</span>
-                    <span>${ayam.persen}%</span>
+        <h4 style="margin: 0 0 15px; font-weight: 1200; font-size: 0.9rem; text-transform: uppercase; color: #14280a; text-align: center;">📈 MONITOR PRODUKTIVITAS TELUR</h4>
+        
+        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; background: #f0f4f0; padding: 10px; border-radius: 12px;">
+            <button type="button" id="prevDateEgg" style="background: #6CA651; color: white; border: none; padding: 5px 12px; border-radius: 8px; cursor: pointer; font-weight: 900; font-size: 0.7rem;">&laquo; PREV</button>
+            <span style="font-weight: 900; font-size: 0.75rem; color: #14280a; min-width: 150px; text-align: center;">${dateLabel}</span>
+            <button type="button" id="nextDateEgg" style="background: #6CA651; color: white; border: none; padding: 5px 12px; border-radius: 8px; cursor: pointer; font-weight: 900; font-size: 0.7rem;">NEXT &raquo;</button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #f9fbf9; padding: 15px; border-radius: 18px; border: 1px solid #eef2ed;">
+                <div>
+                    <span style="display:block; font-size:0.65rem; font-weight:900; color:#666; margin-bottom: 5px;">PANEN TANGGAL INI</span>
+                    <span style="font-size:1.6rem; font-weight:1200; color:#6CA651;">${stats.hasil} <small style="font-size:0.75rem; font-weight: 800;">BUTIR</small></span>
                 </div>
-                <div style="background: #edf2f7; height: 22px; border-radius: 11px; overflow: hidden; position: relative; border: 1px solid #e2e8f0;">
-                    <div style="width: ${ayam.persen}%; height: 100%; background: #6CA651; transition: width 1s;"></div>
-                    <span style="position: absolute; width: 100%; text-align: center; top: 0; font-size: 0.7rem; line-height: 20px; color: #14280a; font-weight: 1200;">
-                        ${ayam.hasil} / ${ayam.populasi} BUTIR
-                    </span>
+                <div style="text-align:right;">
+                    <span style="display:block; font-size:0.65rem; font-weight:900; color:#666; margin-bottom: 5px;">KAPASITAS TOTAL</span>
+                    <span style="font-size:1.6rem; font-weight:1200; color:#14280a;">${stats.deret} <small style="font-size:0.75rem; font-weight: 800;">BARIS</small></span>
                 </div>
             </div>
-
-            <div style="background: #f9fbf9; padding: 15px; border-radius: 15px; border: 1px solid #eef2ed;">
-                <div style="display:flex; justify-content: space-between; font-size: 0.75rem; font-weight: 900; margin-bottom: 10px; color: #2980b9;">
-                    <span>BEBEK PETELUR</span>
-                    <span>${bebek.persen}%</span>
-                </div>
-                <div style="background: #edf2f7; height: 22px; border-radius: 11px; overflow: hidden; position: relative; border: 1px solid #e2e8f0;">
-                    <div style="width: ${bebek.persen}%; height: 100%; background: #3498db; transition: width 1s;"></div>
-                    <span style="position: absolute; width: 100%; text-align: center; top: 0; font-size: 0.7rem; line-height: 20px; color: #14280a; font-weight: 1200;">
-                        ${bebek.hasil} / ${bebek.populasi} BUTIR
-                    </span>
+            <div style="background: #6CA651; padding: 25px; border-radius: 25px; color: white; text-align: center; box-shadow: 0 10px 25px rgba(108,166,81,0.25);">
+                <label style="font-size:0.7rem; font-weight:900; opacity:0.8; letter-spacing: 1px;">EFISIENSI PRODUKSI</label>
+                <div style="font-size:2.8rem; font-weight:1200; margin:5px 0;">${stats.persen}%</div>
+                <div style="font-size:0.75rem; font-weight:800; background:rgba(255,255,255,0.2); display:inline-block; padding:6px 16px; border-radius:12px; border: 1px solid rgba(255,255,255,0.3);">
+                    TARGET IDEAL: ${stats.target} BUTIR
                 </div>
             </div>
         </div>
-        <div style="margin-top: 20px; padding: 10px; background: #fffdf0; border: 1px dashed #f1c40f; border-radius: 10px; font-size: 0.65rem; color: #7f8c8d; font-weight: 700; text-align: center;">
-            RUMUS: (HASIL PANEN / TOTAL POPULASI) x 100%
+        <div style="margin-top: 20px; font-size: 0.6rem; color: #999; text-align: center; font-weight: 700;">
+            * TARGET: (5 Ekor x 15 Kotak x 10 Baris) = 750 Indukan
         </div>
     `;
-  }
+
+    document.getElementById('prevDateEgg').onclick = () => {
+        this.viewDate.setDate(this.viewDate.getDate() - 1);
+        this._renderProductionStats(); // Update box telur
+        this._renderOperationalTable(); // Update tabel harian biar sinkron
+    };
+    document.getElementById('nextDateEgg').onclick = () => {
+        this.viewDate.setDate(this.viewDate.getDate() + 1);
+        this._renderProductionStats();
+        this._renderOperationalTable();
+    };
+}
 
   _renderOperationalTable() {
     const tableBody = document.getElementById('opTableBodyHome');
@@ -320,18 +329,8 @@ class HomePresenter {
   _setupNavigationEvents() {
     const prev = document.getElementById('prevDateHome');
     const next = document.getElementById('nextDateHome');
-    if (prev) prev.onclick = () => { 
-        this.viewDate.setDate(this.viewDate.getDate() - 1); 
-        this._processInitialStats(); // Re-calculate efficiency for new date
-        this._renderOperationalTable(); 
-        this._renderProductionStats();
-    };
-    if (next) next.onclick = () => { 
-        this.viewDate.setDate(this.viewDate.getDate() + 1); 
-        this._processInitialStats();
-        this._renderOperationalTable(); 
-        this._renderProductionStats();
-    };
+    if (prev) prev.onclick = () => { this.viewDate.setDate(this.viewDate.getDate() - 1); this._renderOperationalTable(); this._renderProductionStats(); };
+    if (next) next.onclick = () => { this.viewDate.setDate(this.viewDate.getDate() + 1); this._renderOperationalTable(); this._renderProductionStats(); };
   }
 
   _bindTableButtons() {
@@ -342,7 +341,7 @@ class HomePresenter {
         const details = JSON.parse(detail);
         const isKambing = hewan.toLowerCase().includes('kambing');
         document.getElementById('modalTitleText').innerHTML = `<span style="font-size: 0.7rem; font-weight: 1000; letter-spacing: 1px;">DETAIL ${hewan.toUpperCase()} SAKIT ⚠️</span>`;
-        document.getElementById('modalNote').innerHTML = `<div style="overflow-x:auto; border-radius:12px; border:2px solid #000; margin-top:5px;"><table class="pop-table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="padding:10px; border:2px solid #000; font-size:0.75rem;">Nomor Kandang</th><th style="padding:10px; border:2px solid #000; font-size:0.75rem;">${isKambing ? 'ID KAMBING' : 'AYAM'}</th><th style="padding:10px; border:2px solid #000; font-size:0.75rem;">GEJALA</th>${isKambing ? '<th style="padding:10px; border:2px solid #000; font-size:0.75rem;">PEMULIHAN</th><th style="padding:10px; border:2px solid #000; font-size:0.75rem;">KARANTINA</th>' : '<th style="padding:10px; border:2px solid #000; font-size:0.75rem;">OBAT</th>'}</tr></thead><tbody style="text-align:center;">${details.map(d => `<tr><td style="padding:10px; border:2px solid #000; font-weight:900;">${d.kandang}</td><td style="padding:10px; border:2px solid #000;">${d.noKambing || d.ayam || '-'}</td><td style="padding:10px; border:2px solid #000; text-align:left;">${d.penyakit}</td><td style="padding:10px; border:2px solid #000; text-align:left;">${d.recovery || d.pemulihan || d.obat || '-'}</td>${isKambing ? `<td style="padding:10px; border:2px solid #000; font-weight:bold; color:${d.karantina === 'YA' ? '#c53030' : '#2d4a36'}">${d.karantina || 'TIDAK'}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+        document.getElementById('modalNote').innerHTML = `<div style="overflow-x:auto; border-radius:12px; border:2px solid #000; margin-top:5px;"><table class="pop-table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="padding:10px; border:2px solid #000; font-size:0.75rem;">NO. KDG</th><th style="padding:10px; border:2px solid #000; font-size:0.75rem;">ID</th><th style="padding:10px; border:2px solid #000; font-size:0.75rem;">GEJALA</th>${isKambing ? '<th style="padding:10px; border:2px solid #000; font-size:0.75rem;">PEMULIHAN</th>' : '<th style="padding:10px; border:2px solid #000; font-size:0.75rem;">OBAT</th>'}</tr></thead><tbody style="text-align:center;">${details.map(d => `<tr><td style="padding:10px; border:2px solid #000;">${d.kandang}</td><td style="padding:10px; border:2px solid #000;">${d.noKambing || d.ayam || '-'}</td><td style="padding:10px; border:2px solid #000;">${d.penyakit}</td><td style="padding:10px; border:2px solid #000;">${d.recovery || d.obat || '-'}</td></tr>`).join('')}</tbody></table></div>`;
         document.getElementById('statusModal').style.display = 'flex';
       };
     });
@@ -350,10 +349,9 @@ class HomePresenter {
     this.container.querySelectorAll('.btn-pop-layak').forEach(btn => {
       btn.onclick = () => {
         const { status, problems } = btn.dataset;
-        if (status === 'LAYAK') return alert("Kandang Aman!");
+        if (status === 'LAYAK') return alert("Aman!");
         const details = JSON.parse(problems);
-        document.getElementById('modalTitleText').innerHTML = `<span style="font-size: 0.8rem; font-weight: 1200; letter-spacing: 1px;">DETAIL MASALAH KELAYAKAN ⚠️</span>`;
-        document.getElementById('modalNote').innerHTML = `<table class="pop-table" style="width:100%; border-collapse:collapse; border:2.5px solid #000;"><thead><tr><th style="padding:10px; border:2.5px solid #000;">KDG</th><th style="padding:10px; border:2.5px solid #000;">RINCIAN MASALAH & BUKTI</th></tr></thead><tbody>${details.map(p => `<tr><td style="padding:10px; border:2.5px solid #000; font-weight:900;">${p.kandang}</td><td style="padding:10px; border:2.5px solid #000; text-align:left;"><div style="margin-bottom:10px; font-weight:800;">${p.note || '-'}</div>${p.photo ? `<img src="${p.photo}" style="width:100%; border-radius:12px; border:2.5px solid #000; display:block;">` : ''}</td></tr>`).join('')}</tbody></table>`;
+        document.getElementById('modalNote').innerHTML = `<table style="width:100%; border:2px solid #000;">${details.map(p => `<tr><td>${p.kandang}</td><td>${p.note}</td></tr>`).join('')}</table>`;
         document.getElementById('statusModal').style.display = 'flex';
       };
     });
@@ -361,16 +359,15 @@ class HomePresenter {
     this.container.querySelectorAll('.btn-pop-task').forEach(btn => {
       btn.onclick = () => {
         const tasks = JSON.parse(btn.dataset.tasks);
-        document.getElementById('taskListContent').innerHTML = `<div style="overflow-x:auto; border-radius:12px; border:2.5px solid #000; margin-top:5px;"><table class="pop-table" style="width:100%; border-collapse:collapse;"><thead style="background:#6CA651; color:white;"><tr><th style="padding:12px; border:2.5px solid #000;">STATUS</th><th style="padding:12px; border:2.5px solid #000;">TUGAS OPERASIONAL</th><th style="padding:12px; border:2.5px solid #000;">HASIL</th></tr></thead><tbody style="text-align:center;">${tasks.map(t => `<tr><td style="padding:12px; border:2.5px solid #000; font-size:1.2rem;">${t.status ? '✅' : '❌'}</td><td style="padding:12px; border:2.5px solid #000; text-align:left; font-weight: 700;">${t.name}</td><td style="padding:12px; border:2.5px solid #000; font-weight:900; color:#41644A;">${t.val || '-'} ${t.unit || ''}</td></tr>`).join('')}</tbody></table></div>`;
+        document.getElementById('taskListContent').innerHTML = `<table style="width:100%;">${tasks.map(t => `<tr><td>${t.status?'✅':'❌'}</td><td>${t.name}</td><td>${t.val}</td></tr>`).join('')}</table>`;
         document.getElementById('taskModal').style.display = 'flex';
       };
     });
 
     this.container.querySelectorAll('.btn-pop-inv-category').forEach(btn => {
       btn.onclick = () => {
-        const catName = btn.dataset.catname;
         const products = JSON.parse(btn.dataset.products);
-        document.getElementById('modalNote').innerHTML = `<div style="text-align:center;"><h3 style="font-weight:1200; margin-bottom:15px; color:#41644A;">DAFTAR PRODUK: ${catName.toUpperCase()}</h3><div style="background:#f9fbf9; border-radius:20px; border:1px solid #eef2ed; overflow:hidden;"><table style="width:100%; border-collapse:collapse; font-size:0.85rem;"><thead style="background:#eef2ed;"><tr style="text-align:center;"><th style="padding:12px;">NAMA</th><th style="padding:12px;">STOK</th><th style="padding:12px;">STATUS</th></tr></thead><tbody style="text-align:center;">${products.map(p => `<tr style="border-bottom:1px solid #eee; background:white;"><td style="padding:12px; text-align:left; font-weight:700;">${p.nama}</td><td style="padding:12px; font-weight:900;">${p.stok}</td><td style="padding:12px;"><span style="font-size:0.7rem; font-weight:900; color:${p.aktif ? '#2ecc71' : '#e74c3c'}">${p.aktif ? '● AKTIF' : '● OFF'}</span></td></tr>`).join('')}</tbody></table></div></div>`;
+        document.getElementById('modalNote').innerHTML = `<div style="padding:20px;">${products.map(p => `<div>${p.nama}: ${p.stok}</div>`).join('')}</div>`;
         document.getElementById('statusModal').style.display = 'flex';
       };
     });
@@ -384,14 +381,11 @@ class HomePresenter {
   }
 
   _createSummaryItem(label, value, color) {
-    return `<div style="background: ${color}; padding: 25px; border-radius: 20px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align:center;">
-              <label style="font-size: 0.75rem; font-weight: 800; opacity: 0.9; text-transform: uppercase;">${label}</label>
-              <h3 style="font-size: 1.5rem; margin: 10px 0 0; font-weight: 1200;">${value}</h3>
-            </div>`;
+    return `<div style="background: ${color}; padding: 25px; border-radius: 20px; color: white; text-align:center;"><label style="font-size: 0.75rem; font-weight: 800; opacity: 0.9;">${label}</label><h3 style="font-size: 1.5rem; margin: 10px 0 0; font-weight: 1200;">${value}</h3></div>`;
   }
 
   _renderError() {
-    this.container.innerHTML = `<div style="padding:60px; text-align:center;"><h3 style="color:#c53030; font-weight:1200;">⚠️ DATABASE ERROR</h3><button onclick="location.reload()" style="margin-top:20px; padding:15px 35px; background:#41644A; color:white; border:none; border-radius:15px; cursor:pointer; font-weight:1200;">RELOAD DASHBOARD</button></div>`;
+    this.container.innerHTML = `<div style="padding:60px; text-align:center;"><h3 style="color:#c53030;">⚠️ DATABASE ERROR</h3><button onclick="location.reload()">RELOAD</button></div>`;
   }
 }
 

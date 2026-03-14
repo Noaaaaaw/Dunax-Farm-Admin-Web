@@ -216,7 +216,7 @@ const BibitBaru = {
             </tr>
             <tr style="background: #41644A; color: white; font-weight: 900;">
                 <td colspan="9" style="padding: 18px; text-align: center; border: 3px solid white; font-size: 0.9rem; letter-spacing: 1px;">
-                    TOTAL KESELURUHAN PENGADAAN : &nbsp; Rp ${grandTotal.toLocaleString('id-ID')}
+                    TOTAL KESELURUHAN ASSET : &nbsp; Rp ${grandTotal.toLocaleString('id-ID')}
                 </td>
             </tr>
         `;

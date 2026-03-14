@@ -8,7 +8,7 @@ class LaporanPresenter {
     this.viewDate = new Date(); 
     this.allData = []; 
     this.tempPanenData = []; 
-    this.MAX_KANDANG_PER_SESI = 9;
+    this.MAX_KANDANG_PER_SESI = 10;
     this.MAX_TELUR_PER_HARI = 5; 
   }
 
@@ -22,18 +22,14 @@ class LaporanPresenter {
     this.btnSubmit = document.getElementById('btnSubmit');
     this.dateDisplay = document.getElementById('currentDateDisplay');
 
-    // --- LOGIKA OTOMATISASI KATEGORI ---
-    const hash = window.location.hash; // Ambil misal: #/laporan-harian-sapi
-    let animalIdFromUrl = hash.split('-').pop(); // Ambil kata terakhir: 'sapi'
+    const hash = window.location.hash;
+    let animalIdFromUrl = hash.split('-').pop();
     
-    // Handle khusus jika URL-nya 'kandang' (untuk Ayam sesuai logika navigasi lu)
     if (animalIdFromUrl === 'kandang') {
         animalIdFromUrl = 'ayam';
     }
 
     await this._loadCategories(animalIdFromUrl);
-    // -----------------------------------
-
     await this._fetchReportHistory(); 
 
     const currentHour = new Date().getHours();
@@ -58,28 +54,21 @@ class LaporanPresenter {
         const currentAnimal = r.data.find(cat => cat.id.toLowerCase() === selectedId.toLowerCase());
         
         if (currentAnimal) {
-  // 1. Set nama hewan dan kunci dropdown
   this.hewanSelect.innerHTML = `<option value="${currentAnimal.nama}" selected>${currentAnimal.nama.toUpperCase()}</option>`;
   this.hewanSelect.disabled = true; 
-
-  // 2. Hilangkan simbol panah (Dropdown Arrow)
-  this.hewanSelect.style.appearance = "none";          // Standar modern
-  this.hewanSelect.style.webkitAppearance = "none";    // Untuk Chrome/Safari
-  this.hewanSelect.style.mozAppearance = "none";       // Untuk Firefox
-
-  // 3. Styling agar tampilan elegan dan tidak bisa diklik
-  this.hewanSelect.style.background = "#f0f0f0";       // Warna abu terang tanda terkunci
-  this.hewanSelect.style.cursor = "not-allowed";       // Kursor tanda dilarang
-  this.hewanSelect.style.textAlign = "center";         // Teks rata tengah
-  this.hewanSelect.style.fontWeight = "900";           // Tebalkan teks seperti di gambar
-  this.hewanSelect.style.color = "#555";               // Warna teks agak gelap agar kontras
-  this.hewanSelect.style.paddingRight = "10px";        // Reset padding karena panah sudah hilang
+  this.hewanSelect.style.appearance = "none";          
+  this.hewanSelect.style.webkitAppearance = "none";    
+  this.hewanSelect.style.mozAppearance = "none";       
+  this.hewanSelect.style.background = "#f0f0f0";      
+  this.hewanSelect.style.cursor = "not-allowed";       
+  this.hewanSelect.style.textAlign = "center";         
+  this.hewanSelect.style.fontWeight = "900";           
+  this.hewanSelect.style.color = "#555";             
+  this.hewanSelect.style.paddingRight = "10px";       
 } else {
-  // Fallback jika tidak ketemu (tetap ada panah karena ini mode milih manual)
   this.hewanSelect.innerHTML = '<option value="">-- Pilih --</option>' + 
     r.data.map(cat => `<option value="${cat.nama}">${cat.nama.toUpperCase()}</option>`).join('');
   
-  // Pastikan style dikembalikan ke default jika masuk ke mode fallback
   this.hewanSelect.disabled = false;
   this.hewanSelect.style.appearance = "auto";
   this.hewanSelect.style.background = "white";
@@ -97,24 +86,13 @@ class LaporanPresenter {
       if (result.status === 'success') {
         this.allData = result.data; 
         const todayStr = new Date().toLocaleDateString('id-ID');
-        
-        // Ambil laporan hari ini
         const todayReports = this.allData.filter(item => 
             new Date(item.tanggal_jam).toLocaleDateString('id-ID') === todayStr
         );
-
-        // LOGIKA BARU: Ambil hanya data terbaru per nomor deret agar tidak double count
-        const uniqueLatestReports = {};
-        todayReports.forEach(rep => {
-            uniqueLatestReports[rep.deret_kandang] = rep;
-        });
-
-        const finalTodayData = Object.values(uniqueLatestReports);
-        const pagiReps = finalTodayData.filter(r => r.sesi === 'PAGI');
-        const soreReps = finalTodayData.filter(r => r.sesi === 'SORE');
-        
-        this.progress.PAGI = pagiReps.length;
-        this.progress.SORE = soreReps.length;
+        const pagiReps = todayReports.filter(r => r.sesi === 'PAGI');
+        const soreReps = todayReports.filter(r => r.sesi === 'SORE');
+        this.progress.PAGI = pagiReps.length > 0 ? Math.max(...pagiReps.map(r => parseInt(r.deret_kandang))) : 0;
+        this.progress.SORE = soreReps.length > 0 ? Math.max(...soreReps.map(r => parseInt(r.deret_kandang))) : 0;
       }
     } catch (err) { console.error("Gagal sinkron cloud:", err); }
   }
@@ -149,10 +127,16 @@ class LaporanPresenter {
       const session = this.sessionSelect.value;
       const lastProcessed = this.progress[session];
 
-      if (session === 'PAGI' && lastProcessed >= 9) {
-        alert("SESI PAGI SELESAI (SUDAH 9 DERET)! SILAHKAN LANJUT KE SESI SORE");
+      if (session === 'PAGI' && lastProcessed >= 10) {
+        alert("SESI PAGI SELESAI (SUDAH 10 DERET)! SILAHKAN LANJUT KE SESI SORE");
         this.sessionSelect.value = 'SORE';
         this._renderTaskTable('SORE');
+        e.target.value = "";
+        return;
+      }
+
+      if (session === 'SORE' && lastProcessed >= 10) {
+        alert("SEMUA TUGAS HARI INI TELAH SELESAI! ✅");
         e.target.value = "";
         return;
       }
@@ -260,17 +244,26 @@ class LaporanPresenter {
     const panenEntries = document.getElementById('panenEntries');
     panenEntries.innerHTML = '';
 
+    const todayStr = new Date().toLocaleDateString('id-ID');
+    const todayData = this.allData.filter(d => new Date(d.tanggal_jam).toLocaleDateString('id-ID') === todayStr);
+
     for (let i = start; i <= end; i++) {
+        let sudahPanen = 0;
+        todayData.forEach(rep => {
+            const task = rep.pekerjaan_data.find(t => t.name.toLowerCase().includes('panen telur'));
+            if (task && task.detailPanen) {
+                const kandangInfo = task.detailPanen.find(p => parseInt(p.noKandang) === i);
+                if (kandangInfo) sudahPanen += parseFloat(kandangInfo.jumlah);
+            }
+        });
+        const sisaQuota = Math.max(0, this.MAX_TELUR_PER_HARI - sudahPanen);
         const div = document.createElement('div');
         div.className = 'panen-row';
-        div.style = "display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background: #f9f9f9; padding: 10px; border-radius: 12px; border: 1px solid #eee;";
+        div.style = "display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background: #f9f9f9; padding: 10px; border-radius: 10px;";
         div.innerHTML = `
-            <input type="text" class="p-no-kandang" value="${i}" readonly style="width: 60px; padding:10px; border-radius:8px; border:none; font-weight:900; text-align:center; background:#e2e8f0;">
-            <div style="flex:1;">
-                <label style="display:block; font-size:0.6rem; font-weight:900; color:#6CA651; margin-bottom:2px;">HASIL PANEN TELUR (BUTIR)</label>
-                <input type="number" class="p-jumlah" placeholder="0" style="width: 100%; padding:10px; border-radius:8px; border:1px solid #6CA651; font-weight:700; text-align:center;">
-                <input type="hidden" class="p-ayam-count" value="15">
-            </div>
+            <input type="text" class="p-no-kandang" value="${i}" readonly style="width: 60px; padding:10px; border-radius:8px; border:1px solid #ddd; font-weight:900; text-align:center; background:#eee;">
+            <input type="number" class="p-jumlah" step="0.1" data-quota="${sisaQuota}" placeholder="Butir" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd; font-weight:700;">
+            <span style="font-size:0.6rem; color:#888; width:40px;">SISA:${sisaQuota}</span>
         `;
         panenEntries.appendChild(div);
     }
@@ -341,7 +334,6 @@ class LaporanPresenter {
     const kelayakanType = this.form.querySelector('.status-kandang-select')?.value || 'STANDAR';
     let problemList = [];
 
-    // 1. Ambil Data Masalah Kandang (Jika Ada)
     for (const row of this.form.querySelectorAll('.problem-entry-row')) {
         const kandangNo = row.querySelector('.problem-kandang-no')?.value;
         const note = row.querySelector('.kandang-note')?.value;
@@ -357,54 +349,44 @@ class LaporanPresenter {
         if (kandangNo || note) problemList.push({ kandang: kandangNo || '-', note: note || '-', photo: photoData });
     }
 
-    // Validasi: Jika pilih TIDAK STANDAR, wajib isi minimal 1 masalah
     if (kelayakanType === 'TIDAK_STANDAR' && problemList.length === 0) {
-        alert('⚠️ Kandang TIDAK STANDAR wajib diisi minimal 1 masalah!');
+        alert('Kandang TIDAK STANDAR wajib diisi minimal 1 masalah!');
         return;
     }
-    
-    // 2. Ambil Data Kesehatan (Ayam Sakit)
+
     const healthStatus = this.form.querySelector('.health-status-select')?.value || 'SEHAT';
     let healthDetail = [];
     this.form.querySelectorAll('.health-entry-card').forEach(card => {
         healthDetail.push({
             kandang: card.querySelector('.disease-kandang')?.value || '-',
-            ayam: card.querySelector('.disease-ayam')?.value || '-', // Ini Tag Nomor Ayam
+            ayam: card.querySelector('.disease-ayam')?.value || '-',
             penyakit: card.querySelector('.disease-name')?.value || '-',
             kantina: card.querySelector('.is-quarantine')?.value || 'TIDAK',
             pemulihan: card.querySelector('.recovery-step')?.value || '-'
         });
     });
 
-    // 3. Ambil List Tugas & Sinkronisasi Populasi
     const pekerjaan = this._getTaskList();
     const totalPanen = this.tempPanenData.reduce((s, p) => s + p.jumlah, 0);
 
-    // --- LOGIKA KRITIKAL: SINKRONISASI DATA AYAM 15 EKOR KE DATABASE ---
     pekerjaan.forEach(task => {
         if (task.name.includes('Panen Telur')) {
-            // Kita masukkan tempPanenData yang isinya sudah ada {noKandang, jumlah, ayam: 15}
-            task.detailPanen = this.tempPanenData; 
+            task.detailPanen = this.tempPanenData;
             task.val = totalPanen;
         }
     });
 
-    // 4. Susun Payload Akhir
     const payload = {
         hewan: this.hewanSelect.value,
         deret: kandang,
         sesi: session,
         kesehatan: { status: healthStatus, detail: healthDetail },
-        kelayakan: { 
-            status: kelayakanType === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK', 
-            problems: problemList 
-        },
+        kelayakan: { status: kelayakanType === 'STANDAR' ? 'LAYAK' : 'TIDAK LAYAK', problems: problemList },
         pekerjaan,
         petugas: user.nama,
         total_panen: totalPanen
     };
 
-    // 5. Kirim ke Backend
     const response = await fetch(`${CONFIG.BASE_URL}/api/laporan/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -412,29 +394,20 @@ class LaporanPresenter {
     });
 
     const result = await response.json();
-
     if (result.status === 'success') {
         alert('Laporan Berhasil Disimpan! ☁️');
-        
-        // Reset Semua UI Form
         this.form.reset();
         document.getElementById('problemListContainer').innerHTML = ""; 
         this.form.querySelector('.alert-row').style.display = 'none'; 
         this.stepSesi.style.display = 'none';
         this.tempPanenData = [];
-        
         const btnPanen = document.querySelector('.btn-open-panen');
         if (btnPanen) {
             btnPanen.innerText = "+ INPUT PANEN";
             btnPanen.style.background = "#6CA651";
         }
-
-        // REFRESH HALAMAN agar stok aktif di dashboard terupdate otomatis
-        location.reload(); 
-    } else {
-        alert('Gagal menyimpan laporan. Cek koneksi!');
     }
-}
+  }
 
   _getTaskList() {
     let taskList = [];
@@ -455,17 +428,13 @@ class LaporanPresenter {
     const kelayakan = data.kelayakan_data || { status: 'LAYAK', problems: [] };
     const pekerjaan = data.pekerjaan_data || [];
     const panenTask = pekerjaan.find(t => t.name.includes('Panen Telur'));
-    const populasiTampil = (panenTask?.detailPanen && panenTask.detailPanen.length > 0) 
-                      ? (parseInt(panenTask.detailPanen[0].ayam) || 15) 
-                      : 15;                     
     const totalButir = panenTask ? parseFloat(panenTask.val) : 0;
-    const panenColor = totalButir > 0 ? { bg: '#eef2ed', text: '#2d4a36', label: `${totalButir} Btr` } : { bg: '#fff5f5', text: '#c53030', label: 'TIDAK PANEN' };
+    const panenColor = totalButir > 0 ? { bg: '#eef2ed', text: '#2d4a36', label: `${totalButir}` } : { bg: '#fff5f5', text: '#c53030', label: 'TIDAK PANEN' };
 
     const newRow = `
       <tr style="border-bottom: 1px solid #eee; text-align: center;">
         <td style="padding: 15px;">${time} WIB</td>
         <td style="padding: 15px; font-weight:700;">${data.hewan}</td>
-        <td style="padding: 15px; font-weight:900; color:#41644A;">${populasiTampil} EKOR</td> 
         <td style="padding: 15px;">Deret ${data.deret_kandang}</td>
         <td style="padding: 15px;">${data.sesi}</td>
         <td style="padding: 15px;"><button type="button" class="btn-panen-pop" data-detail='${JSON.stringify(panenTask?.detailPanen || []).replace(/'/g,"&apos;")}' style="padding: 5px 12px; border-radius: 8px; border: none; font-weight: 800; cursor: pointer; background: ${panenColor.bg}; color: ${panenColor.text};">${panenColor.label}</button></td>

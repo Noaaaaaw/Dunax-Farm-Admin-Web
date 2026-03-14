@@ -9,33 +9,61 @@ const Ayam = {
           <h2 id="displayCategoryName" style="margin: 10px 0 0; color: #1f3326; font-weight: 900; text-transform: uppercase; font-size: 1.5rem;">LOADING...</h2>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
-            <div class="dashboard-card" style="background: #fff; padding: 25px; border-radius: 24px; border: 1px solid #eef2ed; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
-                <h3 style="margin:0; font-weight:900; color:#41644A; font-size:0.9rem;">POPULASI (DARI LAPORAN)</h3>
-                <div id="totalPopulasiLap" style="font-size:3rem; font-weight:1200; color:#2c3e50;">0</div>
-                <div style="font-weight:900; color:#41644A; font-size:0.8rem;">EKOR TERDATA</div>
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="dashboard-card" style="background: #fff; padding: 20px; border-radius: 24px; border: 1px solid #eef2ed; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+                    <h3 style="margin:0; font-weight:900; color:#41644A; font-size:0.75rem;">TOTAL POPULASI</h3>
+                    <div id="totalPopulasiLap" style="font-size:2.5rem; font-weight:1200; color:#2c3e50;">0</div>
+                    <div style="font-weight:900; color:#41644A; font-size:0.65rem;">EKOR TERDATA</div>
+                </div>
+                <div class="dashboard-card" style="background: #ebfaf0; padding: 20px; border-radius: 24px; border: 1px solid #c3e6cb; text-align: center;">
+                    <h3 style="margin:0; font-weight:900; color:#2d572c; font-size:0.75rem;">KONDISI SEHAT</h3>
+                    <div id="totalSehat" style="font-size:2.5rem; font-weight:1200; color:#27ae60;">0</div>
+                    <div style="font-weight:900; color:#2d572c; font-size:0.65rem;">EKOR</div>
+                </div>
+                <div class="dashboard-card" style="background: #fff9eb; padding: 20px; border-radius: 24px; border: 1px solid #fceab8; text-align: center;">
+                    <h3 style="margin:0; font-weight:900; color:#96691d; font-size:0.75rem;">KONDISI SAKIT</h3>
+                    <div id="totalSakit" style="font-size:2.5rem; font-weight:1200; color:#d4a017;">0</div>
+                    <button id="btnShowSickDetail" style="margin-top:5px; background:#d4a017; color:white; border:none; padding:5px 10px; border-radius:8px; font-weight:900; cursor:pointer; font-size:0.6rem;">DETAIL</button>
+                </div>
+                <div class="dashboard-card" style="background: #fff5f5; padding: 20px; border-radius: 24px; border: 1px solid #feb2b2; text-align: center;">
+                    <h3 style="margin:0; font-weight:900; color:#c53030; font-size:0.75rem;">TOTAL MATI</h3>
+                    <div id="totalMati" style="font-size:2.5rem; font-weight:1200; color:#e74c3c;">0</div>
+                    <div style="font-weight:900; color:#c53030; font-size:0.65rem;">EKOR</div>
+                </div>
             </div>
-            <div class="dashboard-card" style="background: #ebfaf0; padding: 25px; border-radius: 24px; border: 1px solid #c3e6cb; text-align: center;">
-                <h3 style="margin:0; font-weight:900; color:#2d572c; font-size:0.9rem;">KONDISI SEHAT</h3>
-                <div id="totalSehat" style="font-size:3rem; font-weight:1200; color:#27ae60;">0</div>
-                <div style="font-weight:900; color:#2d572c; font-size:0.8rem;">EKOR</div>
-            </div>
-            <div class="dashboard-card" style="background: #fff5f5; padding: 25px; border-radius: 24px; border: 1px solid #feb2b2; text-align: center;">
-                <h3 style="margin:0; font-weight:900; color:#c53030; font-size:0.9rem;">KONDISI SAKIT</h3>
-                <div id="totalSakit" style="font-size:3rem; font-weight:1200; color:#e74c3c;">0</div>
-                <button id="btnShowSickDetail" style="margin-top:10px; background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:10px; font-weight:900; cursor:pointer; font-size:0.7rem;">LIHAT DETAIL SAKIT ⚠️</button>
+
+            <div class="dashboard-card" style="background: white; padding: 25px; border-radius: 24px; border: 1px solid #e0eadd; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+                <h3 style="margin:0 0 15px; font-weight:900; color:#1f3326; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;">Persentase Kondisi Ayam</h3>
+                <div style="position: relative; height:200px; width:200px;">
+                    <canvas id="healthChart"></canvas>
+                </div>
+                <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 10px; font-size: 0.75rem; font-weight: 800;">
+                        <span style="width: 12px; height: 12px; border-radius: 3px; background: #27ae60;"></span>
+                        <span style="color: #444;">HIJAU: SEHAT</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; font-size: 0.75rem; font-weight: 800;">
+                        <span style="width: 12px; height: 12px; border-radius: 3px; background: #f1c40f;"></span>
+                        <span style="color: #444;">KUNING: SAKIT</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; font-size: 0.75rem; font-weight: 800;">
+                        <span style="width: 12px; height: 12px; border-radius: 3px; background: #e74c3c;"></span>
+                        <span style="color: #444;">MERAH: MATI</span>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="main-content-card" style="background: white; padding: 40px; border-radius: 35px; border: 1px solid #e0eadd; box-shadow: 0 15px 35px rgba(0,0,0,0.05);">
-            <h3 style="text-align:center; font-weight:1200; color:#41644A; margin-bottom:25px; text-transform:uppercase;">UPDATE PEMBAGIAN STOK MANUAL</h3>
+            <h3 style="text-align:center; font-weight:1200; color:#41644A; margin-bottom:25px; text-transform:uppercase;">KLASIFIKASI JENIS AYAM</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; background:#f9fbf9; padding:25px; border-radius:24px; border:1px solid #eef2ed;">
                 <div class="form-group">
-                    <label style="display: block; font-weight: 900; color: #41644A; margin-bottom: 10px; text-align: center; font-size: 0.8rem;">SET STOK JANTAN AKTIF</label>
+                    <label style="display: block; font-weight: 900; color: #41644A; margin-bottom: 10px; text-align: center; font-size: 0.8rem;">JUMLAH AYAM PEJANTAN</label>
                     <input type="number" id="manualJantan" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #ddd; text-align: center; font-weight: 900; font-size: 1.5rem;">
                 </div>
                 <div class="form-group">
-                    <label style="display: block; font-weight: 900; color: #41644A; margin-bottom: 10px; text-align: center; font-size: 0.8rem;">SET STOK PETELUR AKTIF</label>
+                    <label style="display: block; font-weight: 900; color: #41644A; margin-bottom: 10px; text-align: center; font-size: 0.8rem;">JUMLAH AYAM PETELUR</label>
                     <input type="number" id="manualPetelur" value="0" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #ddd; text-align: center; font-weight: 900; font-size: 1.5rem;">
                 </div>
             </div>
@@ -76,8 +104,8 @@ const Ayam = {
         </div>
 
         <div id="sickDetailModal" style="display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:20px;">
-            <div style="background:white; width:95%; max-width:800px; border-radius:30px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.3); animation: zoomIn 0.3s ease;">
-                <div style="background:#e74c3c; padding:20px; color:white; display:flex; justify-content:space-between; align-items:center;">
+            <div style="background:white; width:95%; max-width:850px; border-radius:30px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.3); animation: zoomIn 0.3s ease;">
+                <div style="background:#d4a017; padding:20px; color:white; display:flex; justify-content:space-between; align-items:center;">
                     <h3 style="margin:0; font-weight:1200; text-transform:uppercase; letter-spacing:1px;">Histori Kesehatan Ayam</h3>
                     <span id="closeModal" style="font-size:2rem; cursor:pointer; line-height:1;">&times;</span>
                 </div>
@@ -91,6 +119,8 @@ const Ayam = {
         #modalContent table { width:100%; border-collapse:collapse; font-size:0.8rem; }
         #modalContent th { background:#f1f5f9; padding:12px; border:1px solid #e2e8f0; text-align:center; color:#475569; font-weight:900; }
         #modalContent td { padding:12px; border:1px solid #e2e8f0; color:#1e293b; font-weight:600; text-align:center; }
+        .btn-action-pulih { background:#27ae60; color:white; border:none; padding:6px 10px; border-radius:8px; font-weight:900; cursor:pointer; font-size:0.7rem; }
+        .btn-action-mati { background:#c53030; color:white; border:none; padding:6px 10px; border-radius:8px; font-weight:900; cursor:pointer; font-size:0.7rem; }
       </style>
     `;
   },
@@ -112,6 +142,42 @@ const Ayam = {
 
     let stocks = { pejantan: 0, petelur: 0 };
     let sickHistory = [];
+
+    this.myChart = null;
+    const updateChart = (sehat, sakit, mati) => {
+        const ctx = document.getElementById('healthChart').getContext('2d');
+        if (this.myChart) this.myChart.destroy();
+        const total = sehat + sakit + mati;
+        this.myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Sehat', 'Sakit', 'Mati'],
+                datasets: [{
+                    data: [sehat, sakit, mati],
+                    backgroundColor: ['#27ae60', '#f1c40f', '#e74c3c'],
+                    borderWidth: 0,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.raw;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${context.label}: ${value} Ekor (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '70%',
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    };
 
     const refreshLogic = () => {
       const remJ = stocks.pejantan - (parseInt(sellPejantan.value) || 0);
@@ -138,32 +204,66 @@ const Ayam = {
           refreshLogic(); 
       },
       onHealthReady: (h) => {
-          const tpl = document.getElementById('totalPopulasiLap');
-          const tse = document.getElementById('totalSehat');
-          const tsa = document.getElementById('totalSakit');
-          // UPDATE UI POPULASI
-          if (tpl) tpl.innerText = h.totalPopulasi.toLocaleString();
-          if (tse) tse.innerText = h.sehat.toLocaleString();
-          if (tsa) tsa.innerText = h.sakit.toLocaleString();
+          document.getElementById('totalPopulasiLap').innerText = h.totalPopulasi.toLocaleString();
+          document.getElementById('totalSehat').innerText = h.sehat.toLocaleString();
+          document.getElementById('totalSakit').innerText = h.sakit.toLocaleString();
+          document.getElementById('totalMati').innerText = h.mati.toLocaleString();
           sickHistory = h.sickDetails;
+          setTimeout(() => updateChart(h.sehat, h.sakit, h.mati), 100);
       }
     });
 
     btnShowSick.onclick = () => {
         if (sickHistory.length === 0) return alert("Tidak ada ayam sakit!");
-        let tableHtml = `<table><thead><tr><th>NOMOR KANDANG</th><th>NOMOR AYAM</th><th>PENYAKIT</th><th>PEMULIHAN</th><th>KARANTINA</th></tr></thead><tbody>`;
-        sickHistory.forEach(item => {
-            tableHtml += `<tr>
-                <td style="font-weight:900;">NOMOR ${item.kandang}</td>
-                <td style="background:#fff5f5; color:#e74c3c; font-weight:900;">ID-${item.ayam}</td>
-                <td style="text-align:center;">${item.penyakit}</td>
-                <td style="text-align:center; font-style:italic;">${item.pemulihan || '-'}</td>
-                <td style="color:${item.kantina === 'YA' ? '#e74c3c' : '#27ae60'}; font-weight:900;">${item.kantina || 'TIDAK'}</td>
-            </tr>`;
+        let tableHtml = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>NO. KANDANG</th>
+                        <th>ID AYAM</th>
+                        <th>PENYAKIT</th>
+                        <th>PEMULIHAN</th>
+                        <th>HASIL</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        sickHistory.forEach((item) => {
+            tableHtml += `
+                <tr>
+                    <td style="font-weight:900;">NOMOR ${item.kandang}</td>
+                    <td style="background:#fff9eb; color:#96691d; font-weight:900;">ID-${item.ayam}</td>
+                    <td style="text-align:center;">${item.penyakit}</td>
+                    <td style="text-align:center; font-style:italic;">${item.pemulihan || '-'}</td>
+                    <td>
+                        <div style="display:flex; gap:5px; justify-content:center;">
+                            <button class="btn-action-pulih" data-id="${item.reportId}" data-idx="${item.originalIndex}" data-ayam="${item.ayam}">PULIH</button>
+                            <button class="btn-action-mati" data-id="${item.reportId}" data-idx="${item.originalIndex}" data-ayam="${item.ayam}">MATI</button>
+                        </div>
+                    </td>
+                </tr>`;
         });
         tableHtml += `</tbody></table>`;
         if (modalContent) modalContent.innerHTML = tableHtml;
         if (sickModal) sickModal.style.display = 'flex';
+
+        // Bind aksi tombol
+        modalContent.querySelectorAll('.btn-action-pulih').forEach(btn => {
+            btn.onclick = async () => {
+                if(confirm(`Konfirmasi Ayam ${btn.dataset.ayam} sudah SEHAT?`)) {
+                    const res = await presenter.updateStatusAyam(btn.dataset.id, btn.dataset.idx, 'PULIH');
+                    if(res.status === 'success') { alert("Berhasil!"); location.reload(); }
+                }
+            };
+        });
+
+        modalContent.querySelectorAll('.btn-action-mati').forEach(btn => {
+            btn.onclick = async () => {
+                if(confirm(`Konfirmasi Ayam ${btn.dataset.ayam} MATI? Populasi akan berkurang.`)) {
+                    const res = await presenter.updateStatusAyam(btn.dataset.id, btn.dataset.idx, 'MATI');
+                    if(res.status === 'success') { alert("Data Mati Disimpan!"); location.reload(); }
+                }
+            };
+        });
     };
 
     if (closeModal) closeModal.onclick = () => sickModal.style.display = 'none';
@@ -192,4 +292,5 @@ const Ayam = {
     await presenter.init();
   }
 };
+
 export default Ayam;
